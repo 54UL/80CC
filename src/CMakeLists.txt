@@ -1,11 +1,17 @@
-cmake_minimum_required(VERSION 3.10)
-project(MyGameEngine)
+cmake_minimum_required(VERSION 3.15)
+project(80CC_ENGINE_AND_GAME)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Set the vcpkg root directory and the tripplet
+set(VCPKG_ROOT "/workspaces/vcpkg" CACHE STRING "")
+set(VCPKG_TARGET_TRIPLET "x64-linux" CACHE STRING "")
+set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+
+# Include the vcpkg toolchain file
+if(CMAKE_TOOLCHAIN_FILE)
+    message("VCPKG READY... TOOLCHAIN FILE PATH [${CMAKE_TOOLCHAIN_FILE}]")
+endif()
 
 # Add subdirectories
-add_subdirectory(core)
-add_subdirectory(entry)
-add_subdirectory(game)
+add_subdirectory(Core)
+add_subdirectory(Entry)
+add_subdirectory(Game)
