@@ -8,7 +8,8 @@ int main(int argc, char** argv)
 {
     std::unique_ptr<etycc::App> app = std::make_unique<etycc::SDL2App>();
 
-    app->Init(argc, argv);
+    if (app->Init(argc, argv))
+        return 1;
 
     return app->Exec();
 }

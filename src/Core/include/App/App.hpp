@@ -6,7 +6,7 @@ namespace etycc
     class App
     {
     public:
-        virtual void Init(int argc, char **argv) = 0;
+        virtual int Init(int argc, char **argv) = 0;
         virtual int Exec() = 0;
     };
 }

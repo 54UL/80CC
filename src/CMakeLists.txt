@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(80CC_ENGINE_AND_GAME)
+# set(CMAKE_CXX_COMPILER, "g++")
 
 # Set the vcpkg root directory and the tripplet
 set(VCPKG_ROOT "/workspaces/vcpkg" CACHE STRING "")

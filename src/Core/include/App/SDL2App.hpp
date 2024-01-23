@@ -4,7 +4,9 @@
 
 #include <stdint.h>
 #include <80CC.hpp>
+#include <GL/glew.h>
 #include <SDL.h>
+#include <SDL_opengl.h>
 
 namespace etycc
 {
@@ -18,7 +20,7 @@ namespace etycc
         SDL2App(/* args */);
         ~SDL2App();
 
-        void Init(int argc, char **argv) override;
+        int Init(int argc, char **argv) override;
         int Exec() override;
     };
 }

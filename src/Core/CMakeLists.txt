@@ -16,7 +16,11 @@ set(80CC_CORE_SOURCES
 # PACKAGES...
 find_package(spdlog CONFIG REQUIRED)
 find_package(SDL2 REQUIRED)
+find_package(GLEW REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+
+# Include GLEW headers
+include_directories(${GLEW_INCLUDE_DIRS})
 
 # find_package(bgfx CONFIG REQUIRED)
 # ADD THE CORE LIBRARY 
@@ -32,7 +36,5 @@ target_link_libraries(80CC_CORE
     PRIVATE ${SDL2_LIBRARIES}
     PRIVATE spdlog::spdlog
     PRIVATE imgui::imgui
-    # PRIVATE BGFX
-    # PRIVATE Box2D
-    # PRIVATE enet
+    PRIVATE GLEW::GLEW
 )
