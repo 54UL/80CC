@@ -10,12 +10,4 @@ public:
     ~SceneManager();
 };
 
-SceneManager::SceneManager(/* args */)
-{
-}
-
-SceneManager::~SceneManager()
-{
-}
-
 #endif
