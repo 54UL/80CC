@@ -8,6 +8,10 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
+
+#include <Graphics\Rendering\Entities\Sprite.hpp>
+
+
 namespace etycc
 {
     class SDL2App : public App
@@ -56,7 +60,12 @@ namespace etycc
         
     private:
         static int EventCallback(void * data);
+
+        void AppInput();
+        // TODO: INIT EVENT THREAD IS NOT USED ANYMORE
         void InitEventThread();
+        void OpenGLInit();
+        void PrepareFrame();
     };
 }
 

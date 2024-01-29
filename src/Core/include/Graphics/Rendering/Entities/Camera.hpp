@@ -12,6 +12,7 @@ public:
 
 	Camera();
 	~Camera();
+	
 	glm::mat4 GetProyectionMatrix();
     void SetOrtho(int ScreenXSz,int ScreenYSz);
     void SetPrespective(int ScreenXSz, int ScreenYSz, float FOV, float Znear);

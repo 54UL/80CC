@@ -8,13 +8,21 @@ set(80CC_CORE_HEADERS
     include/App/SDL2App.hpp
     include/Graphics/Rendering/Rendering.hpp
     include/Graphics/Rendering/Entities/Camera.hpp
-    include/Graphics/Rendering/Entities/Mesh.hpp
+    include/Graphics/Rendering/Entities/Sprite.hpp
     include/Graphics/Shading/Shader.hpp
+    include/Graphics/Shading/ShaderPipeline.hpp
 )
 
 set(80CC_CORE_SOURCES
     src/80CC.cpp
     src/App/SDL2App.cpp
+    src/80CC.cpp
+    src/App/SDL2App.cpp
+    src/Graphics/Rendering.cpp
+    src/Graphics/Rendering/Entities/Camera.cpp
+    src/Graphics/Rendering/Entities/Sprite.cpp
+    src/Graphics/Rendering/Shading/Shader.cpp
+    src/Graphics/Rendering/Shading/ShaderPipeline.cpp
 )
 
 # PACKAGES...

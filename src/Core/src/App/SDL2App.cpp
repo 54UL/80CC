@@ -6,7 +6,7 @@
 
 namespace etycc
 {
-    SDL2App::SDL2App(/* args */)
+    SDL2App::SDL2App(/* args */):runningStatus_(true)
     {
     }
 
@@ -25,7 +25,7 @@ namespace etycc
         }
 
         // Create SDL window and OpenGL context
-        window_ = SDL_CreateWindow("80CC[engine][unknown game name]", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+        window_ = SDL_CreateWindow("80CC", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
         if (!window_)
         {
             // Handle window creation error
@@ -36,7 +36,7 @@ namespace etycc
         // Set OpenGL attributes
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_EGL);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
         // Create OpenGL context and make it the current context
         glContext_ = SDL_GL_CreateContext(window_);
@@ -66,7 +66,7 @@ namespace etycc
         }
 
         // Check if OpenGL 4.0 is supported
-        if (!GLEW_VERSION_4_1)
+        if (!GLEW_VERSION_3_3)
         {
             // Handle lack of OpenGL 4.0 support
             spdlog::error("OpenGL 3.3 not supported");
@@ -76,17 +76,30 @@ namespace etycc
             return 1;
         }
 
+        OpenGLInit();
+
         // Initialize event thread to handle window input
         this->InitEventThread();
 
         return 0;
     }
 
+    void SDL2App::OpenGLInit(){
+        glClearColor(0.2f, 0.3f, 0.4f, 1.0f);
+    }
+
+    void SDL2App::PrepareFrame()
+    {
+        glClear(GL_COLOR_BUFFER_BIT);
+    } 
+
     // WARNING: MAIN ENTRY POINT (TECHNICALLY)
     int SDL2App::Exec()
     {
         while (this->IsRunning())
         {
+            AppInput();
+            PrepareFrame();
             // rendering code...
             // here goes all rendering callbacks...
             SDL_GL_SwapWindow(window_);
@@ -99,7 +112,6 @@ namespace etycc
         // Cleanup
         int eventThreadReturnValue;
         SDL_WaitThread(eventThread_, &eventThreadReturnValue);
-        // MNE_Log("Event thread returned:%i\n",eventThreadReturnValue);
 
         // Destroy the mutex
         SDL_DestroyMutex(eventMutex_);
@@ -126,9 +138,6 @@ namespace etycc
 
     int SDL2App::EventCallback(void *instance)
     {
-        if (instance == nullptr)
-            return 0;
-
         SDL2App *appInstance = static_cast<SDL2App *>(instance);
 
         SDL_Event event;
@@ -145,6 +154,7 @@ namespace etycc
                 case SDL_KEYDOWN:
                     // Handle Key Down Event
                     // handleKeyDownEvent(event.key.keysym.sym);
+                    std::cout << "keydown:" << event.key.keysym.sym << "\n";
                     break;
 
                 case SDL_KEYUP:
@@ -192,26 +202,72 @@ namespace etycc
                     // handleJoystickHatMotionEvent(event.jhat.which, event.jhat.hat, event.jhat.value);
                     break;
 
-                default:
+                    // case SDL_WINDOWEVENT:
+                    //     switch (event.window.event)
+                    //     {
+                    //     case SDL_WINDOWEVENT_RESIZED:
+                    //         // handleWindowResizedEvent(event.window.data1, event.window.data2);
+                    //         break;
+                    //     default:
+                    //         break;
+                    //     }
 
-                case SDL_WINDOWEVENT:
-                    switch (event.window.event)
-                    {
-                    case SDL_WINDOWEVENT_RESIZED:
-                        // handleWindowResizedEvent(event.window.data1, event.window.data2);
-                        break;
-                    default:
-                        break;
-                    }
-
-                    break;
+                    //     break;
                 }
             }
+            SDL_Delay(1);
         }
-
-        return 1;
+        return 0;
     }
 
+    void SDL2App::AppInput()
+    {
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
+            case SDL_QUIT:
+                SetRunningStatus(0);
+                return;
+
+            case SDL_KEYDOWN:
+                // Handle Key Down Event
+                // handleKeyDownEvent(event.key.keysym.sym);
+                std::cout << "keydown:" << event.key.keysym.sym << "\n";
+                break;
+
+            case SDL_KEYUP:
+                // Handle Key Up Event
+                // handleKeyUpEvent(event.key.keysym.sym);
+                break;
+
+            case SDL_MOUSEBUTTONDOWN:
+                // Handle Mouse Button Down Event
+                // handleMouseButtonDownEvent(event.button.button, event.button.x, event.button.y);
+                break;
+
+            case SDL_MOUSEBUTTONUP:
+                // Handle Mouse Button Up Event
+                // handleMouseButtonUpEvent(event.button.button, event.button.x, event.button.y);
+                break;
+
+            case SDL_MOUSEMOTION:
+                // Handle Mouse Motion Event
+                // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
+                break;
+
+            case SDL_MOUSEWHEEL:
+                // Handle Mouse Wheel Event
+                // handleMouseWheelEvent(event.wheel.x, event.wheel.y);
+                break;
+            }
+        }
+        SDL_Delay(1);
+        
+    }
+
+    // TODO: INIT EVENT THREAD IS NOT USED ANYMORE
     void SDL2App::InitEventThread()
     {
         // Create a thread for event handling

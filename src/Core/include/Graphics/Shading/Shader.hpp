@@ -2,8 +2,8 @@
 #define RENDERING_SHADER_HPP
 
 // rendering.cpp
-#include "rendering.hpp"
 #include <fstream>
+#include <gl/GL.h>
 
 namespace etycc
 {
@@ -13,10 +13,11 @@ namespace etycc
         std::string sourceCode_;
         GLenum type_;
         GLuint shaderId_ = 0;
+
     public:
         Shader(const std::string& sourceCode, GLenum type);
         ~Shader();
-
+        // SHADER API
         GLuint GetShaderId() const;
     private:
         void Compile();

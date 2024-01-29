@@ -1,5 +1,4 @@
 
-#include "Rendering.hpp"
 #include <Graphics/Rendering.hpp>
 
 namespace ettycc
@@ -12,14 +11,11 @@ namespace ettycc
     {
     }
 
-    void Rendering::Pass()
-    {
-    }
 
     void Rendering::InitBackend()
     {
     }
-    void Rendering::CompileShaders()
+    void Rendering::Pass()
     {
     }
 }
