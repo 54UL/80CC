@@ -15,9 +15,9 @@ endif()
 add_subdirectory(Core)
 
 # Add subdirectories
-if(TESTER_RUN)
+if(DEFAULT_ENTRY)
     add_subdirectory(Entry)
     add_subdirectory(Game)
 else()
-    # add_subdirectory(Testers)  
+    add_subdirectory(Testers)  
 endif()

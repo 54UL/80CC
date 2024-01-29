@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include <80CC.hpp>
-// #include <GL/glew.h>
+#include <GL/glew.h>
 #include <SDL.h>
 #include <SDL_opengl.h>
 

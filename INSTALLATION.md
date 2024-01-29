@@ -10,7 +10,9 @@
 ./vcpkg install spdlog
 ./vcpkg install sdl2
 ./vcpkg install glew
+./vcpkg install freeglut
 ./vcpkg install imgui
+./vcpkg install bullet3
 
 # installs
 sudo ubuntu-drivers autoinstall

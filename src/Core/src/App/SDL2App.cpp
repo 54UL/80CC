@@ -55,26 +55,26 @@ namespace etycc
         }
 
         // Initialize GLEW
-        // GLenum glewError = glewInit();
-        // if (glewError != GLEW_OK) {
-        //     const char* glewErrorString = reinterpret_cast<const char*>(glewGetErrorString(glewError));
-        //     std::cerr << "Error initializing GLEW: " << glewGetErrorString(glewError) << std::endl;
-        //     SDL_GL_DeleteContext(glContext_);
-        //     SDL_DestroyWindow(window_);
-        //     SDL_Quit();
-        //     return 1;
-        // }
+        GLenum glewError = glewInit();
+        if (glewError != GLEW_OK) {
+            const char* glewErrorString = reinterpret_cast<const char*>(glewGetErrorString(glewError));
+            std::cerr << "Error initializing GLEW: " << glewGetErrorString(glewError) << std::endl;
+            SDL_GL_DeleteContext(glContext_);
+            SDL_DestroyWindow(window_);
+            SDL_Quit();
+            return 1;
+        }
 
         // Check if OpenGL 4.0 is supported
-        // if (!GLEW_VERSION_4_1)
-        // {
-        //     // Handle lack of OpenGL 4.0 support
-        //     spdlog::error("OpenGL 3.3 not supported");
-        //     SDL_GL_DeleteContext(glContext_);
-        //     SDL_DestroyWindow(window_);
-        //     SDL_Quit();
-        //     return 1;
-        // }
+        if (!GLEW_VERSION_4_1)
+        {
+            // Handle lack of OpenGL 4.0 support
+            spdlog::error("OpenGL 3.3 not supported");
+            SDL_GL_DeleteContext(glContext_);
+            SDL_DestroyWindow(window_);
+            SDL_Quit();
+            return 1;
+        }
 
         // Initialize event thread to handle window input
         this->InitEventThread();

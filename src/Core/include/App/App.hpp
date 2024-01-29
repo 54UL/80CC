@@ -15,7 +15,7 @@ namespace etycc
     public:
         virtual int Init(int argc, char **argv) = 0;
         virtual int Exec() = 0;
-        virtual int AddEventListener();// TODO MAKE IT PURE
+        // virtual int AddEventListener();// TODO MAKE IT PURE
     };
 }
 

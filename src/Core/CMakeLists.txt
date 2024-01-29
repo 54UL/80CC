@@ -9,7 +9,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Rendering/Rendering.hpp
     include/Graphics/Rendering/Entities/Camera.hpp
     include/Graphics/Rendering/Entities/Mesh.hpp
-    include/Graphics/Rendering/Shading/Shader.hpp
+    include/Graphics/Shading/Shader.hpp
 )
 
 set(80CC_CORE_SOURCES
@@ -21,8 +21,8 @@ set(80CC_CORE_SOURCES
 find_package(spdlog CONFIG REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(glm CONFIG REQUIRED)
-# find_package(GLEW REQUIRED)
-# find_package(imgui CONFIG REQUIRED)
+find_package(GLEW REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 # Include GLEW headers
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -42,5 +42,7 @@ target_link_libraries(80CC_CORE
     PRIVATE spdlog::spdlog
     PRIVATE glm::glm
     # PRIVATE imgui::imgui
-    # PRIVATE GLEW::GLEW
+    PRIVATE GLEW::GLEW
+    # PRIVATE spdlog::spdlog_header_only
+    PRIVATE imgui::imgui
 )
