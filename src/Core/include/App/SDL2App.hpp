@@ -1,7 +1,7 @@
 #ifndef SDL_TINY_APP_H
 #define SDL_TINY_APP_H
 #include <App/App.hpp>
-
+#include <memory>
 #include <stdint.h>
 #include <80CC.hpp>
 #include <GL/glew.h>
@@ -14,6 +14,8 @@
 #include <Graphics/Rendering.hpp>
 #include <Graphics/Rendering/Entities/Camera.hpp>
 #include <Graphics/Rendering/Entities/Sprite.hpp>
+#include <Input/Controls/GhostCamera.hpp>
+
 #include <Input/PlayerInput.hpp>
 // #include <Input/Controls/GhostCamera.hpp>
 
@@ -32,7 +34,7 @@ namespace ettycc
         // DEPENDENCIES:
         Rendering renderEngine_;
         PlayerInput inputSystem_;
-        // std::shared_ptr<GhostCamera> ghostCamera_;
+        std::shared_ptr<GhostCamera> ghostCamera_;
 
     public:
          SDL2App();
@@ -46,12 +48,10 @@ namespace ettycc
         SDL_GLContext* GetGLContext();
 
     private:
-        static int EventCallback(void * data);
         void AppInput();
         void SetRunningStatus(bool running);
         bool IsRunning();
         // TODO: INIT EVENT THREAD IS NOT USED ANYMORE
-        void InitEventThread();
         
         // App execution pipeline
         void AppLogic();

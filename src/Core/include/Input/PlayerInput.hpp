@@ -11,7 +11,7 @@ namespace ettycc
         JOYSTICK,
         TOUCH
     };
-    enum class InputDirection  {UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3};
+    enum class InputDirection  {UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3, NONE = 4};
     enum class InputDataOffsets : uint64_t
     {
         KEY = 0,
@@ -36,7 +36,7 @@ namespace ettycc
         PlayerInput();
         ~PlayerInput();
 
-        void ProcessInput(PlayerInputType type, const uint64_t *data);
+        void ProcessInput(PlayerInputType type, uint64_t *data);
 
         // INPUT API...
         glm::vec2 GetLeftAxis(); // WASD OR ARROWS...

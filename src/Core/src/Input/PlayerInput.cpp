@@ -11,10 +11,10 @@ namespace ettycc
     {
     }
 
-    void PlayerInput::ProcessInput(PlayerInputType type, const uint64_t *data)
+    void PlayerInput::ProcessInput(PlayerInputType type, uint64_t *data)
     {
-        InputDirection currentDir;
-        const char* WASDKeyCodes = "WASD";
+        InputDirection currentDir = InputDirection::NONE;
+        const char* WASDKeyCodes = "wasd";
 
         switch (type)
         {

@@ -52,15 +52,15 @@ namespace ettycc {
 
     // Renderable
 
-    void Camera::SetTransform(const Transform &trans)
-    {
-        this->underylingTransform = trans;
-    } 
+    // void Camera::SetTransform(const Transform &trans)
+    // {
+    //     this->underylingTransform = trans;
+    // } 
     
-    Transform Camera::GetTransform()
-    {
-        return this->underylingTransform;
-    }
+    // Transform Camera::GetTransform()
+    // {
+    //     return this->underylingTransform;
+    // }
 
     void Camera::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {

@@ -73,10 +73,11 @@ namespace ettycc
             layout (location = 1) in vec2 aTexCoord;
 
             out vec2 TexCoord;
+            uniform  mat4 PVM; 
 
             void main()
             {
-                gl_Position = vec4(aPos, 1.0);
+                gl_Position = PVM*vec4(aPos, 1.0);
                 TexCoord = aTexCoord;
             }
         )";
@@ -101,7 +102,7 @@ namespace ettycc
                 // Add a sine wave effect to the y-coordinate
                 float frequency = 5.0; // Adjust the frequency of the sine wave
                 float amplitude = 0.1; // Adjust the amplitude of the sine wave
-                float wave = amplitude * sin(2.0 * 3.14159 * frequency * TexCoord.x + time) + cos(1.0 * 3.14159 * frequency * TexCoord.y + time);
+                float wave = amplitude * sin(2.0 * 3.14159 * frequency * TexCoord.x + time) + cos(1 * 3.14159 * frequency * TexCoord.y + time);
 
                 // Apply the sine wave effect to the y-coordinate
                 vec2 distortedTexCoord = vec2(TexCoord.x, (1-TexCoord.y) + wave);
@@ -110,7 +111,8 @@ namespace ettycc
                 vec4 distortedColor = texture(ourTexture, distortedTexCoord);
 
                 // Blend the original and distorted colors
-                FragColor = mix(originalColor, distortedColor, 0.5);
+                // FragColor = mix(originalColor, distortedColor, 0.5);
+                FragColor = distortedColor;
             }
         )";
 

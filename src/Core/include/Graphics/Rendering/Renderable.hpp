@@ -16,7 +16,7 @@ namespace ettycc
         bool enabled;
     public:
         Renderable() {
-            
+           
         }
 
         ~Renderable(){

@@ -164,10 +164,11 @@ namespace ettycc
         SDL_GetWindowSize(window_, &width, &height);
         renderEngine_.SetScreenSize(width, height);
 
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(width,height,60,0.1f);
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(width,height,90,0.01f);
         std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
-
-        // ghostCamera_ = std::make_shared<GhostCamera>(renderEngine_, mainCamera);
+        mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0,0,-2));
+        //   mainCamera->underylingTransform.setGlobalRotation(glm::vec3(0,-90,0));
+        ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera);
 
         renderEngine_.AddRenderable(mainCamera);
         renderEngine_.AddRenderable(someSprite);
@@ -188,7 +189,7 @@ namespace ettycc
 
     void SDL2App::AppLogic() 
     {
-        // ghostCamera_->Update(0);
+        ghostCamera_->Update(0);
     }
 
     void SDL2App::Dispose()
@@ -225,100 +226,12 @@ namespace ettycc
         return this->runningStatus_;
     }
 
-    int SDL2App::EventCallback(void *instance)
-    {
-        SDL2App *appInstance = static_cast<SDL2App *>(instance);
-
-        SDL_Event event;
-        while (appInstance->IsRunning())
-        {
-            while (SDL_PollEvent(&event))
-            {
-                switch (event.type)
-                {
-                case SDL_QUIT:
-                    appInstance->SetRunningStatus(0);
-                    return 0;
-
-                case SDL_KEYDOWN:
-                    // Handle Key Down Event
-                    // handleKeyDownEvent(event.key.keysym.sym);
-                    std::cout << "keydown:" << event.key.keysym.sym << "\n";
-                    uint64_t data[1];
-                    
-                    data[0] = event.key.keysym.sym;
-                    // inputSystem_.ProcessInput(PlayerInputType::KEYBOARD, data);
-                    break;
-
-                case SDL_KEYUP:
-                    // Handle Key Up Event
-                    // handleKeyUpEvent(event.key.keysym.sym);
-                    break;
-
-                case SDL_MOUSEBUTTONDOWN:
-                    // Handle Mouse Button Down Event
-                    // handleMouseButtonDownEvent(event.button.button, event.button.x, event.button.y);
-                    break;
-
-                case SDL_MOUSEBUTTONUP:
-                    // Handle Mouse Button Up Event
-                    // handleMouseButtonUpEvent(event.button.button, event.button.x, event.button.y);
-                    break;
-
-                case SDL_MOUSEMOTION:
-                    // Handle Mouse Motion Event
-                    // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
-                    // const uint64_t data[] = {event.motion.x, event.motion.y};
-                    // inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
-
-                    break;
-
-                case SDL_MOUSEWHEEL:
-                    // Handle Mouse Wheel Event
-                    // handleMouseWheelEvent(event.wheel.x, event.wheel.y);
-                    break;
-
-                case SDL_JOYBUTTONDOWN:
-                    // Handle Joystick Button Down Event
-                    // handleJoystickButtonDownEvent(event.jbutton.which, event.jbutton.button);
-                    break;
-
-                case SDL_JOYBUTTONUP:
-                    // Handle Joystick Button Up Event
-                    // handleJoystickButtonUpEvent(event.jbutton.which, event.jbutton.button);
-                    break;
-
-                case SDL_JOYAXISMOTION:
-                    // Handle Joystick Axis Motion Event
-                    // handleJoystickAxisMotionEvent(event.jaxis.which, event.jaxis.axis, event.jaxis.value);
-                    break;
-
-                case SDL_JOYHATMOTION:
-                    // Handle Joystick Hat Motion Event
-                    // handleJoystickHatMotionEvent(event.jhat.which, event.jhat.hat, event.jhat.value);
-                    break;
-
-                    // case SDL_WINDOWEVENT:
-                    //     switch (event.window.event)
-                    //     {
-                    //     case SDL_WINDOWEVENT_RESIZED:
-                    //         // handleWindowResizedEvent(event.window.data1, event.window.data2);
-                    //         break;
-                    //     default:
-                    //         break;
-                    //     }
-
-                    //     break;
-                }
-            }
-            SDL_Delay(1);
-        }
-        return 0;
-    }
 
     void SDL2App::AppInput()
     {
         SDL_Event event;
+        uint64_t data[2];
+
         while (SDL_PollEvent(&event))
         {
             switch (event.type)
@@ -331,8 +244,19 @@ namespace ettycc
                 // Handle Key Down Event
                 // handleKeyDownEvent(event.key.keysym.sym);
                 std::cout << "keydown:" << event.key.keysym.sym << "\n";
+                data[0] = event.key.keysym.sym;
+                inputSystem_.ProcessInput(PlayerInputType::KEYBOARD, data);
                 break;
+            case SDL_MOUSEMOTION:
+                // Handle Mouse Motion Event
+                // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
+                data[0] = event.motion.xrel;
+                data[1] = event.motion.yrel;
+                std::cout << "xrel:" << event.motion.xrel<< " yrel:"<<event.motion.yrel <<"\n";
 
+                inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
+
+                break;
             case SDL_KEYUP:
                 // Handle Key Up Event
                 // handleKeyUpEvent(event.key.keysym.sym);
@@ -348,10 +272,6 @@ namespace ettycc
                 // handleMouseButtonUpEvent(event.button.button, event.button.x, event.button.y);
                 break;
 
-            case SDL_MOUSEMOTION:
-                // Handle Mouse Motion Event
-                // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
-                break;
 
             case SDL_MOUSEWHEEL:
                 // Handle Mouse Wheel Event
@@ -360,24 +280,6 @@ namespace ettycc
             }
         }
         SDL_Delay(1);
-    }
-
-    // TODO: INIT EVENT THREAD IS NOT USED ANYMORE
-    void SDL2App::InitEventThread()
-    {
-        // Create a thread for event handling
-        eventThread_ = SDL_CreateThread(SDL2App::EventCallback, "EventThread", this);
-        if (eventThread_ == NULL)
-        {
-            // MNE_Log("Cannot create event thread....\n");
-        }
-
-        // Create a mutex
-        eventMutex_ = SDL_CreateMutex();
-        if (!eventMutex_)
-        {
-            std::cerr << "Failed to create mutex: " << SDL_GetError() << std::endl;
-        }
     }
 
     SDL_Window *SDL2App::GetMainWindow()

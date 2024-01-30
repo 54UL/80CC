@@ -15,7 +15,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Shading/Shader.hpp
     include/Graphics/Shading/ShaderPipeline.hpp
     include/Input/PlayerInput.hpp
-    # include/Input/Controls/GhostCamera.hpp
+    include/Input/Controls/GhostCamera.hpp
     external/imgui/backends/imgui_impl_sdl2.h
     external/imgui/backends/imgui_impl_opengl3.h
 )
@@ -33,7 +33,7 @@ set(80CC_CORE_SOURCES
     src/Graphics/Shading/Shader.cpp
     src/Graphics/Shading/ShaderPipeline.cpp
     src/Input/PlayerInput.cpp
-    # src/Input/Controls/GhostCamera.cpp
+    src/Input/Controls/GhostCamera.cpp
     external/imgui/backends/imgui_impl_sdl2.cpp
     external/imgui/backends/imgui_impl_opengl3.cpp
 )
@@ -66,8 +66,6 @@ target_link_libraries(80CC_CORE
     PRIVATE ${SDL2_LIBRARIES}
     PRIVATE spdlog::spdlog
     PRIVATE glm::glm
-    # PRIVATE imgui::imgui
     PRIVATE GLEW::GLEW
-    # PRIVATE spdlog::spdlog_header_only
     PRIVATE imgui::imgui
 )
