@@ -1,15 +1,27 @@
 #ifndef IRENDERABLE_HPP
 #define IRENDERABLE_HPP
 
-#include <glm/glm.h>
+#include <memory>
+#include <glm/glm.hpp>
 #include "RenderingContext.hpp"
+#include <Scene/Transform.hpp>
 
 namespace ettycc
 {
-    typedef struct
+    class Renderable
     {
-        uint64_t id;
+    public:
         Transform underylingTransform;
+        uint64_t id;
+        bool enabled;
+    public:
+        Renderable() {
+            
+        }
+
+        ~Renderable(){
+
+        }
 
         virtual void SetId(uint64_t Id)
         {
@@ -31,8 +43,11 @@ namespace ettycc
             return underylingTransform;
         }
 
-        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx) = 0;
-    } Renderable;
+        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx,float time)
+        {
+
+        }
+    };
 
 } // namespace ettycc
 

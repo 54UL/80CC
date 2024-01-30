@@ -14,7 +14,7 @@ namespace ettycc
     public:
         GhostCamera(const PlayerInput *input, std::shared_ptr<GhostCamera> camera);
         ~GhostCamera();
-        Update(float deltaTime);
+        void Update(float deltaTime);
     };
 }
 #endif

@@ -1,10 +1,11 @@
 // rendering.cpp
-#include "Rendering/shader.hpp"
-
+#include <Graphics/Shading/Shader.hpp>
 #include <fstream>
+#include <vector>
+#include <iostream>
 
 // TODO ADD TEXTURE HANDLING...
-namespace etycc
+namespace ettycc
 {
     Shader::Shader(const std::string &sourceCode, GLenum type) : sourceCode_(sourceCode), type_(type)
     {

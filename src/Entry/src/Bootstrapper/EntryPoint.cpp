@@ -4,9 +4,9 @@
 #include <memory>
 #include <iostream>
 
-int main(int argc, char** argv) 
+int main(int argc, char* argv[]) 
 {
-    std::unique_ptr<etycc::App> app = std::make_unique<etycc::SDL2App>();
+    std::unique_ptr<ettycc::App> app = std::make_unique<ettycc::SDL2App>();
 
     if (app->Init(argc, argv))
         return 1;

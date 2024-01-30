@@ -1,5 +1,8 @@
-#include "Mesh.hpp"
-#include "Sprite.hpp"
+
+#include <Graphics/Rendering/Entities/Sprite.hpp>
+#include <glm/gtc/type_ptr.hpp> 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 namespace ettycc
 {
@@ -56,12 +59,12 @@ namespace ettycc
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
         glDeleteBuffers(1, &EBO);
-        glDeleteTextures(1, &texture);
+        glDeleteTextures(1, &TEXTURE);
     }
 
     void Sprite::LoadShaders()
     {
-        std::vector<shared_ptr<Shader>> shadersIntances;
+        std::vector<std::shared_ptr<Shader>> shadersIntances;
 
         // Shader sources
         const char *vertexShaderSource = R"(
@@ -83,12 +86,31 @@ namespace ettycc
             out vec4 FragColor;
 
             in vec2 TexCoord;
+            uniform float time;
 
             uniform sampler2D ourTexture;
 
             void main()
             {
-                FragColor = texture(ourTexture, TexCoord);
+                // vec2 yFlipped = vec2(TexCoord.x, 1 - TexCoord.y);
+                // FragColor = texture(ourTexture, yFlipped);
+
+                // Get the original texture color
+                vec4 originalColor = texture(ourTexture, vec2(TexCoord.x,(1-TexCoord.y)));
+
+                // Add a sine wave effect to the y-coordinate
+                float frequency = 5.0; // Adjust the frequency of the sine wave
+                float amplitude = 0.1; // Adjust the amplitude of the sine wave
+                float wave = amplitude * sin(2.0 * 3.14159 * frequency * TexCoord.x + time) + cos(1.0 * 3.14159 * frequency * TexCoord.y + time);
+
+                // Apply the sine wave effect to the y-coordinate
+                vec2 distortedTexCoord = vec2(TexCoord.x, (1-TexCoord.y) + wave);
+
+                // Sample the texture with the distorted texture coordinates
+                vec4 distortedColor = texture(ourTexture, distortedTexCoord);
+
+                // Blend the original and distorted colors
+                FragColor = mix(originalColor, distortedColor, 0.5);
             }
         )";
 
@@ -102,45 +124,58 @@ namespace ettycc
     {
         // TODO MOVE BELOW THIS PICES OF CODE...
         // Load and create a texture
-        unsigned int texture;
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
 
-        // Set the texture wrapping parameters
+        glGenTextures(1, &TEXTURE);
+        glBindTexture(GL_TEXTURE_2D, TEXTURE);
+
+        // Set the texture parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-        // Set the texture filtering parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        // Load an image and generate the texture
-        // You can use any image loading library of your choice (e.g., stb_image)
-        // For simplicity, let's assume a 1x1 pixel texture with a red color
-        unsigned char pixel[] = {255, 0, 0};
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, pixel);
-        glGenerateMipmap(GL_TEXTURE_2D);
+        // load the image with stbi_load
+        int width, height, numChannels;
+        const char* imagePath = "D:/repos2/ALPHA_V1/assets/images/loona.jpg";// TODO: FETCH FROM AN MEMBER
+        unsigned char* image = stbi_load(imagePath, &width, &height, &numChannels, 0);
 
-         // Bind the shader program
+        // Pass the data to the gpu
+        if (image) {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            // Free the image data after generating the texture
+            stbi_image_free(image);
+        } else {
+            // Handle error loading the image
+            std::cerr << "Error loading image: " << stbi_failure_reason() << std::endl;
+        }
+
+        // Bind the shader program
         underlyingShader.Use();
 
-        // // Set the texture unit in the shader
-        glUniform1i(glGetUniformLocation(shader.getProgramId(), "ourTexture"), 0);
+        // Set the texture unit in the shader
+        glUniform1i(glGetUniformLocation(underlyingShader.GetProgramId(), "ourTexture"), 0);
+        // Unbind the texture
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // Renderable
-    void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx)
+    void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {
         // Bind the texture
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        glBindTexture(GL_TEXTURE_2D, TEXTURE);
 
         // Use the shader program and draw the quad
         underlyingShader.Use();
 
         // Multiply projection * view * model matrix to compute sprite rendering...
-        auto ProjectionViewMatrix = ctx->Projection * ctx->View *  underylingTransform->getMatrix();
-        glUniformMatrix4fv(glGetUniformLocation(shader.getProgramId(), "PVM"), ProjectionViewMatrix);
+        glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View *  underylingTransform.GetMatrix();
+        glUniformMatrix4fv(glGetUniformLocation(underlyingShader.GetProgramId(), "PVM"),1, GL_FALSE,  glm::value_ptr(ProjectionViewMatrix));
+
+        // Time is passed to the shader program
+        glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "time"), time);
 
         // Bind the rendering mesh
         glBindVertexArray(VAO);

@@ -8,7 +8,7 @@ KEYBOARD ABSTRACTION (RETURN KEYCODES)
 MOUSE ABSTRACTIONS
 */
 
-namespace etycc
+namespace ettycc
 {
     enum class AppEventType
     {

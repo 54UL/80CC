@@ -3,11 +3,11 @@
 #include <iostream>
 #include <functional>
 
-#include <imgui.h>
-#include <imgui_impl_sdl.h>
-#include <imgui_impl_opengl3.h>
+// #include <imgui.h>
+// #include <backends/imgui_impl_sdl2.h>
+// #include <backends/imgui_impl_opengl3.h>
 
-namespace etycc
+namespace ettycc
 {
     SDL2App::SDL2App(/* args */):runningStatus_(true)
     {
@@ -40,7 +40,7 @@ namespace etycc
 
         // Set OpenGL attributes
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_EGL);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
         // Create OpenGL context and make it the current context
@@ -97,64 +97,64 @@ namespace etycc
 		//glCullFace(GL_BACK);
         
         // Setup ImGui
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+        // IMGUI_CHECKVERSION();
+        // ImGui::CreateContext();
  
-        ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
-        ImGui_ImplOpenGL3_Init("#version 330 core");
+        // ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
+        // ImGui_ImplOpenGL3_Init("#version 330 core");
     }
 
     void SDL2App::PrepareFrame()
     {
         //Get io for imgui
-        ImGuiIO& io = ImGui::GetIO();
-        (void)io;
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable docking
+        // ImGuiIO& io = ImGui::GetIO();
+        // (void)io;
+        // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable docking
 
         // Start the ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL2_NewFrame(window_);
-        ImGui::NewFrame();
+        // ImGui_ImplOpenGL3_NewFrame();
+        // ImGui_ImplSDL2_NewFrame(window_);
+        // ImGui::NewFrame();
 
         // ImGui content goes here
         // Dockspace
-        ImGui::DockSpaceOverViewport();
+        // ImGui::DockSpaceOverViewport();
 
-        // Your dockable windows
-        if (ImGui::BeginDock("Dockable Window 1"))
-        {
-            // Content of the first dockable window
-            ImGui::Text("Hello, this is Dockable Window 1!");
-            ImGui::EndDock();
-        }
+        // // Your dockable windows
+        // if (ImGui::BeginDock("Dockable Window 1"))
+        // {
+        //     // Content of the first dockable window
+        //     ImGui::Text("Hello, this is Dockable Window 1!");
+        //     ImGui::EndDock();
+        // }
 
-        if (ImGui::BeginDock("Dockable Window 2"))
-        {
-            // Content of the second dockable window
-            ImGui::Text("Hello, this is Dockable Window 2!");
-            ImGui::EndDock();
-        }
+        // if (ImGui::BeginDock("Dockable Window 2"))
+        // {
+        //     // Content of the second dockable window
+        //     ImGui::Text("Hello, this is Dockable Window 2!");
+        //     ImGui::EndDock();
+        // }
         
         // Example: A simple window
-        ImGui::Begin("80CC has ImGui!");
-        ImGui::Text("This is a simple ImGui example, press to quit");
-        if (ImGui::Button("Quit")) {
-            this->SetRunningStatus(false);
-        }
-        ImGui::End();
+        // ImGui::Begin("80CC has ImGui!");
+        // ImGui::Text("This is a simple ImGui example, press to quit");
+        // if (ImGui::Button("Quit")) {
+        //     this->SetRunningStatus(false);
+        // }
+        // ImGui::End();
 
         // Clear renderer...
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    void PresentFrame()
+    void SDL2App::PresentFrame()
     {
         // User code rendering
         renderEngine_.Pass();
 
         // ImGui rendering
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        // ImGui::Render();
+        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window_);
     }
 
@@ -162,12 +162,12 @@ namespace etycc
     {
         int width, height;
         SDL_GetWindowSize(window_, &width, &height);
-        renderEngine_->SetScreenSize(width, height);
+        renderEngine_.SetScreenSize(width, height);
 
         std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(width,height,60,0.1f);
         std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
 
-        ghostCamera_ = std::make_shared<GhostCamera>(renderEngine_, mainCamera);
+        // ghostCamera_ = std::make_shared<GhostCamera>(renderEngine_, mainCamera);
 
         renderEngine_.AddRenderable(mainCamera);
         renderEngine_.AddRenderable(someSprite);
@@ -188,7 +188,7 @@ namespace etycc
 
     void SDL2App::AppLogic() 
     {
-        ghostCamera_->Update(0);
+        // ghostCamera_->Update(0);
     }
 
     void SDL2App::Dispose()
@@ -201,9 +201,9 @@ namespace etycc
         // SDL_DestroyMutex(eventMutex_);
 
         // Cleanup ImGui
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
+        // ImGui_ImplOpenGL3_Shutdown();
+        // ImGui_ImplSDL2_Shutdown();
+        // ImGui::DestroyContext();
 
         // Destroy gl and window...
         SDL_GL_DeleteContext(glContext_);
@@ -244,8 +244,10 @@ namespace etycc
                     // Handle Key Down Event
                     // handleKeyDownEvent(event.key.keysym.sym);
                     std::cout << "keydown:" << event.key.keysym.sym << "\n";
-                    const uint64_t data[] = {event.key.keysym.sym};
-                    inputSystem_.ProcessInput(PlayerInputType::KEYBOARD, data);
+                    uint64_t data[1];
+                    
+                    data[0] = event.key.keysym.sym;
+                    // inputSystem_.ProcessInput(PlayerInputType::KEYBOARD, data);
                     break;
 
                 case SDL_KEYUP:
@@ -266,8 +268,8 @@ namespace etycc
                 case SDL_MOUSEMOTION:
                     // Handle Mouse Motion Event
                     // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
-                    const uint64_t data[] = {event.motion.x, event.motion.y};
-                    inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
+                    // const uint64_t data[] = {event.motion.x, event.motion.y};
+                    // inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
 
                     break;
 

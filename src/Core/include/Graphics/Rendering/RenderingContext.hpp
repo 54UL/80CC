@@ -1,6 +1,6 @@
 #ifndef RENDERING_CONTEXT_HPP
 #define RENDERING_CONTEXT_HPP
-#include <glm/glm.h>
+#include <glm/glm.hpp>
 
 namespace ettycc
 {

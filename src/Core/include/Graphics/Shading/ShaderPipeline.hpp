@@ -1,12 +1,13 @@
 #ifndef RENDERING_SHADER_PIPELINE_HPP
 #define RENDERING_SHADER_PIPELINE_HPP
 
-#include "Shader.hpp"
+#include <Graphics/Shading/Shader.hpp>
+#include <iostream>
 #include <fstream>
 #include <vector>
 #include <memory>
 
-namespace etycc
+namespace ettycc
 {
     class ShaderPipeline
     {
@@ -15,6 +16,7 @@ namespace etycc
         std::vector<std::shared_ptr<Shader>> shaders_;
 
     public:
+        ShaderPipeline();
         ShaderPipeline(const std::vector<Shader>& shaders);
         ~ShaderPipeline();
         

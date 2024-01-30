@@ -3,9 +3,10 @@
 
 // rendering.cpp
 #include <fstream>
-#include <gl/GL.h>
+#include <GL/glew.h>
+#include <GL/gl.h>
 
-namespace etycc
+namespace ettycc
 {
     class Shader
     {

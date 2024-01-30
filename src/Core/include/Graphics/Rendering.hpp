@@ -1,13 +1,14 @@
 #ifndef RENDERING_HPP
 #define RENDERING_HPP
+#include <Graphics/Rendering/Renderable.hpp>
+#include <Graphics/Rendering/RenderingContext.hpp>
 
 #include <memory>
 #include <cstdint>
 #include <vector>
-#include "Renderable.hpp"
-#include "RenderingContext.hpp"
 
-namespace etycc
+
+namespace ettycc
 {
     class Rendering
     {

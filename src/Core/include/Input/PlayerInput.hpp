@@ -1,6 +1,6 @@
 #ifndef PLAYER_INPUT_HPP
 #define PLAYER_INPUT_HPP
-#include <glm/glm.h>
+#include <glm/glm.hpp>
 
 namespace ettycc
 {
@@ -11,8 +11,8 @@ namespace ettycc
         JOYSTICK,
         TOUCH
     };
-    enum class InputDirection = {UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3};
-    enum class InputDataOffsets
+    enum class InputDirection  {UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3};
+    enum class InputDataOffsets : uint64_t
     {
         KEY = 0,
         X = 0,
@@ -23,8 +23,7 @@ namespace ettycc
     class PlayerInput
     {
     public:
-        constexpr const uint8_t DIRECTION_KEY_COUNT = 4;
-        constexpr uint8_t WASDKeyCodes[DIRECTION_KEY_COUNT] = {'W', 'A', 'S', 'D'}; //TODO READ THIS FROM A FILE...
+         const uint8_t DIRECTION_KEY_COUNT = 4;
 
     private:
         glm::vec2 leftAxe;  // left hand control

@@ -14,6 +14,7 @@ namespace ettycc
     void PlayerInput::ProcessInput(PlayerInputType type, const uint64_t *data)
     {
         InputDirection currentDir;
+        const char* WASDKeyCodes = "WASD";
 
         switch (type)
         {
@@ -21,7 +22,7 @@ namespace ettycc
 
             for (uint8_t i = 0; i < DIRECTION_KEY_COUNT; i++)
             {
-                if (WASDKeyCodes[i] == data[InputDataOffsets::KEY])
+                if (WASDKeyCodes[i] == data[(uint64_t)InputDataOffsets::KEY])
                 {
                     currentDir = static_cast<InputDirection>(i);
                     break;
@@ -47,7 +48,7 @@ namespace ettycc
             break;
 
         case PlayerInputType::MOUSE:
-            rightAxe = glm::vec2(data[InputDataOffsets::X], data[InputDataOffsets::Y]);
+            rightAxe = glm::vec2(data[(int)InputDataOffsets::X], data[(int)InputDataOffsets::Y]);
             break;
 
         default:
@@ -56,12 +57,12 @@ namespace ettycc
         }
     }
 
-    vec2 PlayerInput::GetLeftAxis()
+    glm::vec2 PlayerInput::GetLeftAxis()
     {
         return leftAxe;
     }
 
-    vec2 PlayerInput::GetRightAxis()
+    glm::vec2 PlayerInput::GetRightAxis()
     {
         return rightAxe;
     }

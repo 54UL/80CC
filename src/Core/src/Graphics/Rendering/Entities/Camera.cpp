@@ -1,7 +1,8 @@
-#include "Camera.h"
-#include <gtc\matrix_transform.hpp>
-#include <glm.hpp>
-#include "Camera.hpp"
+
+#include <Graphics/Rendering/Entities/Camera.hpp>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/glm.hpp>
 
 namespace ettycc {
     Camera::Camera()
@@ -53,20 +54,20 @@ namespace ettycc {
 
     void Camera::SetTransform(const Transform &trans)
     {
-        this->underlyingTransform = trans;
+        this->underylingTransform = trans;
     } 
     
     Transform Camera::GetTransform()
     {
-        this->underlyingTransform;
+        return this->underylingTransform;
     }
 
-    void Camera::Pass(const std::shared_ptr<RenderingContext> &ctx)
+    void Camera::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {
         if (enabled)
         {
             ctx->Projection = this->ProjectionMatrix;
-            ctx->View = this->underlyingTransform->getMatrix();
+            ctx->View = this->underylingTransform.GetMatrix();
         }
     }
 }

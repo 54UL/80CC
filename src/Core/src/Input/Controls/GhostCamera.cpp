@@ -1,5 +1,5 @@
 #include <Input/Controls/GhostCamera.hpp>
-#include "GhostCamera.hpp"
+
 
 namespace ettycc
 {

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(80CC_ENGINE_AND_GAME)
+set(CMAKE_CXX_STANDARD 17)
+
 # set(CMAKE_CXX_COMPILER, "g++")
 set(DEFAULT_ENTRY ON)
 # Set the vcpkg root directory and the tripplet

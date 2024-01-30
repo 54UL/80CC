@@ -1,6 +1,5 @@
 
 #include <Graphics/Rendering.hpp>
-#include "Rendering.hpp"
 
 namespace ettycc
 {
@@ -13,21 +12,22 @@ namespace ettycc
     {
     }
 
-    void SetScreenSize(int width, int height)
+    void Rendering::SetScreenSize(int width, int height)
     {
-        this->renderingCtx_->ScreenSize = glm::vec2(widht,height);
+        this->renderingCtx_->ScreenSize = glm::vec2(width, height);
     }
 
     void Rendering::InitGraphicsBackend()
     {
         
     }
-
+    static float timedemo=0;
     void Rendering::Pass()
     {
+        timedemo+=0.01f;//todo: calculate via delta time...
         for (auto renderable : renderables_)
         {
-            renderable.Pass();
+            renderable->Pass(this->renderingCtx_,timedemo);
         }
     }
 

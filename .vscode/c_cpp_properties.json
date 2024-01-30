@@ -3,7 +3,10 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "D:/repos2/ALPHA_V1/src/Core/include/**",
+                "D:/repos2/ALPHA_V1/src/Core/external/**",
+                "D:/repos2/vcpkg/installed/x64-windows/include/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
@@ -15,7 +18,8 @@
         {
             "name": "xul",
             "includePath": [
-                "/workspaces/ALPHA_V1/**"
+                "/workspaces/ALPHA_V1/**",
+                "${workspaceFolder}/src/Core/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

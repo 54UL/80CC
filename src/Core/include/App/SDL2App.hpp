@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <80CC.hpp>
 #include <GL/glew.h>
+
+#include <GL/gl.h>
 #include <SDL.h>
 #include <SDL_opengl.h>
 
@@ -13,9 +15,9 @@
 #include <Graphics/Rendering/Entities/Camera.hpp>
 #include <Graphics/Rendering/Entities/Sprite.hpp>
 #include <Input/PlayerInput.hpp>
-#include <Input/Controls/GhostCamera.hpp>
+// #include <Input/Controls/GhostCamera.hpp>
 
-namespace etycc
+namespace ettycc
 {
     class SDL2App : public App
     {
@@ -30,7 +32,7 @@ namespace etycc
         // DEPENDENCIES:
         Rendering renderEngine_;
         PlayerInput inputSystem_;
-        std::shared_ptr<GhostCamera> ghostCamera_;
+        // std::shared_ptr<GhostCamera> ghostCamera_;
 
     public:
          SDL2App();

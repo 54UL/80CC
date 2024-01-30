@@ -15,4 +15,4 @@ target_include_directories(Entry
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(Entry PRIVATE 80CC_CORE)
+target_link_libraries(Entry PUBLIC 80CC_CORE)
