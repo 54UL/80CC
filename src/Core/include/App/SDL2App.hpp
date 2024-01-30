@@ -8,64 +8,57 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
-
-#include <Graphics\Rendering\Entities\Sprite.hpp>
-
+// RENDERING TEST INCLUDES
+#include <Graphics/Rendering.hpp>
+#include <Graphics/Rendering/Entities/Camera.hpp>
+#include <Graphics/Rendering/Entities/Sprite.hpp>
+#include <Input/PlayerInput.hpp>
+#include <Input/Controls/GhostCamera.hpp>
 
 namespace etycc
 {
     class SDL2App : public App
     {
-    public:
-        enum class AppEventType
-        {
-            KEYBOARD,
-            MOUSE,
-            JOYSTICK,
-            WINDOW,
-            QUIT
-        };
-
-        class AppEvent
-        {
-        private:
-            /* data */
-        public:
-            AppEvent(/* args */) {}
-            ~AppEvent() {}
-        };
-
     private:
         SDL_Window *window_;
         SDL_GLContext glContext_;
+        
         bool runningStatus_;
         SDL_Thread *eventThread_;
         SDL_mutex  *eventMutex_;
 
+        // DEPENDENCIES:
+        Rendering renderEngine_;
+        PlayerInput inputSystem_;
+        std::shared_ptr<GhostCamera> ghostCamera_;
+
     public:
-        SDL2App();
+         SDL2App();
         ~SDL2App();
 
+    public:
         int Init(int argc, char **argv) override;
         int Exec() override;
         void Dispose();
-
-        void SetRunningStatus(bool running);
-        bool IsRunning();
-
         SDL_Window* GetMainWindow();
         SDL_GLContext* GetGLContext();
-        // Event listeners
-        void AddEventListener(AppEvent type);
-        
+
     private:
         static int EventCallback(void * data);
-
         void AppInput();
+        void SetRunningStatus(bool running);
+        bool IsRunning();
         // TODO: INIT EVENT THREAD IS NOT USED ANYMORE
         void InitEventThread();
-        void OpenGLInit();
+        
+        // App execution pipeline
+        void AppLogic();
+        void RenderingInit();
         void PrepareFrame();
+        void PresentFrame();
+        
+        // RENDERING TESTING 
+        void RenderingEngineDemo();
     };
 }
 

@@ -3,68 +3,59 @@
 #include <gtc\matrix_transform.hpp>
 #include <gtc\quaternion.hpp>
 
-// to do implement apply transform ...(private)
-// esta madre esta bugeada, TO DO : TERMINAR PRIMERO EL SISTEMA DE TRANSFORM ANTES QUE NADA
-
 Transform::Transform()
 {
-    this->TransformMatrix = glm::mat4(1.0f);
-    this->ModelMatrix = glm::mat4(1.0f);
-    this->RotationMatrix = glm::mat4(1.0);
+    this->modelMatrix = glm::mat4(1.0f);
 }
 
 Transform::~Transform()
 {
+    
 }
 
 void Transform::setGlobalPosition(glm::vec3 position)
 {
-    this->ModelMatrix = glm::mat4(1);
-    this->ModelMatrix = glm::translate(this->ModelMatrix, position);
-    this->TransformMatrix = ModelMatrix;
-}
-
-void Transform::setGlobalRotation(glm::vec3 Axis, float Angle)
-{
-    this->RotationMatrix = glm::mat4(1);
-    RotationMatrix = glm::rotate(RotationMatrix, Angle, Axis);
-    TransformMatrix = ModelMatrix * RotationMatrix;
+    this->modelMatrix = glm::translate(this->modelMatrix, position);
 }
 
 void Transform::setLocalPosition(glm::vec3 position)
 {
-    this->ModelMatrix = glm::translate(this->ModelMatrix, position);
-    this->TransformMatrix = ModelMatrix * RotationMatrix;
+    this->modelMatrix = glm::translate(this->modelMatrix, position);
 }
 
 void Transform::setGlobalRotation(glm::vec3 Euler)
 {
-
-    RotationMatrix = glm::mat4_cast(glm::quat(glm::vec3(glm::radians(Euler.x), glm::radians(Euler.y), glm::radians(Euler.z))));
-    TransformMatrix = ModelMatrix * RotationMatrix;
+    auto RotationMatrix = glm::mat4_cast(glm::quat(glm::vec3(glm::radians(Euler.x), glm::radians(Euler.y), glm::radians(Euler.z))));
+    modelMatrix = modelMatrix * RotationMatrix;
 }
 
-void Transform::setGlobalRotation(glm::quat rotQuat)
+void Transform::setGlobalRotation(glm::vec3 Axis, float Angle)
 {
-    RotationMatrix = glm::mat4_cast(rotQuat);
-    this->TransformMatrix = ModelMatrix * RotationMatrix;
+    auto RotationMatrix = glm::mat4(1);
+    RotationMatrix = glm::rotate(RotationMatrix, Angle, Axis);
+    modelMatrix = modelMatrix * RotationMatrix;
+}
+
+void Transform::setLocalRotation(glm::quat rotQuat)
+{
+    auto RotationMatrix = glm::mat4_cast(rotQuat);
+    this->modelMatrix = modelMatrix * RotationMatrix;
 }
 
 void Transform::translate(glm::vec3 RelativeDirection)
 {
     glm::quat tmpRot(RotationMatrix);
-    ModelMatrix = glm::translate(this->ModelMatrix, tmpRot * RelativeDirection);
-    TransformMatrix = ModelMatrix * RotationMatrix;
+    modelMatrix = glm::translate(this->modelMatrix, tmpRot * RelativeDirection);
 }
 
-glm::mat4 Transform::GetTransformMatrix()
+glm::mat4 Transform::GetMatrix()
 {
-    return this->TransformMatrix;
+    return this->modelMatrix;
 }
 
 glm::vec3 Transform::getGlobalPosition()
 {
-    return ModelMatrix[3];
+    return modelMatrix[3];
 }
 
 glm::vec3 Transform::getEulerGlobalRotaion()

@@ -10,6 +10,22 @@ MOUSE ABSTRACTIONS
 
 namespace etycc
 {
+    enum class AppEventType
+    {
+        INPUT,
+        WINDOW,
+        QUIT
+    };
+
+    class AppEvent
+    {
+    private:
+        /* data */
+    public:
+        AppEvent(/* args */) {}
+        ~AppEvent() {}
+    };
+
     class App
     {
     public:

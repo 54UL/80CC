@@ -9,13 +9,10 @@ namespace ettycc
     class Transform
     {
     protected:
-        glm::mat4 TransformMatrix; // m*r*s
-        glm::mat4 ModelMatrix;     // Position
-        glm::mat4 RotationMatrix;
-        glm::mat4 ScaleMatrix;
-        glm::vec3 LocalPosition;
-        glm::vec3 Position;
-        glm::vec3 EulerRotation;
+        glm::mat4 modelMatrix; // underlying matrix...
+
+    public:
+        bool enabled;
 
     public:
         Transform();
@@ -30,21 +27,24 @@ namespace ettycc
         void setLocalPosition(glm::vec3 position);
         void setLocalRotation(glm::vec3 euler);
         void setLocalRotation(glm::quat rotQuat);
+
         void translate(glm::vec3 RelativeDirection);
         void setGlobalScale(glm::vec3 scaleFactor);
         void setLocalScale(glm::vec3 scaleFactor);
-        void setFather(Transform *&father);
-        void unsetFather();
+
+        void setParent(Transform *&father);
+        void unsetParent();
 
         glm::vec3 getGlobalPosition();
         glm::vec3 getEulerGlobalRotaion();
         glm::quat getGlobalRotation();
+
         // locals
         glm::vec3 getLocalPosition();
         glm::vec3 getEulerLocalRotation();
         glm::quat getLocalRotation();
         // Utility Functions.
-        glm::mat4 GetTransformMatrix();
+        glm::mat4 getMatrix();
         void lookAt(glm::vec3 Target);
         void lookAt(Transform Target);
     };

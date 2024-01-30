@@ -1,37 +1,34 @@
 #include "Camera.h"
 #include <gtc\matrix_transform.hpp>
 #include <glm.hpp>
+#include "Camera.hpp"
 
 namespace ettycc {
+    Camera::Camera()
+    {
+    }
 
     Camera::Camera(int h, int w)
     {
-        this->SetOrtho(h, w);
-        
+        this->SetOrtho(h, w);  
     }
 
     Camera::Camera(int h, int w, float fov,float znear)
     {
         this->SetPrespective(h, w, fov, znear);
-
         //TransformMatrix = glm::lookAt(glm::vec3(0,0,-5),glm::vec3(0,0,1),glm::vec3(0,1,0));
     }
-
-    Camera::Camera()
-    {
-    }
-
 
     Camera::~Camera()
     {
 
     }
 
-    glm::mat4 Camera::GetProyectionMatrix()
+    glm::mat4 Camera::GetProjectionMatrix()
     {
         return this->ProjectionMatrix;
     }
-    //solucionar problema de camara ortografica
+
     void Camera::SetOrtho(int ScreenXSz, int ScreenYSz)
     {
     //	this->ProjectionMatrix = glm::mat4(1.0f);
@@ -50,5 +47,26 @@ namespace ettycc {
     bool Camera::isSetPrespective()
     {
         return ispresp;
+    }
+
+    // Renderable
+
+    void Camera::SetTransform(const Transform &trans)
+    {
+        this->underlyingTransform = trans;
+    } 
+    
+    Transform Camera::GetTransform()
+    {
+        this->underlyingTransform;
+    }
+
+    void Camera::Pass(const std::shared_ptr<RenderingContext> &ctx)
+    {
+        if (enabled)
+        {
+            ctx->Projection = this->ProjectionMatrix;
+            ctx->View = this->underlyingTransform->getMatrix();
+        }
     }
 }

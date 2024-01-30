@@ -50,19 +50,13 @@ namespace ettycc
         LoadTextures();
     }
 
-    void Sprite::Draw()
+    Sprite::~Sprite()
     {
-        // Bind the texture
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
-
-        // Use the shader program and draw the quad
-        UnderlyingShader.Use();
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        // Unbind the vertex array to avoid problems
-        glBindVertexArray(0);
+        // Clean up
+        glDeleteVertexArrays(1, &VAO);
+        glDeleteBuffers(1, &VBO);
+        glDeleteBuffers(1, &EBO);
+        glDeleteTextures(1, &texture);
     }
 
     void Sprite::LoadShaders()
@@ -100,7 +94,8 @@ namespace ettycc
 
         shadersIntances.emplace_back(std::make_shared<Shader>(vertexShaderSource, GL_VERTEX_SHADER));
         shadersIntances.emplace_back(std::make_shared<Shader>(fragmentShaderSource, GL_FRAGMENT_SHADER));
-        UnderlyingShader.Create(shadersIntances);
+        underlyingShader.AddShaders(shadersIntances);
+        underlyingShader.Create();
     }
 
     void Sprite::LoadTextures()
@@ -127,18 +122,31 @@ namespace ettycc
         glGenerateMipmap(GL_TEXTURE_2D);
 
          // Bind the shader program
-        UnderlyingShader.Use();
+        underlyingShader.Use();
 
         // // Set the texture unit in the shader
-        glUniform1i(glGetUniformLocation(shader.getProgramId, "ourTexture"), 0);
+        glUniform1i(glGetUniformLocation(shader.getProgramId(), "ourTexture"), 0);
     }
 
-    Sprite::~Sprite()
+    // Renderable
+    void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx)
     {
-        // Clean up
-        glDeleteVertexArrays(1, &VAO);
-        glDeleteBuffers(1, &VBO);
-        glDeleteBuffers(1, &EBO);
-        glDeleteTextures(1, &texture);
+        // Bind the texture
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        // Use the shader program and draw the quad
+        underlyingShader.Use();
+
+        // Multiply projection * view * model matrix to compute sprite rendering...
+        auto ProjectionViewMatrix = ctx->Projection * ctx->View *  underylingTransform->getMatrix();
+        glUniformMatrix4fv(glGetUniformLocation(shader.getProgramId(), "PVM"), ProjectionViewMatrix);
+
+        // Bind the rendering mesh
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        // Unbind the vertex array to avoid problems
+        glBindVertexArray(0);
     }
 }

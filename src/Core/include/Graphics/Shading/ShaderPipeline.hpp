@@ -4,6 +4,7 @@
 #include "Shader.hpp"
 #include <fstream>
 #include <vector>
+#include <memory>
 
 namespace etycc
 {
@@ -11,14 +12,19 @@ namespace etycc
     {
     private:
         GLuint shaderProgram = 0;
+        std::vector<std::shared_ptr<Shader>> shaders_;
 
     public:
         ShaderPipeline(const std::vector<Shader>& shaders);
         ~ShaderPipeline();
-
-        // SHADER API 
-        GLuint GetProgramId() const;
+        
+        // SHADER PIPELINE API 
+        void Create();
         void Use();
+        GLuint GetProgramId() const;
+
+        void AddShaders(const std::vector<std::shared_ptr<Shader>>& shaders);
+        void AddShadersFromFiles(const std::vector<std::pair<std::string, GLenum>> &shaderConfigs);
     };
 }
 

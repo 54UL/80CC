@@ -6,11 +6,15 @@ set(CMAKE_CXX_COMPILER gcc)
 set(80CC_CORE_HEADERS
     include/80CC.hpp
     include/App/SDL2App.hpp
-    include/Graphics/Rendering/Rendering.hpp
+    include/Graphics/Rendering.hpp
+    include/Graphics/Rendering/RenderingContext.hpp
+    include/Graphics/Rendering/Renderable.hpp
     include/Graphics/Rendering/Entities/Camera.hpp
     include/Graphics/Rendering/Entities/Sprite.hpp
     include/Graphics/Shading/Shader.hpp
     include/Graphics/Shading/ShaderPipeline.hpp
+    include/Input/PlayerInput.hpp
+    include/Input/Controls/GhostCamera.hpp
 )
 
 set(80CC_CORE_SOURCES
@@ -23,6 +27,8 @@ set(80CC_CORE_SOURCES
     src/Graphics/Rendering/Entities/Sprite.cpp
     src/Graphics/Rendering/Shading/Shader.cpp
     src/Graphics/Rendering/Shading/ShaderPipeline.cpp
+    src/Input/PlayerInput.cpp
+    src/Input/Controls/GhostCamera.cpp
 )
 
 # PACKAGES...

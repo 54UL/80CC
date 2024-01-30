@@ -3,6 +3,9 @@
 #include <iostream>
 #include <functional>
 
+#include <imgui.h>
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_opengl3.h>
 
 namespace etycc
 {
@@ -32,6 +35,8 @@ namespace etycc
             SDL_Quit();
             return 1;
         }
+
+        renderEngine_.InitGraphicsBackend();
 
         // Set OpenGL attributes
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_EGL);
@@ -76,45 +81,129 @@ namespace etycc
             return 1;
         }
 
-        OpenGLInit();
+        RenderingInit();
 
+        RenderingEngineDemo();
         // Initialize event thread to handle window input
-        this->InitEventThread();
+        // this->InitEventThread();
 
         return 0;
     }
 
-    void SDL2App::OpenGLInit(){
+    void SDL2App::RenderingInit() {
         glClearColor(0.2f, 0.3f, 0.4f, 1.0f);
+		glEnable(GL_DEPTH_TEST);
+		//glEnable(GL_CULL_FACE);
+		//glCullFace(GL_BACK);
+        
+        // Setup ImGui
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+ 
+        ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
+        ImGui_ImplOpenGL3_Init("#version 330 core");
     }
 
     void SDL2App::PrepareFrame()
     {
-        glClear(GL_COLOR_BUFFER_BIT);
-    } 
+        //Get io for imgui
+        ImGuiIO& io = ImGui::GetIO();
+        (void)io;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable docking
 
-    // WARNING: MAIN ENTRY POINT (TECHNICALLY)
+        // Start the ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame(window_);
+        ImGui::NewFrame();
+
+        // ImGui content goes here
+        // Dockspace
+        ImGui::DockSpaceOverViewport();
+
+        // Your dockable windows
+        if (ImGui::BeginDock("Dockable Window 1"))
+        {
+            // Content of the first dockable window
+            ImGui::Text("Hello, this is Dockable Window 1!");
+            ImGui::EndDock();
+        }
+
+        if (ImGui::BeginDock("Dockable Window 2"))
+        {
+            // Content of the second dockable window
+            ImGui::Text("Hello, this is Dockable Window 2!");
+            ImGui::EndDock();
+        }
+        
+        // Example: A simple window
+        ImGui::Begin("80CC has ImGui!");
+        ImGui::Text("This is a simple ImGui example, press to quit");
+        if (ImGui::Button("Quit")) {
+            this->SetRunningStatus(false);
+        }
+        ImGui::End();
+
+        // Clear renderer...
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
+    void PresentFrame()
+    {
+        // User code rendering
+        renderEngine_.Pass();
+
+        // ImGui rendering
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        SDL_GL_SwapWindow(window_);
+    }
+
+    void SDL2App::RenderingEngineDemo()
+    {
+        int width, height;
+        SDL_GetWindowSize(window_, &width, &height);
+        renderEngine_->SetScreenSize(width, height);
+
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(width,height,60,0.1f);
+        std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
+
+        ghostCamera_ = std::make_shared<GhostCamera>(renderEngine_, mainCamera);
+
+        renderEngine_.AddRenderable(mainCamera);
+        renderEngine_.AddRenderable(someSprite);
+    } 
+    
+    // WARNING: MAIN ENTRY POINT/THREAD (TECHNICALLY)
     int SDL2App::Exec()
     {
         while (this->IsRunning())
         {
             AppInput();
+            AppLogic(); //todo move this to another thread???
             PrepareFrame();
-            // rendering code...
-            // here goes all rendering callbacks...
-            SDL_GL_SwapWindow(window_);
+            PresentFrame();
         }
         return 0;
+    }
+
+    void SDL2App::AppLogic() 
+    {
+        ghostCamera_->Update(0);
     }
 
     void SDL2App::Dispose()
     {
         // Cleanup
-        int eventThreadReturnValue;
-        SDL_WaitThread(eventThread_, &eventThreadReturnValue);
+        // int eventThreadReturnValue;
+        // SDL_WaitThread(eventThread_, &eventThreadReturnValue);
 
         // Destroy the mutex
-        SDL_DestroyMutex(eventMutex_);
+        // SDL_DestroyMutex(eventMutex_);
+
+        // Cleanup ImGui
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplSDL2_Shutdown();
+        ImGui::DestroyContext();
 
         // Destroy gl and window...
         SDL_GL_DeleteContext(glContext_);
@@ -155,6 +244,8 @@ namespace etycc
                     // Handle Key Down Event
                     // handleKeyDownEvent(event.key.keysym.sym);
                     std::cout << "keydown:" << event.key.keysym.sym << "\n";
+                    const uint64_t data[] = {event.key.keysym.sym};
+                    inputSystem_.ProcessInput(PlayerInputType::KEYBOARD, data);
                     break;
 
                 case SDL_KEYUP:
@@ -175,6 +266,9 @@ namespace etycc
                 case SDL_MOUSEMOTION:
                     // Handle Mouse Motion Event
                     // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
+                    const uint64_t data[] = {event.motion.x, event.motion.y};
+                    inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
+
                     break;
 
                 case SDL_MOUSEWHEEL:
@@ -264,7 +358,6 @@ namespace etycc
             }
         }
         SDL_Delay(1);
-        
     }
 
     // TODO: INIT EVENT THREAD IS NOT USED ANYMORE
