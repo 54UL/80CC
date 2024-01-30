@@ -150,7 +150,7 @@ namespace ettycc
     void SDL2App::PresentFrame()
     {
         // User code rendering
-        renderEngine_.Pass();
+        renderEngine_.Pass(currentDeltaTime_);
 
         // ImGui rendering
         // ImGui::Render();
@@ -167,6 +167,7 @@ namespace ettycc
         std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(width,height,90,0.01f);
         std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
         mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0,0,-2));
+
         //   mainCamera->underylingTransform.setGlobalRotation(glm::vec3(0,-90,0));
         ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera);
 
@@ -177,12 +178,20 @@ namespace ettycc
     // WARNING: MAIN ENTRY POINT/THREAD (TECHNICALLY)
     int SDL2App::Exec()
     {
+        // Calculate delta time
+        uint32_t prevTicks =  SDL_GetTicks();
+        uint32_t currentTicks = prevTicks;
+
         while (this->IsRunning())
         {
+            currentTicks = SDL_GetTicks();
+            currentDeltaTime_= (currentTicks - prevTicks) / 1000.0f;  // Convert to seconds
+
             AppInput();
             AppLogic(); //todo move this to another thread???
             PrepareFrame();
             PresentFrame();
+            prevTicks = currentTicks;
         }
         return 0;
     }
@@ -246,17 +255,20 @@ namespace ettycc
                 std::cout << "keydown:" << event.key.keysym.sym << "\n";
                 data[0] = event.key.keysym.sym;
                 inputSystem_.ProcessInput(PlayerInputType::KEYBOARD, data);
+
                 break;
+
             case SDL_MOUSEMOTION:
                 // Handle Mouse Motion Event
                 // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
-                data[0] = event.motion.xrel;
-                data[1] = event.motion.yrel;
+                data[0] = event.motion.x;
+                data[1] = event.motion.y;
                 std::cout << "xrel:" << event.motion.xrel<< " yrel:"<<event.motion.yrel <<"\n";
 
                 inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
 
                 break;
+                
             case SDL_KEYUP:
                 // Handle Key Up Event
                 // handleKeyUpEvent(event.key.keysym.sym);
@@ -279,8 +291,8 @@ namespace ettycc
                 break;
             }
         }
-        SDL_Delay(1);
-    }
+        // SDL_Delay(1);
+    } 
 
     SDL_Window *SDL2App::GetMainWindow()
     {

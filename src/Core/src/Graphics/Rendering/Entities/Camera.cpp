@@ -7,6 +7,7 @@
 namespace ettycc {
     Camera::Camera()
     {
+    //    underylingTransform.setGlobalPosition(glm::vec2(0,0,-5)); // test position...
     }
 
     Camera::Camera(int h, int w)
@@ -64,10 +65,7 @@ namespace ettycc {
 
     void Camera::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {
-        if (enabled)
-        {
-            ctx->Projection = this->ProjectionMatrix;
-            ctx->View = this->underylingTransform.GetMatrix();
-        }
+        ctx->Projection = this->ProjectionMatrix;
+        ctx->View = this->underylingTransform.GetMatrix();
     }
 }

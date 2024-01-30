@@ -35,7 +35,8 @@ namespace ettycc
         Rendering renderEngine_;
         PlayerInput inputSystem_;
         std::shared_ptr<GhostCamera> ghostCamera_;
-
+        float currentDeltaTime_;
+        
     public:
          SDL2App();
         ~SDL2App();

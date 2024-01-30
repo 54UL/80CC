@@ -6,7 +6,9 @@
                 "${workspaceFolder}/**",
                 "D:/repos2/ALPHA_V1/src/Core/include/**",
                 "D:/repos2/ALPHA_V1/src/Core/external/**",
-                "D:/repos2/vcpkg/installed/x64-windows/include/**"
+                "D:/repos2/vcpkg/installed/x64-windows/include/**",
+                "/workspaces/vcpkg/installed/x64-linux/include/**",
+                "/workspaces/ALPHA_V1/src/Core/include/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

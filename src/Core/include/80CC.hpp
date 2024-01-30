@@ -3,7 +3,6 @@
 
 #include <App/App.hpp>
 #include <App/SDL2App.hpp>
-#include <functional>
 #include <Graphics/Rendering.hpp>
 #include <Graphics/Rendering/Entities/Camera.hpp>
 #include <Graphics/Rendering/Entities/Sprite.hpp>

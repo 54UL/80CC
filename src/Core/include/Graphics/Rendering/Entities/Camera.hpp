@@ -24,9 +24,6 @@ namespace ettycc
 		void SetPrespective(int ScreenXSz, int ScreenYSz, float FOV, float Znear);
 		bool isSetPrespective();
 
-   		// void Camera::SetTransform(const Transform &trans);
-		// Transform Camera::GetTransform();
-
 		// Renderable impl
 	public:
 		void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;

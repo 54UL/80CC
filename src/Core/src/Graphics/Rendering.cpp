@@ -3,7 +3,7 @@
 
 namespace ettycc
 {
-    Rendering::Rendering()
+    Rendering::Rendering(): renderingTime(0)
     {
         this->renderingCtx_ = std::make_shared<RenderingContext>();
     }
@@ -21,13 +21,14 @@ namespace ettycc
     {
         
     }
-    static float timedemo=0;
-    void Rendering::Pass()
+
+    void Rendering::Pass(float deltaTime)
     {
-        timedemo+=0.01f;//todo: calculate via delta time...
+        // renderingTime += deltaTime;
+
         for (auto renderable : renderables_)
         {
-            renderable->Pass(this->renderingCtx_,timedemo);
+            renderable->Pass(this->renderingCtx_, deltaTime);
         }
     }
 

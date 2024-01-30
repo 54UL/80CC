@@ -51,6 +51,11 @@ namespace ettycc
         modelMatrix = glm::translate(this->modelMatrix, tmpRot * RelativeDirection);
     }
 
+    void Transform::SetMatrix(glm::mat4 matrix)
+    {
+        modelMatrix = matrix;
+    }
+
     glm::mat4 Transform::GetMatrix()
     {
         return this->modelMatrix;

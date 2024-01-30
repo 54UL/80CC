@@ -15,6 +15,7 @@ namespace ettycc
     private:
         std::vector<std::shared_ptr<Renderable>> renderables_;
         std::shared_ptr<RenderingContext> renderingCtx_;
+        float renderingTime;
         
     public:
         Rendering();
@@ -24,7 +25,7 @@ namespace ettycc
         void SetScreenSize(int width, int height);
         void InitGraphicsBackend();
 
-        void Pass();
+        void Pass(float deltaTime);
         auto AddRenderable(std::shared_ptr<Renderable> renderable) -> void;
         void AddRenderables(const std::vector<std::shared_ptr<Renderable>>& renderables);
     };

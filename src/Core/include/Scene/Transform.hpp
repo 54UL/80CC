@@ -41,6 +41,7 @@ namespace ettycc
         // glm::vec3 getEulerLocalRotation();
         // glm::quat getLocalRotation();
         // Utility Functions.
+        void SetMatrix(glm::mat4 matrix);
         glm::mat4 GetMatrix();
         // void lookAt(glm::vec3 Target);
         // void lookAt(Transform Target);
