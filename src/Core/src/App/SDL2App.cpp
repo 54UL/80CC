@@ -9,6 +9,40 @@
 
 namespace ettycc
 {
+        // Define a basic object structure
+    struct Object
+    {
+        std::string name;
+        std::vector<Object> children;
+    };
+
+    // Function to recursively render the tree
+    void RenderTree(const Object &obj)
+    {
+        // Display the current object in the tree
+        if (ImGui::TreeNode(obj.name.c_str()))
+        {
+            // Render children recursively
+            for (const auto &child : obj.children)
+            {
+                RenderTree(child);
+            }
+
+            // Close the tree node
+            ImGui::TreePop();
+        }
+    }
+
+    void RenderTree()
+    {
+        // Sample data: Create a tree structure
+        Object rootObject{"Root", {{"Object1", {{"Child1", {}}, {"Child2", {}}}}, {"Object2", {{"Child3", {}}, {"Child4", {{"Grandchild1", {}}, {"Grandchild2", {}}}}}}}};
+
+        // Render the tree structure
+        RenderTree(rootObject);
+    }
+
+
     SDL2App::SDL2App(/* args */):runningStatus_(true)
     {
     }
@@ -99,30 +133,50 @@ namespace ettycc
         // Setup ImGui
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
- 
+     
         ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
         ImGui_ImplOpenGL3_Init("#version 330 core");
-    }
 
-    void SDL2App::PrepareFrame()
-    {
-        //Get io for imgui
         ImGuiIO& io = ImGui::GetIO();
         (void)io;
+    }
+    void SDL2App::RenderTabs() {
+        // Begin a new tab bar
+        if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_Reorderable)) {
+            
+            // Tab 1
+            if (ImGui::BeginTabItem("Misc")) {
+                ImGui::Text("Delta time: %.4f", currentDeltaTime_);
+                auto mousepos = inputSystem_.GetMousePos();
+                ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x,mousepos.y );
+                ImGui::EndTabItem();
+            }
 
+            // Tab 2
+            if (ImGui::BeginTabItem("Rendering")) {
+                RenderTree();
+                ImGui::EndTabItem();
+            }
+
+            // End the tab bar
+            ImGui::EndTabBar();
+        }
+    }
+    void SDL2App::PrepareFrame()
+    {
         // Start the ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window_);
         ImGui::NewFrame();
 
-        // ImGui content goes here
+        // IMGUI CODE... -------------------------------------------------------------------
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Always);
+    // Check if a tab is being dragged
 
-        // Example: A simple window
-        ImGui::Begin("80CC has ImGui!");
-        ImGui::Text("This is a simple ImGui example, press to quit");
-        if (ImGui::Button("Quit")) {
-            this->SetRunningStatus(false);
-        }
+        ImGui::Begin("80CC-DEBUG");//ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+        RenderTabs();
+        
         ImGui::End();
 
         // Clear renderer...
@@ -163,16 +217,16 @@ namespace ettycc
         // Calculate delta time
         uint32_t prevTicks =  SDL_GetTicks();
         uint32_t currentTicks = prevTicks;
-
         while (this->IsRunning())
         {
             currentTicks = SDL_GetTicks();
-            currentDeltaTime_= (currentTicks - prevTicks) / 1000.0f;  // Convert to seconds
+            currentDeltaTime_= (currentTicks - prevTicks);
 
             AppInput();
             AppLogic(); //todo move this to another thread???
             PrepareFrame();
             PresentFrame();
+            // ghostCamera_->LateUpdate(0);
             prevTicks = currentTicks;
         }
         return 0;
@@ -180,7 +234,7 @@ namespace ettycc
 
     void SDL2App::AppLogic() 
     {
-        ghostCamera_->Update(0);
+        ghostCamera_->Update(currentDeltaTime_);
     }
 
     void SDL2App::Dispose()
@@ -225,6 +279,8 @@ namespace ettycc
 
         while (SDL_PollEvent(&event))
         {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+
             switch (event.type)
             {
             case SDL_QUIT:
@@ -245,7 +301,6 @@ namespace ettycc
                 // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
                 data[0] = event.motion.x;
                 data[1] = event.motion.y;
-                std::cout << "xrel:" << event.motion.xrel<< " yrel:"<<event.motion.yrel <<"\n";
 
                 inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
 

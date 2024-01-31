@@ -9,6 +9,8 @@ namespace ettycc
     Transform::Transform()
     {
         this->modelMatrix = glm::mat4(1.0f);
+        this->transformMatrix = glm::mat4(1.0f);
+        rotationMatrix =glm::mat4(1.0f);
     }
 
     Transform::~Transform()
@@ -18,31 +20,16 @@ namespace ettycc
 
     void Transform::setGlobalPosition(glm::vec3 position)
     {
-        this->modelMatrix = glm::translate(this->modelMatrix, position);
-    }
-
-    void Transform::setLocalPosition(glm::vec3 position)
-    {
-        this->modelMatrix = glm::translate(this->modelMatrix, position);
+        this->transformMatrix = glm::translate(this->modelMatrix, position);
+        this->modelMatrix = transformMatrix;
     }
 
     void Transform::setGlobalRotation(glm::vec3 Euler)
     {
-        auto RotationMatrix = glm::mat4_cast(glm::quat(glm::vec3(glm::radians(Euler.x), glm::radians(Euler.y), glm::radians(Euler.z))));
-        modelMatrix = modelMatrix * RotationMatrix;
-    }
-
-    void Transform::setGlobalRotation(glm::vec3 Axis, float Angle)
-    {
-        auto RotationMatrix = glm::mat4(1);
-        RotationMatrix = glm::rotate(RotationMatrix, Angle, Axis);
-        modelMatrix = modelMatrix * RotationMatrix;
-    }
-
-    void Transform::setLocalRotation(glm::quat rotQuat)
-    {
-        auto RotationMatrix = glm::mat4_cast(rotQuat);
-        this->modelMatrix = modelMatrix * RotationMatrix;
+        // Create a quaternion from Euler angles
+        rotationMatrix = glm::mat4_cast(glm::quat(glm::radians(Euler)));
+        // Create a rotation matrix from the quaternion
+        transformMatrix = rotationMatrix * modelMatrix ;
     }
 
     void Transform::translate(glm::vec3 RelativeDirection)
@@ -58,7 +45,7 @@ namespace ettycc
 
     glm::mat4 Transform::GetMatrix()
     {
-        return this->modelMatrix;
+        return this->transformMatrix;
     }
 
     glm::vec3 Transform::getGlobalPosition()

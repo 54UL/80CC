@@ -29,7 +29,7 @@ namespace ettycc
         glm::vec2 leftAxe;  // left hand control
         glm::vec2 rightAxe; // right hand control
         bool invertAxes;
-
+        int xpos,ypos;
         char currentKey; 
         bool pressed;
     public:
@@ -41,6 +41,7 @@ namespace ettycc
         // INPUT API...
         glm::vec2 GetLeftAxis(); // WASD OR ARROWS...
         glm::vec2 GetRightAxis(); 
+        glm::ivec2 GetMousePos(); 
 
         // glm::vec2 GetMouseAceleration();
         // uint64_t  GetMouseButtonDown();   

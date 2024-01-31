@@ -62,6 +62,7 @@ namespace ettycc
         
         // RENDERING TESTING 
         void RenderingEngineDemo();
+        void SDL2App::RenderTabs();
     };
 }
 

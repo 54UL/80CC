@@ -77,7 +77,7 @@ namespace ettycc
 
             void main()
             {
-                gl_Position = PVM*vec4(aPos, 1.0);
+                gl_Position = PVM * vec4(aPos, 1.0);
                 TexCoord = aTexCoord;
             }
         )";

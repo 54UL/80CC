@@ -43,10 +43,7 @@ namespace ettycc
             return underylingTransform;
         }
 
-        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx,float time)
-        {
-
-        }
+        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx,float time) =0;
     };
 
 } // namespace ettycc

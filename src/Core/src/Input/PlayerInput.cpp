@@ -2,8 +2,7 @@
 
 namespace ettycc
 {
-
-    PlayerInput::PlayerInput()
+    PlayerInput::PlayerInput(): rightAxe(glm::vec2(0.0f)),leftAxe(glm::vec2(0.0f))
     {
     }
 
@@ -48,7 +47,10 @@ namespace ettycc
             break;
 
         case PlayerInputType::MOUSE:
-            rightAxe = glm::vec2(data[(int)InputDataOffsets::X], data[(int)InputDataOffsets::Y]);
+            // rightAxe = glm::vec2(data[(int)InputDataOffsets::X], data[(int)InputDataOffsets::Y]);
+            xpos = (int)data[(int)InputDataOffsets::X] >0?(int)data[(int)InputDataOffsets::X]:0;
+            ypos = (int)data[(int)InputDataOffsets::Y] > 0?(int)data[(int)InputDataOffsets::Y]:0;
+
             break;
 
         default:
@@ -66,4 +68,10 @@ namespace ettycc
     {
         return rightAxe;
     }
+
+    glm::ivec2 PlayerInput::GetMousePos()
+    {
+        return glm::ivec2(xpos, ypos);
+    }
 }
+
