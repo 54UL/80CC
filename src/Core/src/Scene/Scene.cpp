@@ -1,13 +1,30 @@
+#include "Scene.hpp"
+
+namespace ettycc
+{
+
+    Scene::Scene()
+    {
+    }
+
+    Scene::~Scene()
+    {
+    }
+}
 /* BRIEF
     MAIN GOAL:
 
+
+SceneManager::SceneManager()
+{
+}
     TickScene(){
         for object each
             {
                 object.step()
             }
     }
-    ... on object class: 
+    ... on object class:
 
     object::step(){
         for each component
@@ -35,7 +52,7 @@
     Networking : IComponent {
         update(object_ctx){
             transform = object_ctx->getComponent<Transform>();
-            updateNetwork(transform);  // mutates the transforms 
+            updateNetwork(transform);  // mutates the transforms
         }
     }
 

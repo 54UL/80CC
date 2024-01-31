@@ -6,7 +6,13 @@
 
 int main(int argc, char* argv[]) 
 {
-    std::unique_ptr<ettycc::App> app = std::make_unique<ettycc::SDL2App>();
+    std::shared_ptr<ettycc::App> app = std::make_shared<ettycc::SDL2App>("80CC");
+    auto instancedEngine = std::make_shared<ettycc::Engine>(app);
+    auto developmentEditor = std::make_shared<ettycc::DevEditor>(instancedEngine);
+
+    // Configure the engine instance and the development UI (IF NEEDED...)
+    app->SetUnderlyingEngine(instancedEngine);
+    app->AddExecutionPipeline(developmentEditor);
 
     if (app->Init(argc, argv))
         return 1;

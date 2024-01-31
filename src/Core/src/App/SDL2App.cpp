@@ -9,41 +9,7 @@
 
 namespace ettycc
 {
-        // Define a basic object structure
-    struct Object
-    {
-        std::string name;
-        std::vector<Object> children;
-    };
-
-    // Function to recursively render the tree
-    void RenderTree(const Object &obj)
-    {
-        // Display the current object in the tree
-        if (ImGui::TreeNode(obj.name.c_str()))
-        {
-            // Render children recursively
-            for (const auto &child : obj.children)
-            {
-                RenderTree(child);
-            }
-
-            // Close the tree node
-            ImGui::TreePop();
-        }
-    }
-
-    void RenderTree()
-    {
-        // Sample data: Create a tree structure
-        Object rootObject{"Root", {{"Object1", {{"Child1", {}}, {"Child2", {}}}}, {"Object2", {{"Child3", {}}, {"Child4", {{"Grandchild1", {}}, {"Grandchild2", {}}}}}}}};
-
-        // Render the tree structure
-        RenderTree(rootObject);
-    }
-
-
-    SDL2App::SDL2App(/* args */):runningStatus_(true)
+    SDL2App::SDL2App(const char * windowTitle) : runningStatus_(true), windowTitle_(windowTitle)
     {
     }
 
@@ -62,15 +28,13 @@ namespace ettycc
         }
 
         // Create SDL window and OpenGL context
-        window_ = SDL_CreateWindow("80CC", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+        window_ = SDL_CreateWindow(windowTitle_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
         if (!window_)
         {
             // Handle window creation error
             SDL_Quit();
             return 1;
         }
-
-        renderEngine_.InitGraphicsBackend();
 
         // Set OpenGL attributes
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_EGL);
@@ -117,9 +81,8 @@ namespace ettycc
 
         RenderingInit();
 
-        RenderingEngineDemo();
-        // Initialize event thread to handle window input
-        // this->InitEventThread();
+        // From here you can start using IMGUI + GL
+        currentEngine_->Init();
 
         return 0;
     }
@@ -127,8 +90,6 @@ namespace ettycc
     void SDL2App::RenderingInit() {
         glClearColor(0.2f, 0.3f, 0.4f, 1.0f);
 		glEnable(GL_DEPTH_TEST);
-		//glEnable(GL_CULL_FACE);
-		//glCullFace(GL_BACK);
         
         // Setup ImGui
         IMGUI_CHECKVERSION();
@@ -137,80 +98,42 @@ namespace ettycc
         ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
         ImGui_ImplOpenGL3_Init("#version 330 core");
 
-        ImGuiIO& io = ImGui::GetIO();
-        (void)io;
-    }
-    void SDL2App::RenderTabs() {
-        // Begin a new tab bar
-        if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_Reorderable)) {
-            
-            // Tab 1
-            if (ImGui::BeginTabItem("Misc")) {
-                ImGui::Text("Delta time: %.4f", currentDeltaTime_);
-                auto mousepos = inputSystem_.GetMousePos();
-                ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x,mousepos.y );
-                ImGui::EndTabItem();
-            }
+        SDL_GetWindowSize(window_,&mainWindowSize_.x,&mainWindowSize_.y);
 
-            // Tab 2
-            if (ImGui::BeginTabItem("Rendering")) {
-                RenderTree();
-                ImGui::EndTabItem();
-            }
-
-            // End the tab bar
-            ImGui::EndTabBar();
-        }
+        // ImGuiIO& io = ImGui::GetIO();
+        // (void)io;
     }
+    
     void SDL2App::PrepareFrame()
     {
         // Start the ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window_);
-        ImGui::NewFrame();
 
-        // IMGUI CODE... -------------------------------------------------------------------
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Always);
-    // Check if a tab is being dragged
+        // This is most for imgui so....
+        currentEngine_->PrepareFrame();
 
-        ImGui::Begin("80CC-DEBUG");//ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
-        RenderTabs();
-        
-        ImGui::End();
+        for(auto execution : executionPipelines_)
+        {
+            execution->UpdateUI();
+        }
 
-        // Clear renderer...
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
     void SDL2App::PresentFrame()
     {
-        // User code rendering
-        renderEngine_.Pass(currentDeltaTime_);
+        // User code render calls
+        currentEngine_->PresentFrame();
 
-        // ImGui rendering
+        // ImGui render call
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Swap buffers
         SDL_GL_SwapWindow(window_);
     }
 
-    void SDL2App::RenderingEngineDemo()
-    {
-        int width, height;
-        SDL_GetWindowSize(window_, &width, &height);
-        renderEngine_.SetScreenSize(width, height);
-
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(width,height,90,0.01f);
-        std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
-        mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0,0,-2));
-
-        //   mainCamera->underylingTransform.setGlobalRotation(glm::vec3(0,-90,0));
-        ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera);
-
-        renderEngine_.AddRenderable(mainCamera);
-        renderEngine_.AddRenderable(someSprite);
-    } 
-    
     // WARNING: MAIN ENTRY POINT/THREAD (TECHNICALLY)
     int SDL2App::Exec()
     {
@@ -221,20 +144,15 @@ namespace ettycc
         {
             currentTicks = SDL_GetTicks();
             currentDeltaTime_= (currentTicks - prevTicks);
-
+            
             AppInput();
-            AppLogic(); //todo move this to another thread???
+            currentEngine_->Update();
             PrepareFrame();
             PresentFrame();
-            // ghostCamera_->LateUpdate(0);
+            
             prevTicks = currentTicks;
         }
         return 0;
-    }
-
-    void SDL2App::AppLogic() 
-    {
-        ghostCamera_->Update(currentDeltaTime_);
     }
 
     void SDL2App::Dispose()
@@ -257,6 +175,26 @@ namespace ettycc
         SDL_Quit();
     }
 
+    float SDL2App::GetDeltaTime()
+    {
+        return currentDeltaTime_;
+    }
+
+    glm::ivec2 SDL2App::GetMainWindowSize()
+    {
+        return mainWindowSize_;
+    }
+
+    void SDL2App::SetUnderlyingEngine(std::shared_ptr<EnginePipeline> engine)
+    {
+        currentEngine_ = engine;
+    }
+
+    void SDL2App::AddExecutionPipeline(std::shared_ptr<ExecutionPipeline> editor)
+    {
+        executionPipelines_.emplace_back(editor);
+    }
+
     void SDL2App::SetRunningStatus(bool running)
     {
         SDL_LockMutex(eventMutex_);
@@ -270,7 +208,6 @@ namespace ettycc
     {
         return this->runningStatus_;
     }
-
 
     void SDL2App::AppInput()
     {
@@ -288,22 +225,14 @@ namespace ettycc
                 return;
 
             case SDL_KEYDOWN:
-                // Handle Key Down Event
-                // handleKeyDownEvent(event.key.keysym.sym);
-                std::cout << "keydown:" << event.key.keysym.sym << "\n";
                 data[0] = event.key.keysym.sym;
-                inputSystem_.ProcessInput(PlayerInputType::KEYBOARD, data);
-
+                currentEngine_->ProcessInput(PlayerInputType::KEYBOARD, data);
                 break;
 
             case SDL_MOUSEMOTION:
-                // Handle Mouse Motion Event
-                // handleMouseMotionEvent(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
                 data[0] = event.motion.x;
                 data[1] = event.motion.y;
-
-                inputSystem_.ProcessInput(PlayerInputType::MOUSE, data);
-
+                currentEngine_->ProcessInput(PlayerInputType::MOUSE, data);
                 break;
                 
             case SDL_KEYUP:
@@ -328,7 +257,6 @@ namespace ettycc
                 break;
             }
         }
-        // SDL_Delay(1);
     } 
 
     SDL_Window *SDL2App::GetMainWindow()
