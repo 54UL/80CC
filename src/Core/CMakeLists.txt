@@ -16,6 +16,13 @@ set(80CC_CORE_HEADERS
     include/Graphics/Shading/ShaderPipeline.hpp
     include/Input/PlayerInput.hpp
     include/Input/Controls/GhostCamera.hpp
+    # IMGUI LIBRARY HEADERS
+    external/imgui/imgui.h
+    external/imgui/imgui_internal.h
+    external/imgui/imstb_rectpack.h
+    external/imgui/imstb_truetype.h
+    external/imgui/imstb_textedit.h
+    external/imgui/imconfig.h
     external/imgui/backends/imgui_impl_sdl2.h
     external/imgui/backends/imgui_impl_opengl3.h
 )
@@ -34,6 +41,12 @@ set(80CC_CORE_SOURCES
     src/Graphics/Shading/ShaderPipeline.cpp
     src/Input/PlayerInput.cpp
     src/Input/Controls/GhostCamera.cpp
+    # IMGUI LIBRARY SOURCES
+    external/imgui/imgui.cpp
+    external/imgui/imgui_demo.cpp
+    external/imgui/imgui_draw.cpp
+    external/imgui/imgui_tables.cpp
+    external/imgui/imgui_widgets.cpp
     external/imgui/backends/imgui_impl_sdl2.cpp
     external/imgui/backends/imgui_impl_opengl3.cpp
 )
@@ -43,12 +56,12 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
-find_package(imgui CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 
 # Include GLEW headers
 include_directories(${GLEW_INCLUDE_DIRS})
-include_directories(src/Core/external/imgui/)
+# Include Imgui headers
+include_directories(src/Core/external/imgui/**)
 
 # find_package(bgfx CONFIG REQUIRED)
 # ADD THE CORE LIBRARY 
@@ -67,5 +80,4 @@ target_link_libraries(80CC_CORE
     PRIVATE spdlog::spdlog
     PRIVATE glm::glm
     PRIVATE GLEW::GLEW
-    PRIVATE imgui::imgui
 )

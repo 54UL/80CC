@@ -3,9 +3,9 @@
 #include <iostream>
 #include <functional>
 
-// #include <imgui.h>
-// #include <backends/imgui_impl_sdl2.h>
-// #include <backends/imgui_impl_opengl3.h>
+#include <imgui.h>
+#include <backends/imgui_impl_sdl2.h>
+#include <backends/imgui_impl_opengl3.h>
 
 namespace ettycc
 {
@@ -97,51 +97,33 @@ namespace ettycc
 		//glCullFace(GL_BACK);
         
         // Setup ImGui
-        // IMGUI_CHECKVERSION();
-        // ImGui::CreateContext();
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
  
-        // ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
-        // ImGui_ImplOpenGL3_Init("#version 330 core");
+        ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
+        ImGui_ImplOpenGL3_Init("#version 330 core");
     }
 
     void SDL2App::PrepareFrame()
     {
         //Get io for imgui
-        // ImGuiIO& io = ImGui::GetIO();
-        // (void)io;
-        // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable docking
+        ImGuiIO& io = ImGui::GetIO();
+        (void)io;
 
         // Start the ImGui frame
-        // ImGui_ImplOpenGL3_NewFrame();
-        // ImGui_ImplSDL2_NewFrame(window_);
-        // ImGui::NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame(window_);
+        ImGui::NewFrame();
 
         // ImGui content goes here
-        // Dockspace
-        // ImGui::DockSpaceOverViewport();
 
-        // // Your dockable windows
-        // if (ImGui::BeginDock("Dockable Window 1"))
-        // {
-        //     // Content of the first dockable window
-        //     ImGui::Text("Hello, this is Dockable Window 1!");
-        //     ImGui::EndDock();
-        // }
-
-        // if (ImGui::BeginDock("Dockable Window 2"))
-        // {
-        //     // Content of the second dockable window
-        //     ImGui::Text("Hello, this is Dockable Window 2!");
-        //     ImGui::EndDock();
-        // }
-        
         // Example: A simple window
-        // ImGui::Begin("80CC has ImGui!");
-        // ImGui::Text("This is a simple ImGui example, press to quit");
-        // if (ImGui::Button("Quit")) {
-        //     this->SetRunningStatus(false);
-        // }
-        // ImGui::End();
+        ImGui::Begin("80CC has ImGui!");
+        ImGui::Text("This is a simple ImGui example, press to quit");
+        if (ImGui::Button("Quit")) {
+            this->SetRunningStatus(false);
+        }
+        ImGui::End();
 
         // Clear renderer...
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -153,8 +135,8 @@ namespace ettycc
         renderEngine_.Pass(currentDeltaTime_);
 
         // ImGui rendering
-        // ImGui::Render();
-        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window_);
     }
 
@@ -211,9 +193,9 @@ namespace ettycc
         // SDL_DestroyMutex(eventMutex_);
 
         // Cleanup ImGui
-        // ImGui_ImplOpenGL3_Shutdown();
-        // ImGui_ImplSDL2_Shutdown();
-        // ImGui::DestroyContext();
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplSDL2_Shutdown();
+        ImGui::DestroyContext();
 
         // Destroy gl and window...
         SDL_GL_DeleteContext(glContext_);
