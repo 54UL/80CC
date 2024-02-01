@@ -15,10 +15,12 @@ namespace ettycc
         auto mainWindowSize = appInstance_->GetMainWindowSize();
         renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
 
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(mainWindowSize.x, mainWindowSize.y, 90, 0.01f);
+        // below is the editor view port camera
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(200,300, 90, 0.01f);
         std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
         mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
-
+       
+        renderEngine_.SetViewPortFrameBuffer(mainCamera->offScreenFrameBuffer);
         ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera);
 
         renderEngine_.AddRenderable(mainCamera);
@@ -28,6 +30,7 @@ namespace ettycc
     void Engine::Init()
     {
         RenderingEngineDemo();
+        spdlog::warn("App and Game engine ready..."); // if it gets here it means that the app was initialized just fine...?
     }
 
     void Engine::Update()

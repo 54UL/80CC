@@ -5,9 +5,10 @@
 #include <glm/glm.hpp>
 
 namespace ettycc {
+
     Camera::Camera()
     {
-    //    underylingTransform.setGlobalPosition(glm::vec2(0,0,-5)); // test position...
+
     }
 
     Camera::Camera(int h, int w)
@@ -15,9 +16,10 @@ namespace ettycc {
         this->SetOrtho(h, w);  
     }
 
-    Camera::Camera(int h, int w, float fov,float znear)
+    Camera::Camera(int w, int h, float fov,float znear)
     {
         this->SetPrespective(h, w, fov, znear);
+        this->offScreenFrameBuffer = std::make_shared<FrameBuffer>(glm::ivec2(0,0),glm::ivec2(w,h), false);
         //TransformMatrix = glm::lookAt(glm::vec3(0,0,-5),glm::vec3(0,0,1),glm::vec3(0,1,0));
     }
 
@@ -33,9 +35,9 @@ namespace ettycc {
 
     void Camera::SetOrtho(int ScreenXSz, int ScreenYSz)
     {
-    //	this->ProjectionMatrix = glm::mat4(1.0f);
+        //	this->ProjectionMatrix = glm::mat4(1.0f);
         ispresp = false;
-    // this->ProjectionMatrix = glm::ortho(1, ScreenXSz, 1, ScreenYSz,1, 20);
+        // this->ProjectionMatrix = glm::ortho(1, ScreenXSz, 1, ScreenYSz,1, 20);
     }
 
     void Camera::SetPrespective(int ScreenXSz, int ScreenYSz, float FOV, float Znear)

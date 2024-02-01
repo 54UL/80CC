@@ -45,6 +45,9 @@ namespace ettycc
         void ShowViewport();
         void ShowInspector();
         void ShowSceneHierarchy();
+    
+    private:// FUNCTIONS THAT MUST BE EVERYWHERE OR BE IN A GENERIC CLASS !!!
+        GLuint LoadTextureFromFile(const char * filePath);
     };
 } // namespace ettycc
 

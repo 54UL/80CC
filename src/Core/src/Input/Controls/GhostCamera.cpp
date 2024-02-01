@@ -25,7 +25,7 @@ namespace ettycc
 
         // Update camera's transform
         // camera_->underylingTransform.translate(translation);
-        camera_->underylingTransform.setGlobalRotation(lookAxis);
+        // camera_->underylingTransform.setGlobalRotation(lookAxis);
         
         // camera_->underylingTransform.setGlobalRotation(glm::vec3(0,time+=(deltaTime*0.52f),0));
         // camera_->underylingTransform.setGlobalPosition(glm::vec3(0,time+=(deltaTime*0.52f),0));
