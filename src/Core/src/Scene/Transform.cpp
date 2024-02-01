@@ -10,7 +10,7 @@ namespace ettycc
     {
         this->modelMatrix = glm::mat4(1.0f);
         this->transformMatrix = glm::mat4(1.0f);
-        rotationMatrix =glm::mat4(1.0f);
+        rotationMatrix = glm::mat4(1.0f);
     }
 
     Transform::~Transform()
@@ -20,8 +20,9 @@ namespace ettycc
 
     void Transform::setGlobalPosition(glm::vec3 position)
     {
-        this->transformMatrix = glm::translate(this->modelMatrix, position);
-        this->modelMatrix = transformMatrix;
+        this->modelMatrix = glm::mat4(1);
+        this->modelMatrix = glm::translate(this->modelMatrix, position);
+        this->transformMatrix =  modelMatrix;
     }
 
     void Transform::setGlobalRotation(glm::vec3 Euler)

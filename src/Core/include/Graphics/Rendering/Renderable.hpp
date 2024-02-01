@@ -14,6 +14,7 @@ namespace ettycc
         Transform underylingTransform;
         uint64_t id;
         bool enabled;
+        
     public:
         Renderable() {
            

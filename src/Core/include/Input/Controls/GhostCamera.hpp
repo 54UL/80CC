@@ -18,6 +18,8 @@ namespace ettycc
         // ASSUMING MOUSE IMPL...
         glm::vec3 lookAxis;
         glm::ivec2 mouseDelta;
+        glm::ivec2 mouseCurrent;
+
         glm::ivec2 lastAxisPosition;
         float lookSensitivity = 2.0f;
 	    bool LookCursor=true;

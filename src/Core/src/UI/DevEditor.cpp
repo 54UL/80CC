@@ -5,7 +5,6 @@ namespace ettycc
 {
     DevEditor::DevEditor(std::shared_ptr<Engine> engineInstance) : engineInstance_(engineInstance)
     {
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
     DevEditor::~DevEditor()
@@ -21,6 +20,10 @@ namespace ettycc
 
     void DevEditor::ShowMenuBar()
     {
+        ImGui::Begin("Viewport");
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+
         if (ImGui::BeginMenuBar())
         {
             if (ImGui::BeginMenu("File"))
@@ -33,15 +36,16 @@ namespace ettycc
 
             ImGui::EndMenuBar();
         }
+        ImGui::End();
     }
 
     void DevEditor::ShowSidePanel()
     {
-        ImGui::Begin("Side Panel", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+        // ImGui::Begin("Side Panel", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
-        // Add content for the side panel here
+        // // Add content for the side panel here
 
-        ImGui::End();
+        // ImGui::End();
     }
 
     void DevEditor::ShowViewport()
@@ -66,6 +70,8 @@ namespace ettycc
     {
         ImGui::Begin("Scene Hierarchy");
 
+        RenderTree(); // demo example
+        
         // Add content for the scene hierarchy here
 
         ImGui::End();
@@ -99,16 +105,22 @@ namespace ettycc
 
     void DevEditor::ShowDebugger()
     {
-        // Begin a new tab bar
-        if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_Reorderable))
-        {
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
 
+        ImGui::Begin("debug");
+
+        // Begin a new tab bar
+        if (ImGui::BeginTabBar("tools", ImGuiTabBarFlags_Reorderable))
+        {
             // Tab 1
             if (ImGui::BeginTabItem("Misc"))
             {
                 ImGui::Text("Delta time: %.4f", engineInstance_->appInstance_->GetDeltaTime());
+                ImGui::Text("App time: %.4f", engineInstance_->appInstance_->GetCurrentTime());
+
                 auto mousepos = engineInstance_->inputSystem_.GetMousePos();
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x, mousepos.y);
+                
                 ImGui::EndTabItem();
             }
 
@@ -122,42 +134,35 @@ namespace ettycc
             // End the tab bar
             ImGui::EndTabBar();
         }
+
+        ImGui::End();
     }
 
     void DevEditor::DrawEditor()
     {
+
+        ShowDockSpace(); 
+
+        // ShowMenuBar();
+
         ShowDebugger();
           
-        ShowDockSpace();
+        // ShowViewport();
 
-        ShowMenuBar();
+        // ShowInspector();
 
-        ShowSidePanel();
-
-        ShowViewport();
-
-        ShowInspector();
-
-        ShowSceneHierarchy();
+        // ShowSceneHierarchy();
     }
 
     void DevEditor::Init()
     {
-
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
     void DevEditor::UpdateUI()
     {
         // IMGUI EDITOR STARTS HERE...
-        
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
-        // ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Always);
-        ImGui::Begin("80CC [DEV EDITOR]");//ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
-
-        // editor update goes here..
         DrawEditor();
-
-        ImGui::End();
     }
 
     void DevEditor::Update()

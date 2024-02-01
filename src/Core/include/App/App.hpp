@@ -38,6 +38,8 @@ namespace ettycc
         virtual int Init(int argc, char **argv) = 0;
         virtual int Exec() = 0;
         virtual float GetDeltaTime() = 0;
+        virtual float GetCurrentTime() = 0;
+
         virtual glm::ivec2 GetMainWindowSize() = 0;
         virtual void SetUnderlyingEngine(std::shared_ptr<EnginePipeline> engine) = 0;
         virtual void AddExecutionPipeline(std::shared_ptr<ExecutionPipeline> executionItem) = 0;        

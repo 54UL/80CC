@@ -67,6 +67,7 @@ namespace ettycc
             std::cerr << "Shader program linking failed:\n"
                       << infoLog << std::endl;
         }
+        glLinkProgram(0);
     }
 
     void ShaderPipeline::Use()

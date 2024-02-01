@@ -11,6 +11,7 @@ namespace ettycc
 {
     SDL2App::SDL2App(const char * windowTitle) : runningStatus_(true), windowTitle_(windowTitle)
     {
+        currentAppTime_ =0;
     }
 
     SDL2App::~SDL2App()
@@ -28,7 +29,7 @@ namespace ettycc
         }
 
         // Create SDL window and OpenGL context
-        window_ = SDL_CreateWindow(windowTitle_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+        window_ = SDL_CreateWindow(windowTitle_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_RENDERER_PRESENTVSYNC);
         if (!window_)
         {
             // Handle window creation error
@@ -81,9 +82,14 @@ namespace ettycc
 
         RenderingInit();
 
-        // From here you can start using IMGUI + GL
-        currentEngine_->Init();
+  
 
+        currentEngine_->Init();
+          // From here you can start using IMGUI + GL
+        for(auto execution : executionPipelines_)
+        {
+            execution->Init();
+        }
         return 0;
     }
 
@@ -109,15 +115,19 @@ namespace ettycc
         // Start the ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window_);
-
+        ImGui::NewFrame();
         // This is most for imgui so....
         currentEngine_->PrepareFrame();
+        
+        // ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+        // // ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Always);
+        // ImGui::Begin("80CC [DEV EDITOR]");//ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
 
         for(auto execution : executionPipelines_)
         {
             execution->UpdateUI();
         }
-
+        // ImGui::End();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
@@ -143,7 +153,8 @@ namespace ettycc
         while (this->IsRunning())
         {
             currentTicks = SDL_GetTicks();
-            currentDeltaTime_= (currentTicks - prevTicks);
+            currentDeltaTime_= (currentTicks - prevTicks) ;
+            currentAppTime_ += currentDeltaTime_;
             
             AppInput();
             currentEngine_->Update();
@@ -178,6 +189,10 @@ namespace ettycc
     float SDL2App::GetDeltaTime()
     {
         return currentDeltaTime_;
+    }
+    float  SDL2App::GetCurrentTime()
+    {
+        return currentAppTime_;
     }
 
     glm::ivec2 SDL2App::GetMainWindowSize()

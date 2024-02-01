@@ -17,7 +17,7 @@ namespace ettycc
 
         std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(mainWindowSize.x, mainWindowSize.y, 90, 0.01f);
         std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
-        mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
+        someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -5));
 
         ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera);
 
@@ -43,7 +43,7 @@ namespace ettycc
 
     void Engine::PresentFrame()
     {
-        renderEngine_.Pass(appInstance_->GetDeltaTime());
+        renderEngine_.Pass(appInstance_->GetCurrentTime());
     }
 
     void Engine::ProcessInput(PlayerInputType type, uint64_t *data)

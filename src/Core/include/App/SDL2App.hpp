@@ -28,6 +28,9 @@ namespace ettycc
         SDL_mutex  *eventMutex_;
 
         float currentDeltaTime_;
+
+        float currentAppTime_;
+
         glm::ivec2 mainWindowSize_;
 
         std::shared_ptr<EnginePipeline> currentEngine_;
@@ -44,6 +47,8 @@ namespace ettycc
         int Exec() override;
 
         float GetDeltaTime() override;
+        float GetCurrentTime() override;
+
         glm::ivec2 GetMainWindowSize() override;
         void SetUnderlyingEngine(std::shared_ptr<EnginePipeline> engine) override;
         void AddExecutionPipeline(std::shared_ptr<ExecutionPipeline> engine) override;
