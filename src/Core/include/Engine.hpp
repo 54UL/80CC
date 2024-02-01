@@ -10,6 +10,7 @@
 #include <Input/PlayerInput.hpp>
 #include <memory>
 #include <imgui.h>
+#include <spdlog/spdlog.h>
 
 namespace ettycc
 {

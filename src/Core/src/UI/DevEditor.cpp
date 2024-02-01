@@ -1,5 +1,6 @@
 #include <UI/DevEditor.hpp>
 #include <imgui_internal.h>  // For docking
+#include <stb_image.h>
 
 namespace ettycc
 {
@@ -52,7 +53,29 @@ namespace ettycc
     {
         ImGui::Begin("Viewport");
 
-        // Add content for the viewport here
+        // ImGui::Begin("Floating Toolbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
+
+        // ImVec2 buttonSize(32, 32);
+
+        // if (ImGui::ImageButton(0, buttonSize) && ImGui::IsItemClicked())
+        // {
+        //     // Handle button 1 click
+        // }
+
+        // if (ImGui::ImageButton(0, buttonSize) && ImGui::IsItemClicked())
+        // {
+        //     // Handle button 2 click
+        // }
+
+        // ImGui::End();
+
+        // Rendering of the main engine viewport (it's suppossed to have multiple frame buffers for split screen or image effects (todo: composited game view))
+        // Get the framebuffer texture ID
+        GLuint framebufferTextureID = engineInstance_->renderEngine_.GetViewPortFrameBuffer()->GetTextureId();
+
+        // Display the framebuffer texture in an ImGui image
+        ImVec2 imageSize(ImGui::GetWindowSize().x - 10, ImGui::GetWindowSize().y - 10);
+        ImGui::Image((void*)(intptr_t)framebufferTextureID, imageSize);
 
         ImGui::End();
     }
@@ -75,6 +98,33 @@ namespace ettycc
         // Add content for the scene hierarchy here
 
         ImGui::End();
+    }
+
+    GLuint DevEditor::LoadTextureFromFile(const char *filePath)
+    {
+        // load the image with stbi_load
+        int width, height, numChannels;
+        unsigned char* image = stbi_load(filePath, &width, &height, &numChannels, 0);
+
+        // Generate OpenGL texture
+        GLuint textureID;
+
+        if (image) {
+            glGenTextures(1, &textureID);
+            glBindTexture(GL_TEXTURE_2D, textureID);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            stbi_image_free(image);
+        } else {
+            std::cerr << "Error loading image: " << stbi_failure_reason() << std::endl;
+        }
+
+        return textureID; // IMPORTANT (DONT LOSE THIS ID SO IT WOULD BE GREAT TO ENCAPSULATE THIS IN A CLASS TO USE RAII)
     }
 
     // Function to recursively render the tree
@@ -115,10 +165,8 @@ namespace ettycc
             // Tab 1
             if (ImGui::BeginTabItem("Misc"))
             {
-                ImGui::Text("Delta time: %.4f", engineInstance_->appInstance_->GetDeltaTime());
-                ImGui::Text("App time: %.4f", engineInstance_->appInstance_->GetCurrentTime());
-
                 auto mousepos = engineInstance_->inputSystem_.GetMousePos();
+                ImGui::Text("Delta time: %.4f", engineInstance_->appInstance_->GetDeltaTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x, mousepos.y);
                 
                 ImGui::EndTabItem();

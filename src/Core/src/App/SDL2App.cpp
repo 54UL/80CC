@@ -94,7 +94,7 @@ namespace ettycc
     }
 
     void SDL2App::RenderingInit() {
-        glClearColor(0.2f, 0.3f, 0.4f, 1.0f);
+        glClearColor(0.2f, 0.3f, 0.4f, 1.0f); // BACKGROUND COLOR...
 		glEnable(GL_DEPTH_TEST);
         
         // Setup ImGui
@@ -105,13 +105,12 @@ namespace ettycc
         ImGui_ImplOpenGL3_Init("#version 330 core");
 
         SDL_GetWindowSize(window_,&mainWindowSize_.x,&mainWindowSize_.y);
-
-        // ImGuiIO& io = ImGui::GetIO();
-        // (void)io;
     }
     
     void SDL2App::PrepareFrame()
     {
+        // PREPARE IS IN THE DEFAULT FRAME BUFFER...
+        
         // Start the ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window_);
@@ -119,16 +118,14 @@ namespace ettycc
         // This is most for imgui so....
         currentEngine_->PrepareFrame();
         
-        // ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
-        // // ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Always);
-        // ImGui::Begin("80CC [DEV EDITOR]");//ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
-
+        // Also this is for imgui... (editor use it...)
         for(auto execution : executionPipelines_)
         {
             execution->UpdateUI();
         }
         // ImGui::End();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0,0, mainWindowSize_.x, mainWindowSize_.y);
     }
 
     void SDL2App::PresentFrame()

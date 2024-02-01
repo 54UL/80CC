@@ -13,6 +13,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
     include/Graphics/Rendering/Renderable.hpp
+    include/Graphics/Rendering/FrameBuffer.hpp
     include/Graphics/Rendering/Entities/Camera.hpp
     include/Graphics/Rendering/Entities/Sprite.hpp
     include/Graphics/Shading/Shader.hpp
@@ -38,6 +39,7 @@ set(80CC_CORE_SOURCES
     src/Scene/Transform.cpp
     src/Graphics/Rendering.cpp
     # src/Graphics/Renderable.cpp
+    src/Graphics/Rendering/FrameBuffer.cpp
     src/Graphics/Rendering/Entities/Camera.cpp
     src/Graphics/Rendering/Entities/Sprite.cpp
     src/Graphics/Shading/Shader.cpp

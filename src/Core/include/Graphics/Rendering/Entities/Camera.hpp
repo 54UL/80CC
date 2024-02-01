@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <Scene/Transform.hpp>
 #include <Graphics/Rendering/Renderable.hpp>
+#include <Graphics/Rendering/FrameBuffer.hpp>
 
 namespace ettycc
 {
@@ -11,11 +12,13 @@ namespace ettycc
 	private:
 		bool ispresp;
 		glm::mat4 ProjectionMatrix;
-		
+	public:
+		std::shared_ptr<FrameBuffer> offScreenFrameBuffer;
+
 	public:
 		Camera();
-		Camera(int h, int w);
-		Camera(int h, int w, float fov, float znear);
+		Camera(int w, int h);
+		Camera(int w, int h, float fov, float znear);
 		~Camera();
 
 	public:
