@@ -193,9 +193,9 @@ namespace ettycc
 
         // ShowMenuBar();
 
-        ShowDebugger();
+        // ShowDebugger();
           
-        // ShowViewport();
+        ShowViewport();
 
         // ShowInspector();
 

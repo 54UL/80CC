@@ -94,8 +94,7 @@ namespace ettycc
     }
 
     void SDL2App::RenderingInit() {
-        glClearColor(0.2f, 0.3f, 0.4f, 1.0f); // BACKGROUND COLOR...
-		glEnable(GL_DEPTH_TEST);
+  
         
         // Setup ImGui
         IMGUI_CHECKVERSION();
@@ -109,30 +108,30 @@ namespace ettycc
     
     void SDL2App::PrepareFrame()
     {
-        // PREPARE IS IN THE DEFAULT FRAME BUFFER...
         
         // Start the ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window_);
         ImGui::NewFrame();
         // This is most for imgui so....
-        currentEngine_->PrepareFrame();
-        
-        // Also this is for imgui... (editor use it...)
-        for(auto execution : executionPipelines_)
-        {
-            execution->UpdateUI();
-        }
-        // ImGui::End();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // currentEngine_->PrepareFrame();
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(1.0f,1.0f, 1.0f, 1.0f); // BACKGROUND COLOR...
+		glEnable(GL_DEPTH_TEST);
         glViewport(0,0, mainWindowSize_.x, mainWindowSize_.y);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
     void SDL2App::PresentFrame()
     {
         // User code render calls
         currentEngine_->PresentFrame();
-
+        // Also this is for imgui... (editor use it...)
+        for(auto execution : executionPipelines_)
+        {
+            execution->UpdateUI();
+        }
         // ImGui render call
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

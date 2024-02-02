@@ -78,6 +78,8 @@ namespace ettycc
             void main()
             {
                 gl_Position = PVM * vec4(aPos, 1);
+                // gl_Position =  vec4(aPos, 1);
+
                 TexCoord = aTexCoord;
             }
         )";
@@ -187,7 +189,7 @@ namespace ettycc
 
         // Unbind the vertex array to avoid problems
         glBindVertexArray(0);
-        // glUseProgram(0);
+        glUseProgram(0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 }
