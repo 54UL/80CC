@@ -19,7 +19,6 @@ namespace ettycc
     void FrameBuffer::BeginFrame()
     {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-
         glBindFramebuffer(GL_FRAMEBUFFER, id_);
         glViewport(position_.x, position_.y, size_.x, size_.y);
 
@@ -29,11 +28,8 @@ namespace ettycc
             spdlog::error("Begin frame buffer bind OpenGL error: {}", glError);
         }
         // begin gl frame config
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
-
-            // Check for OpenGL errors
-   
     }
 
     void FrameBuffer::EndFrame()
@@ -44,43 +40,32 @@ namespace ettycc
 
     void FrameBuffer::Init()
     {
-        // Create a custom framebuffer
         glGenFramebuffers(1, &id_);
         glBindFramebuffer(GL_FRAMEBUFFER, id_);
 
-        // Before texture creation
-        GLenum globalErrorBefore = glGetError();
-        if (globalErrorBefore != GL_NO_ERROR)
-        {
-            spdlog::error("Global OpenGL error before texture creation: {}", globalErrorBefore);
-        }
-            // Create a texture to render into
+        // Create a texture to render into
         glGenTextures(1, &textureId_);
         glBindTexture(GL_TEXTURE_2D, textureId_);
 
-         // Set texture parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size_.x, size_.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-         // Check for texture creation errors
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId_, 0);
+
         GLenum textureError = glGetError();
         if (textureError != GL_NO_ERROR)
         {
             spdlog::error("Create texture OpenGL error: {}", textureError);
         }
-       
-
-        // Unbind the texture
-        glBindTexture(GL_TEXTURE_2D, 0);
-     
-
+           
         // Create and attach a depth buffer
         glGenRenderbuffers(1, &depthBuffer_);
         glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer_);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, size_.x, size_.y);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer_);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size_.x, size_.y);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer_);
 
         // Check for renderbuffer creation errors
         GLenum renderbufferError = glGetError();
@@ -102,6 +87,8 @@ namespace ettycc
 
         // Unbind the framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
     }
 
     GLuint FrameBuffer::GetId() const

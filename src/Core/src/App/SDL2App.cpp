@@ -108,16 +108,14 @@ namespace ettycc
     
     void SDL2App::PrepareFrame()
     {
-        
         // Start the ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window_);
         ImGui::NewFrame();
-        // This is most for imgui so....
-        // currentEngine_->PrepareFrame();
+
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(1.0f,1.0f, 1.0f, 1.0f); // BACKGROUND COLOR...
+        glClearColor(0.0f,1.0f, 0.0f, 1.0f); // BACKGROUND COLOR...
 		glEnable(GL_DEPTH_TEST);
         glViewport(0,0, mainWindowSize_.x, mainWindowSize_.y);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
