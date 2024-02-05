@@ -26,10 +26,14 @@ namespace ettycc
         GLuint GetId() const;
         GLuint GetTextureId() const;
 
+        void SetSize(glm::ivec2 size);
+        glm::ivec2 GetSize(glm::ivec2 size);
+
         void BeginFrame();
         void EndFrame();
 
         void Init();
+        void CleanUp(); // internally used...
     };
 }
 

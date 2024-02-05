@@ -147,7 +147,7 @@ namespace ettycc
         while (this->IsRunning())
         {
             currentTicks = SDL_GetTicks();
-            currentDeltaTime_= (currentTicks - prevTicks) ;
+            currentDeltaTime_= (currentTicks - prevTicks) / 1000.0f;
             currentAppTime_ += currentDeltaTime_;
             
             AppInput();
@@ -235,33 +235,34 @@ namespace ettycc
 
             case SDL_KEYDOWN:
                 data[0] = event.key.keysym.sym;
-                currentEngine_->ProcessInput(PlayerInputType::KEYBOARD, data);
+                currentEngine_->ProcessInput(PlayerInputType::KEYBOARD_DOWN, data);
+                break;
+                
+            case SDL_KEYUP:
+                data[0] = event.key.keysym.sym;
+                currentEngine_->ProcessInput(PlayerInputType::KEYBOARD_UP, data);
                 break;
 
             case SDL_MOUSEMOTION:
                 data[0] = event.motion.x;
                 data[1] = event.motion.y;
-                currentEngine_->ProcessInput(PlayerInputType::MOUSE, data);
+                currentEngine_->ProcessInput(PlayerInputType::MOUSE_XY, data);
                 break;
-                
-            case SDL_KEYUP:
-                // Handle Key Up Event
-                // handleKeyUpEvent(event.key.keysym.sym);
-                break;
+
 
             case SDL_MOUSEBUTTONDOWN:
                 // Handle Mouse Button Down Event
-                // handleMouseButtonDownEvent(event.button.button, event.button.x, event.button.y);
+                data[0] = event.button.button;
+                currentEngine_->ProcessInput(PlayerInputType::MOUSE_BUTTON_DOWN, data);
                 break;
 
             case SDL_MOUSEBUTTONUP:
-                // Handle Mouse Button Up Event
-                // handleMouseButtonUpEvent(event.button.button, event.button.x, event.button.y);
+                data[0] = event.button.button;
+                currentEngine_->ProcessInput(PlayerInputType::MOUSE_BUTTON_UP, data);
                 break;
 
 
             case SDL_MOUSEWHEEL:
-                // Handle Mouse Wheel Event
                 // handleMouseWheelEvent(event.wheel.x, event.wheel.y);
                 break;
             }

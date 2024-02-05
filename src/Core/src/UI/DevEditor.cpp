@@ -21,23 +21,39 @@ namespace ettycc
 
     void DevEditor::ShowMenuBar()
     {
-        ImGui::Begin("Viewport");
-
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
-
-        if (ImGui::BeginMenuBar())
+        if (ImGui::BeginMainMenuBar())
         {
             if (ImGui::BeginMenu("File"))
             {
-                // Add file menu items here
+                ImGui::MenuItem("Open", NULL);
+                ImGui::MenuItem("Save", NULL);
                 ImGui::EndMenu();
             }
 
-            // Add more menus if needed
+            if (ImGui::BeginMenu("Editor"))
+            {
+                ImGui::MenuItem("Configure", NULL);
+                ImGui::EndMenu();
+            }
 
-            ImGui::EndMenuBar();
+            if (ImGui::BeginMenu("Window"))
+            {
+                if (ImGui::BeginMenu("Built-in"))
+                {
+                    ImGui::MenuItem("View port", NULL);
+                    ImGui::MenuItem("Debug", NULL);
+                    ImGui::MenuItem("Scene", NULL);
+                    ImGui::MenuItem("Assets", NULL);
+                    ImGui::MenuItem("Inspector", NULL);
+                    ImGui::MenuItem("Game view", NULL);
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
         }
-        ImGui::End();
     }
 
     void DevEditor::ShowSidePanel()
@@ -48,33 +64,20 @@ namespace ettycc
 
         // ImGui::End();
     }
+    static int viewportNumber = 1;
 
     void DevEditor::ShowViewport()
     {
-        ImGui::Begin("Viewport");
-
-        // ImGui::Begin("Floating Toolbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
-
-        // ImVec2 buttonSize(32, 32);
-
-        // if (ImGui::ImageButton(0, buttonSize) && ImGui::IsItemClicked())
-        // {
-        //     // Handle button 1 click
-        // }
-
-        // if (ImGui::ImageButton(0, buttonSize) && ImGui::IsItemClicked())
-        // {
-        //     // Handle button 2 click
-        // }
-
-        // ImGui::End();
+        ImGui::Begin("Game view");
 
         // Rendering of the main engine viewport (it's suppossed to have multiple frame buffers for split screen or image effects (todo: composited game view))
         // Get the framebuffer texture ID
-        GLuint framebufferTextureID = engineInstance_->renderEngine_.GetViewPortFrameBuffer()->GetTextureId();
-
+        auto frambuffer = engineInstance_->renderEngine_.GetViewPortFrameBuffer();
+        GLuint framebufferTextureID = frambuffer->GetTextureId();
+        frambuffer->SetSize(glm::ivec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y));
+        
         // Display the framebuffer texture in an ImGui image
-        ImVec2 imageSize(ImGui::GetWindowSize().x - 10, ImGui::GetWindowSize().y - 10);
+        ImVec2 imageSize(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y );
         ImGui::Image((void*)(intptr_t)framebufferTextureID, imageSize);
 
         ImGui::End();
@@ -84,7 +87,20 @@ namespace ettycc
     {
         ImGui::Begin("Inspector");
 
-        // Add content for the inspector here
+        std::string name;
+        float position[3] = {0.0f,0.0f,0.0f};
+        float scale[3] = {1.0f,1.0f,1.0f};
+        float rotation[3] = {0.0f,0.0f,0.0f};
+
+        // Add other properties as needed
+        // ImGui::SameLine();
+        ImGui::Text("Position");
+        ImGui::SliderFloat3("##Pos", position, -10.0f, 10.0f);
+        ImGui::InputFloat3("##PosEdit", position, "%.2f");
+        ImGui::Text("Rotation");
+        ImGui::SliderFloat3("##Rot", position, -10.0f, 10.0f);
+        ImGui::InputFloat3("##PosEdit", position, "%.2f");
+        // Add more properties as needed
 
         ImGui::End();
     }
@@ -92,6 +108,17 @@ namespace ettycc
     void DevEditor::ShowSceneHierarchy()
     {
         ImGui::Begin("Scene Hierarchy");
+
+        RenderTree(); // demo example
+        
+        // Add content for the scene hierarchy here
+
+        ImGui::End();
+    }
+
+    void DevEditor::ShowAssetsView()
+    {
+        ImGui::Begin("Assets");
 
         RenderTree(); // demo example
         
@@ -155,9 +182,10 @@ namespace ettycc
 
     void DevEditor::ShowDebugger()
     {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+        // ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
 
         ImGui::Begin("debug");
+    
 
         // Begin a new tab bar
         if (ImGui::BeginTabBar("tools", ImGuiTabBarFlags_Reorderable))
@@ -167,6 +195,8 @@ namespace ettycc
             {
                 auto mousepos = engineInstance_->inputSystem_.GetMousePos();
                 ImGui::Text("Delta time: %.4f", engineInstance_->appInstance_->GetDeltaTime());
+                ImGui::Text("FPS: %.4f", (1.0f/engineInstance_->appInstance_->GetDeltaTime()));
+                ImGui::Text("App time: %.4f", engineInstance_->appInstance_->GetCurrentTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x, mousepos.y);
                 
                 ImGui::EndTabItem();
@@ -188,18 +218,19 @@ namespace ettycc
 
     void DevEditor::DrawEditor()
     {
-
+        ShowMenuBar();
+        
         ShowDockSpace(); 
 
-        // ShowMenuBar();
-
-        // ShowDebugger();
-          
+        ShowDebugger();
+        
         ShowViewport();
 
         // ShowInspector();
 
-        // ShowSceneHierarchy();
+        ShowSceneHierarchy();
+
+        // ShowAssetsView();
     }
 
     void DevEditor::Init()
@@ -217,4 +248,5 @@ namespace ettycc
     {
         // Does nothing...
     }
+
 } // namespace ettycc

@@ -10,8 +10,8 @@ namespace ettycc
     {
     protected:
         glm::mat4 modelMatrix; // underlying matrix...
-        glm::mat4 rotationMatrix; // underlying matrix...
-        glm::mat4 transformMatrix; // underlying matrix...
+        glm::mat4 transformMatrix; 
+        glm::mat4 rotationMatrix;
 
         bool enabled;
     public:

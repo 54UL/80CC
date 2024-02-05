@@ -11,6 +11,11 @@ namespace ettycc
 
     FrameBuffer::~FrameBuffer()
     {
+        CleanUp();
+    }
+
+    void FrameBuffer::CleanUp()
+    {
         glDeleteFramebuffers(1, &id_);
         glDeleteTextures(1, &textureId_);
         glDeleteRenderbuffers(1, &depthBuffer_);
@@ -18,7 +23,9 @@ namespace ettycc
 
     void FrameBuffer::BeginFrame()
     {
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        constexpr const float lightGray = 0X1E / 100.0f;
+
+        glClearColor(lightGray, lightGray,lightGray, 1.0f);
         glBindFramebuffer(GL_FRAMEBUFFER, id_);
         glViewport(position_.x, position_.y, size_.x, size_.y);
 
@@ -34,7 +41,6 @@ namespace ettycc
 
     void FrameBuffer::EndFrame()
     {
-
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
@@ -100,5 +106,20 @@ namespace ettycc
     {
         return textureId_;
     }
-    
+
+    void FrameBuffer::SetSize(glm::ivec2 size)
+    {
+        if (size_ != size){
+            spdlog::info("Frame-buffer(id:{}) resized ivec2[{},{}]",id_,size.x, size.y);
+            size_ = size;
+            CleanUp();
+            Init();
+        }
+    }
+
+    glm::ivec2 FrameBuffer::GetSize(glm::ivec2 size)
+    {
+        return size_;
+    }
+
 } // namespace ettycc

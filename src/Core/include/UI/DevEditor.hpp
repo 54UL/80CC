@@ -30,8 +30,7 @@ namespace ettycc
         void UpdateUI() override;
         void Update() override;
         
-
-    private :
+    private:
         void DrawEditor();
         // Editor internals
         void RenderTree(const Object &obj);
@@ -44,6 +43,7 @@ namespace ettycc
         void ShowSidePanel();
         void ShowViewport();
         void ShowInspector();
+        void ShowAssetsView();
         void ShowSceneHierarchy();
     
     private:// FUNCTIONS THAT MUST BE EVERYWHERE OR BE IN A GENERIC CLASS !!!

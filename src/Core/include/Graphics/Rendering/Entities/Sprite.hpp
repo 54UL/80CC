@@ -14,12 +14,13 @@ namespace ettycc
     {
     private:
         GLuint VAO, VBO, EBO, TEXTURE;
-        
+        const char * spriteFilePath_;
+
     public:
         ShaderPipeline underlyingShader;
     
     public:
-        Sprite();
+        Sprite(const char * spriteFilePath);
         ~Sprite();
 
         void LoadShaders();

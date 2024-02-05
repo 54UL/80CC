@@ -27,9 +27,7 @@ namespace ettycc
 
     void Transform::setGlobalRotation(glm::vec3 Euler)
     {
-        // Create a quaternion from Euler angles
         rotationMatrix = glm::mat4_cast(glm::quat(glm::radians(Euler)));
-        // Create a rotation matrix from the quaternion
         transformMatrix = rotationMatrix * modelMatrix ;
     }
 
@@ -37,6 +35,7 @@ namespace ettycc
     {
         glm::quat tmpRot(this->modelMatrix);
         modelMatrix = glm::translate(this->modelMatrix, tmpRot * RelativeDirection);
+        transformMatrix = modelMatrix;
     }
 
     void Transform::SetMatrix(glm::mat4 matrix)

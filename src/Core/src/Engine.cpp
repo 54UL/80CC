@@ -12,27 +12,36 @@ namespace ettycc
 
     void Engine::RenderingEngineDemo()
     {
+        const char* loonaImagePath = "D:/repos2/ALPHA_V1/assets/images/loona.jpg";// TODO: FETCH FROM config???
+        const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";// TODO: FETCH FROM config???
+
         auto mainWindowSize = appInstance_->GetMainWindowSize();
         renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
 
         // below is the editor view port camera
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(200,300, 90, 0.01f);
-        std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
-        mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
-       
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(1080,720, 90, 0.01f);
+        std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath);
+        std::shared_ptr<Sprite> someSprite2 = std::make_shared<Sprite>(notFoundTexturePath);
+          
+        // mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
+        someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
+        someSprite2->underylingTransform.setGlobalPosition(glm::vec3(1, 0, -2));
+
         renderEngine_.SetViewPortFrameBuffer(mainCamera->offScreenFrameBuffer);
         ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera);
 
         renderEngine_.AddRenderable(mainCamera);
         renderEngine_.AddRenderable(someSprite);
+        renderEngine_.AddRenderable(someSprite2);
+
     }
 
     void Engine::Init()
     {
         RenderingEngineDemo();
-        spdlog::warn("App and Game engine ready..."); // if it gets here it means that the app was initialized just fine...?
+        spdlog::warn("App and Game engine ready...");
     }
-
+ 
     void Engine::Update()
     {
         // Engine logic goes here
@@ -47,6 +56,7 @@ namespace ettycc
     void Engine::PresentFrame()
     {
         renderEngine_.Pass(appInstance_->GetCurrentTime());
+        inputSystem_.ResetState();// TODO: FIX THIS THRASH WITH INPUT UP AND DOWN EVENTS (INTERNALLY)
     }
 
     void Engine::ProcessInput(PlayerInputType type, uint64_t *data)

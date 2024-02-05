@@ -6,7 +6,7 @@
 
 namespace ettycc
 {
-    Sprite::Sprite()
+    Sprite::Sprite(const char * spriteFilePath): spriteFilePath_(spriteFilePath)
     {
         // Quad vertices and texture coordinates
         float vertices[] {
@@ -65,6 +65,7 @@ namespace ettycc
     void Sprite::LoadShaders()
     {
         std::vector<std::shared_ptr<Shader>> shadersIntances;
+        // TODO: FETCH SOURCES FROM FILE...
 
         // Shader sources
         const char *vertexShaderSource = R"(
@@ -142,8 +143,7 @@ namespace ettycc
 
         // load the image with stbi_load
         int width, height, numChannels;
-        const char* imagePath = "D:/repos2/ALPHA_V1/assets/images/loona.jpg";// TODO: FETCH FROM AN MEMBER
-        unsigned char* image = stbi_load(imagePath, &width, &height, &numChannels, 0);
+        unsigned char* image = stbi_load(spriteFilePath_, &width, &height, &numChannels, 0);
 
         // Pass the data to the gpu
         if (image) {

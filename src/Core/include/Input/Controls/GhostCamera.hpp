@@ -6,6 +6,7 @@
 #include <Input/PlayerInput.hpp>
 #include <glm/glm.hpp>
 #include "Control.hpp"
+#include <spdlog/spdlog.h>
 
 namespace ettycc
 {
@@ -17,11 +18,15 @@ namespace ettycc
 
         // ASSUMING MOUSE IMPL...
         glm::vec3 lookAxis;
+        glm::vec3 positionAxis;
+
         glm::ivec2 mouseDelta;
         glm::ivec2 mouseCurrent;
 
         glm::ivec2 lastAxisPosition;
-        float lookSensitivity = 2.0f;
+        float lookSensitivity = 30.0f;
+        float movementSensitivity = 50.00f;
+
 	    bool LookCursor=true;
         
     public:

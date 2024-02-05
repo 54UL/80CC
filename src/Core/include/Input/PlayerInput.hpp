@@ -6,12 +6,23 @@ namespace ettycc
 {
     enum class PlayerInputType
     {
-        KEYBOARD,
-        MOUSE,
+        KEYBOARD_DOWN,
+        KEYBOARD_UP,
+        MOUSE_XY,
+        MOUSE_BUTTON_DOWN,
+        MOUSE_BUTTON_UP,
         JOYSTICK,
         TOUCH
     };
-    enum class InputDirection  {UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3, NONE = 4};
+    
+    enum class InputDirection
+    {
+        UP = 0,
+        DOWN = 1,
+        LEFT = 2,
+        RIGHT = 3,
+        NONE = 4
+    };
     enum class InputDataOffsets : uint64_t
     {
         KEY = 0,
@@ -32,16 +43,21 @@ namespace ettycc
         int xpos,ypos;
         char currentKey; 
         bool pressed;
+
+        uint32_t pressedKeys[8];
+
     public:
         PlayerInput();
         ~PlayerInput();
 
         void ProcessInput(PlayerInputType type, uint64_t *data);
+        void ResetState();
 
         // INPUT API...
         glm::vec2 GetLeftAxis(); // WASD OR ARROWS...
         glm::vec2 GetRightAxis(); 
         glm::ivec2 GetMousePos(); 
+        bool GetMouseButton(int buttonIndex);
 
         // glm::vec2 GetMouseAceleration();
         // uint64_t  GetMouseButtonDown();   

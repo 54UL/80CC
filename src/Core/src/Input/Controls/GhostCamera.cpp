@@ -1,13 +1,16 @@
 #include <Input/Controls/GhostCamera.hpp>
 #include <glm/glm.hpp>
 #include <iostream>
+
 namespace ettycc
 {
     static float time;
     GhostCamera::GhostCamera(PlayerInput *input, std::shared_ptr<Camera> camera) :inputSystem_(input), camera_(camera)
     {
         time = 0;
-        lastAxisPosition = glm::ivec2(0,0);
+        lastAxisPosition = glm::ivec2(1,1);
+        lookAxis = glm::vec3(365.0f,1.0f,1.0f);
+        positionAxis = glm::vec3(0.0f,0.0f,-2.0f);
     }
 
     GhostCamera::~GhostCamera()
@@ -18,23 +21,20 @@ namespace ettycc
     void GhostCamera::Update(float deltaTime)
     {
         mouseCurrent = inputSystem_->GetMousePos();
-        mouseDelta = lastAxisPosition - mouseCurrent;
+        mouseDelta =  mouseCurrent - lastAxisPosition;
         lastAxisPosition = mouseCurrent;
 
-        // glm::vec2 translationAxis = inputSystem_->GetLeftAxis();
-        // glm::vec3 translation = glm::vec3(translationAxis.x, 0, translationAxis.y) * 1.00f ;
-        lookAxis += glm::vec3(mouseDelta.x, mouseDelta.y, 0) ;
+        if (inputSystem_->GetMouseButton(3)) {
+            positionAxis += glm::vec3(inputSystem_->GetLeftAxis().x , inputSystem_->GetLeftAxis().y, 0.0f) * movementSensitivity * deltaTime;
+            lookAxis += glm::vec3(-mouseDelta.y, mouseDelta.x, 0) * lookSensitivity * deltaTime;
+        }
 
-        // Update camera's transform
-        // camera_->underylingTransform.translate(translation);
-        // camera_->underylingTransform.setGlobalRotation(lookAxis);
-        
-        // camera_->underylingTransform.setGlobalRotation(glm::vec3(0,time+=(deltaTime*0.52f),0));
-        // camera_->underylingTransform.setGlobalPosition(glm::vec3(0,time+=(deltaTime*0.52f),0));
+        camera_->underylingTransform.setGlobalPosition(positionAxis);
+        camera_->underylingTransform.setGlobalRotation(lookAxis);
     }
 
     void GhostCamera::LateUpdate(float deltaTime)
     {
-    }
 
+    }
 } // namespace ettycc

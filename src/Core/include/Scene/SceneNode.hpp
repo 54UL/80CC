@@ -18,7 +18,6 @@ namespace ettycc
         ~SceneNode();
 
         void AddComponent(std::shared_ptr<NodeComponent> component);
-        
     };
 }
 
