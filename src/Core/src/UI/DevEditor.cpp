@@ -154,12 +154,39 @@ namespace ettycc
         return textureID; // IMPORTANT (DONT LOSE THIS ID SO IT WOULD BE GREAT TO ENCAPSULATE THIS IN A CLASS TO USE RAII)
     }
 
+    
+
+    void ShowContextMenu()
+    {
+        if (ImGui::BeginPopupContextItem()) // This creates a context menu for the current item
+        {
+            if (ImGui::MenuItem("Option 1"))
+            {
+                // Code to execute when Option 1 is selected
+            }
+            if (ImGui::MenuItem("Option 2"))
+            {
+                // Code to execute when Option 2 is selected
+            }
+
+            // Add more items as needed
+
+            ImGui::EndPopup();
+        }
+    }
+
     // Function to recursively render the tree
     void DevEditor::RenderTree(const Object &obj)
     {
+        if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+        {
+            ShowContextMenu();
+        }
+
         // Display the current object in the tree
         if (ImGui::TreeNode(obj.name.c_str()))
         {
+          
             // Render children recursively
             for (const auto &child : obj.children)
             {
@@ -179,7 +206,15 @@ namespace ettycc
         // Render the tree structure
         RenderTree(rootObject);
     }
+    static float values[256] = { 0.0f };  // Your data values
+    static int sampleIndex = 0;  // Your data values
 
+    void PlotGraph()
+    {
+
+        // Alternatively, you can use ImGui::PlotHistogram for a histogram plot
+        // ImGui::PlotHistogram("Graph Title", values, IM_ARRAYSIZE(values));
+    }
     void DevEditor::ShowDebugger()
     {
         // ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
@@ -195,10 +230,19 @@ namespace ettycc
             {
                 auto mousepos = engineInstance_->inputSystem_.GetMousePos();
                 ImGui::Text("Delta time: %.4f", engineInstance_->appInstance_->GetDeltaTime());
-                ImGui::Text("FPS: %.4f", (1.0f/engineInstance_->appInstance_->GetDeltaTime()));
                 ImGui::Text("App time: %.4f", engineInstance_->appInstance_->GetCurrentTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x, mousepos.y);
-                
+                ImGui::Text("FPS: %.4f", (1.0f / engineInstance_->appInstance_->GetDeltaTime()));
+                values[sampleIndex] = (1.0f / engineInstance_->appInstance_->GetDeltaTime());
+                ImVec2 graphSize(200, 200);  // Adjust the size as needed
+
+                ImGui::PlotHistogram("FPS HISTOGRAM", values, IM_ARRAYSIZE(values),0, nullptr,FLT_MAX, FLT_MAX, graphSize);
+                if (sampleIndex < 256){
+                    sampleIndex++;
+                }
+                else 
+                    sampleIndex = 0;
+
                 ImGui::EndTabItem();
             }
 
@@ -218,9 +262,12 @@ namespace ettycc
 
     void DevEditor::DrawEditor()
     {
+        bool open = true;
         ShowMenuBar();
         
         ShowDockSpace(); 
+
+        ImGui::ShowDemoWindow(&open);
 
         ShowDebugger();
         
