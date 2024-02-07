@@ -158,10 +158,11 @@ namespace ettycc
         }
 
         // Bind the shader program
-        underlyingShader.Use();
+        underlyingShader.Bind();
 
         // Set the texture unit in the shader
         glUniform1i(glGetUniformLocation(underlyingShader.GetProgramId(), "ourTexture"), 0);
+
         // Unbind the texture
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -174,7 +175,7 @@ namespace ettycc
         glBindTexture(GL_TEXTURE_2D, TEXTURE);
 
         // Use the shader program and draw the quad
-        underlyingShader.Use();
+        underlyingShader.Bind();
 
         // Multiply projection * view * model matrix to compute sprite rendering...
         glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View *  underylingTransform.GetMatrix();
@@ -188,8 +189,8 @@ namespace ettycc
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         // Unbind the vertex array to avoid problems
+        underlyingShader.Unbind();
         glBindVertexArray(0);
-        glUseProgram(0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 }

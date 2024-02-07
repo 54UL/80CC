@@ -70,7 +70,12 @@ namespace ettycc
         glLinkProgram(0);
     }
 
-    void ShaderPipeline::Use()
+    void ShaderPipeline::Bind()
+    {
+        glUseProgram(shaderProgram);
+    }
+
+    void ShaderPipeline::Unbind()
     {
         glUseProgram(shaderProgram);
     }

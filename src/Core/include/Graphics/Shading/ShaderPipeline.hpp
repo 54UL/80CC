@@ -22,7 +22,9 @@ namespace ettycc
         
         // SHADER PIPELINE API 
         void Create();
-        void Use();
+        void Bind();
+        void Unbind();
+
         GLuint GetProgramId() const;
 
         void AddShaders(const std::vector<std::shared_ptr<Shader>>& shaders);
