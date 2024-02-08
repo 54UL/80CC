@@ -6,6 +6,7 @@
 
 namespace ettycc
 {
+    // This is an old as fuck class but gets the work done please be patient...
     class Transform
     {
     protected:

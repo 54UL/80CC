@@ -10,6 +10,10 @@ set(80CC_CORE_HEADERS
     include/App/ExecutionPipeline.hpp
     include/App/SDL2App.hpp
     include/Scene/Transform.hpp
+    include/Scene/Scene.hpp
+    include/Scene/SceneNode.hpp
+    include/Scene/NodeComponent.hpp
+    include/Scene/Components/RenderableNode.hpp
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
     include/Graphics/Rendering/Renderable.hpp
@@ -37,8 +41,10 @@ set(80CC_CORE_SOURCES
     src/80CC.cpp
     src/App/SDL2App.cpp
     src/Scene/Transform.cpp
+    src/Scene/Scene.cpp
+    src/Scene/SceneNode.cpp
+    src/Scene/Components/RenderableNode.cpp
     src/Graphics/Rendering.cpp
-    # src/Graphics/Renderable.cpp
     src/Graphics/Rendering/FrameBuffer.cpp
     src/Graphics/Rendering/Entities/Camera.cpp
     src/Graphics/Rendering/Entities/Sprite.cpp
