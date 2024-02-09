@@ -15,18 +15,21 @@ namespace ettycc
     class Scene
     {        
     private:
-        std::vector<std::shared_ptr<SceneNode>> nodes_;
+
         // components by his processing channel (ordered...)
         std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> executionComponentMap_; // for the moment only used to separate the execution layers...        
         Engine * engineInstance_;
 
     public:
+            std::vector<std::shared_ptr<SceneNode>> nodes_;
+
         Scene(Engine * engine);
         ~Scene();
 
         // Scene API
-        auto Init() -> void;
-        auto AddNode(const std::shared_ptr<SceneNode>& node, ProcessingChannel processingChannel) -> uint64_t;
+        auto Init() -> void; // not used 4 the moment
+
+        auto AddNode(const std::shared_ptr<SceneNode>& node) -> uint64_t;
         auto RemoveNode(uint64_t id) -> void;
 
         auto GetNodeById(uint64_t id) -> std::shared_ptr<SceneNode>;

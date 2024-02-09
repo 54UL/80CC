@@ -32,6 +32,7 @@ namespace ettycc
 
         // TESTING...
         void RenderingEngineDemo();
+        void TestScene();
 
         // Engine pipeline impl
         void Init() override; 

@@ -18,19 +18,25 @@ namespace ettycc
         // executionComponentMap_[ProcessingChannel::RENDERING]
     }
 
-    uint64_t Scene::AddNode(const std::shared_ptr<SceneNode> &node, ProcessingChannel processingChannel)
+    uint64_t Scene::AddNode(const std::shared_ptr<SceneNode> &node)// tf is
     {
         // executionChannels_[processingChannel].emplace_back(node);
         nodes_.emplace_back(node);
 
         // put all the components in a vector to iterate them in order later on the execution pipeline
-        auto executionVectorChannel = executionComponentMap_[processingChannel];
-        executionVectorChannel.insert(executionVectorChannel.end(), node->components_[processingChannel].begin(), node->components_[processingChannel].end());
+        // auto executionVectorChannel = executionComponentMap_[processingChannel];
+        // executionVectorChannel.insert(executionVectorChannel.end(), node->components_[processingChannel].begin(), node->components_[processingChannel].end());
 
-        // TODO: add deffered option to call OnStart by your own 
-        for (const auto &component : node->components_[processingChannel])
+        for (const auto &kvp : node->components_)
         {
-            component->OnStart(engineInstance_);
+            const std::vector<std::shared_ptr<NodeComponent>> &channelValues = kvp.second;
+            executionComponentMap_[kvp.first].insert(executionComponentMap_[kvp.first].end(), channelValues.begin(), channelValues.end());
+            // after added to the exec map initialize them...
+
+            for (const auto &component : node->components_[kvp.first])
+            {
+                component->OnStart(engineInstance_);
+            }
         }
 
         return node->GetId();
