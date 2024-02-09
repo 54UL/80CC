@@ -206,7 +206,9 @@ namespace ettycc
         // Render the tree structure
         RenderTree(rootObject);
     }
-    static float values[256] = { 0.0f };  // Your data values
+    
+    static const int MAX_SAMPLES = 32;
+    static float values[MAX_SAMPLES] = { 0.0f };  // Your data values
     static int sampleIndex = 0;  // Your data values
 
     void PlotGraph()
@@ -215,6 +217,9 @@ namespace ettycc
         // Alternatively, you can use ImGui::PlotHistogram for a histogram plot
         // ImGui::PlotHistogram("Graph Title", values, IM_ARRAYSIZE(values));
     }
+
+    static float plotStep = 0.0f;
+
     void DevEditor::ShowDebugger()
     {
         // ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
@@ -233,15 +238,22 @@ namespace ettycc
                 ImGui::Text("App time: %.4f", engineInstance_->appInstance_->GetCurrentTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x, mousepos.y);
                 ImGui::Text("FPS: %.4f", (1.0f / engineInstance_->appInstance_->GetDeltaTime()));
-                values[sampleIndex] = (1.0f / engineInstance_->appInstance_->GetDeltaTime());
-                ImVec2 graphSize(200, 200);  // Adjust the size as needed
+                // ImVec2 graphSize(200, 200);  // Adjust the size as needed
+                
+                plotStep += engineInstance_->appInstance_->GetDeltaTime();
+                ImGui::PlotHistogram("HISTOGRAM", values, IM_ARRAYSIZE(values));
 
-                ImGui::PlotHistogram("FPS HISTOGRAM", values, IM_ARRAYSIZE(values),0, nullptr,FLT_MAX, FLT_MAX, graphSize);
-                if (sampleIndex < 256){
+                if (sampleIndex < MAX_SAMPLES && plotStep >= 1) {
+                    values[sampleIndex] = (1.0f / engineInstance_->appInstance_->GetDeltaTime());
                     sampleIndex++;
+                    plotStep = 0;
                 }
-                else 
+                else if (sampleIndex >= MAX_SAMPLES){
+                    for (int i =0; i < MAX_SAMPLES; i++){
+                        values[i] = 0;
+                    }
                     sampleIndex = 0;
+                }
 
                 ImGui::EndTabItem();
             }

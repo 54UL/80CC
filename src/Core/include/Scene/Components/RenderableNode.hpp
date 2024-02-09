@@ -1,23 +1,30 @@
 #ifndef RENDERABLE_NODE_HPP
 #define RENDERABLE_NODE_HPP
 
+#include <Engine.hpp>
 #include <Scene/NodeComponent.hpp>
+#include <Graphics/Rendering/Entities/Sprite.hpp>
+
+#include <memory>
 
 namespace ettycc
 {   
     // Front-end class for the renderable interface...
-
     class RenderableNode : public NodeComponent
     {
+        const char * COLLOQUIAL_NAME = "Renderable";
+        
     private:
-        const char* loonaImagePath = "D:/repos2/ALPHA_V1/assets/images/loona.jpg";// TODO: FETCH FROM config???
+        std::shared_ptr<Renderable> renderable_;
 
     public:
-        RenderableNode();
+        RenderableNode(const std::shared_ptr<Renderable>& renderable);
         ~RenderableNode();
 
-        void OnStart() override;
-        void OnUpdate() override;
+        // NodeComponent api...
+        NodeComponentInfo GetComponentInfo() override;
+        void OnStart(Engine *engineInstance) override;
+        void OnUpdate(float deltaTime) override;
     };  
 } // namespace ettycc
 

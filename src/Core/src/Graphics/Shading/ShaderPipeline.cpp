@@ -39,7 +39,7 @@ namespace ettycc
 
     void ShaderPipeline::AddShaders(const std::vector<std::shared_ptr<Shader>> &shaders)
     {
-        shaders_.insert(shaders_.begin(), shaders.begin(), shaders.end());
+        shaders_.insert(shaders_.end(), shaders.begin(), shaders.end());
     }
 
     void ShaderPipeline::Create()

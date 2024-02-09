@@ -1,22 +1,31 @@
 #include <Scene/Components/RenderableNode.hpp>
 
-
 namespace ettycc
 {
-    RenderableNode::RenderableNode()
+    RenderableNode::RenderableNode(const std::shared_ptr<Renderable>& renderable)
     {
-        std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath);
+        renderable_= renderable;
     }
 
     RenderableNode::~RenderableNode()
     {
+
     }
 
-    void RenderableNode::OnStart()
+    NodeComponentInfo RenderableNode::GetComponentInfo()
     {
+        return NodeComponentInfo {0, COLLOQUIAL_NAME, true, ProcessingChannel::RENDERING};
     }
 
-    void RenderableNode::OnUpdate()
+    void RenderableNode::OnStart(Engine *engineInstance)
     {
+        engineInstance->renderEngine_.AddRenderable(renderable_);
+    }
+
+    void RenderableNode::OnUpdate(float deltaTime)
+    {
+        // Process updates on the renderable if changed...???
+        // REQUEST HIDE IF DISABLED???
+        // if deleted remove from the rendering...???
     }
 }

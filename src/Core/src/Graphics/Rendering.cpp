@@ -43,6 +43,7 @@ namespace ettycc
         {
             renderable->Pass(this->renderingCtx_, deltaTime);
         }
+        
         sceneFrameBuffer_->EndFrame();
     }
 
@@ -53,6 +54,6 @@ namespace ettycc
 
     void Rendering::AddRenderables(const std::vector<std::shared_ptr<Renderable>> &renderables)
     {
-        renderables_.insert(renderables_.begin(), renderables.begin(), renderables.end());
+        renderables_.insert(renderables_.end(), renderables.begin(), renderables.end());
     }
 }

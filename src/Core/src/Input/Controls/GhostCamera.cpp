@@ -7,8 +7,8 @@ namespace ettycc
     GhostCamera::GhostCamera(PlayerInput *input, std::shared_ptr<Camera> camera) :inputSystem_(input), camera_(camera)
     {
         lastAxisPosition = glm::ivec2(1,1);
-        lookAxis = glm::vec3(365.0f,1.0f,1.0f);
-        positionAxis = glm::vec3(0.0f,0.0f,-2.0f);
+        lookAxis = glm::vec3(365.0f, 1.0f, 1.0f);
+        positionAxis = glm::vec3(0.0f, 0.0f, -2.0f);
     }
 
     GhostCamera::~GhostCamera()

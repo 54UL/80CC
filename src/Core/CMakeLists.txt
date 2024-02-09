@@ -5,14 +5,17 @@ set(CMAKE_CXX_COMPILER gcc)
 
 set(80CC_CORE_HEADERS
     include/80CC.hpp
+    include/Engine.hpp
     include/App/App.hpp
     include/App/EnginePipeline.hpp
     include/App/ExecutionPipeline.hpp
     include/App/SDL2App.hpp
+    include/Scene/Api.hpp
+    include/Scene/NodeComponentInfo.hpp
+    include/Scene/NodeComponent.hpp
     include/Scene/Transform.hpp
     include/Scene/Scene.hpp
     include/Scene/SceneNode.hpp
-    include/Scene/NodeComponent.hpp
     include/Scene/Components/RenderableNode.hpp
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
@@ -25,7 +28,7 @@ set(80CC_CORE_HEADERS
     include/Input/PlayerInput.hpp
     include/Input/Controls/GhostCamera.hpp
     include/UI/DevEditor.hpp
-    include/Engine.hpp
+
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
     external/imgui/imgui_internal.h

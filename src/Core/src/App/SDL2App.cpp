@@ -29,6 +29,7 @@ namespace ettycc
         }
 
         // Create SDL window and OpenGL context
+        // todo: get the size from a config or idk lol...
         window_ = SDL_CreateWindow(windowTitle_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_RENDERER_PRESENTVSYNC);
         if (!window_)
         {
@@ -103,9 +104,9 @@ namespace ettycc
         ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
         ImGui_ImplOpenGL3_Init("#version 330 core");
 
-        SDL_GetWindowSize(window_,&mainWindowSize_.x,&mainWindowSize_.y);
+        SDL_GetWindowSize(window_, &mainWindowSize_.x, &mainWindowSize_.y);
     }
-    
+
     void SDL2App::PrepareFrame()
     {
         // Start the ImGui frame
@@ -125,11 +126,13 @@ namespace ettycc
     {
         // User code render calls
         currentEngine_->PresentFrame();
+
         // Also this is for imgui... (editor use it...)
         for(auto execution : executionPipelines_)
         {
             execution->UpdateUI();
         }
+
         // ImGui render call
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -162,15 +165,8 @@ namespace ettycc
 
     void SDL2App::Dispose()
     {
-        // Cleanup
-        // int eventThreadReturnValue;
-        // SDL_WaitThread(eventThread_, &eventThreadReturnValue);
-
-        // Destroy the mutex
-        // SDL_DestroyMutex(eventMutex_);
-
-        // Cleanup ImGui
-        ImGui_ImplOpenGL3_Shutdown();
+        // Cleanup ImGui 
+        ImGui_ImplOpenGL3_Shutdown(); 
         ImGui_ImplSDL2_Shutdown();
         ImGui::DestroyContext();
 

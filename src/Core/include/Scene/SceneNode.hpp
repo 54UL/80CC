@@ -1,27 +1,42 @@
-#ifndef SCENE_NODE
-#define SCENE_NODE
+#ifndef SCENE_NODE_HPP
+#define SCENE_NODE_HPP
+
+#include "NodeComponent.hpp"
 
 #include <string>
-#include <Scene/NodeComponent.hpp>
+#include <memory>
+#include <map>
+#include <vector>
 
 namespace ettycc 
 {
     class SceneNode
     {
     private:
-        uint64_t id;
+        uint64_t id_;
         std::string name_;
-        std::vector<std::shared_ptr<NodeComponent>> components_;
+        bool enabled_;
+
 
     public:
-        SceneNode();
+        //experimental...
+        std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> components_;
+        std::shared_ptr<SceneNode> parent_;
+        std::vector<std::shared_ptr<SceneNode>> children_; 
+
+    public:
+        SceneNode() = delete; // check below =)
+        SceneNode(const std::shared_ptr<SceneNode>& root); // we need the reference from somewhere...
+        SceneNode(const std::shared_ptr<SceneNode>& root, const std::vector<std::shared_ptr<SceneNode>>& children);
         ~SceneNode();
-
-        uint64_t AddComponent(std::shared_ptr<NodeComponent> component);
         
-        auto GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent> component;
-        auto GetComponentByName(const std::string& name) -> std::shared_ptr<NodeComponent> component;
+        auto GetId() -> uint64_t;
+        auto GetName() -> std::string;
 
+        auto AddComponent(std::shared_ptr<NodeComponent> component) -> uint64_t;
+        auto GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>;
+        auto GetComponentByName(const std::string& name) -> std::shared_ptr<NodeComponent>;
+        // auto ProcessComponents(float deltaTime);
     };
 }
 

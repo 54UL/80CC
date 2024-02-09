@@ -1,17 +1,28 @@
 #ifndef NODE_COMPONENT_HPP
 #define NODE_COMPONENT_HPP
 
-#include <Scene/SceneNode.hpp>
+// #include <Scene/SceneNode.hpp>
+#include <Scene/Api.hpp>
+#include <map>
+#include <string>
+#include <string_view>
 
-class NodeComponent
-{
-    public:
-    // Life cycle functions
-    virtual void OnStart() = 0;
-    virtual void OnUpdate() = 0;
+namespace ettycc 
+{   
+    class Engine; // forward declaration because engine has included NodeComponent somewhere...
 
-    // Events
-    virtual void OnParentChanged(SceneNode * parentContext) = 0;
-};
+    class NodeComponent
+    {
+        public:
+        // Life cycle functions
+        virtual NodeComponentInfo GetComponentInfo() = 0;
+        virtual void OnStart(Engine *engineInstance) = 0;
+        virtual void OnUpdate(float deltaTime) = 0;
+        // This is more like a serialization interface...
+        // virtual void Load();
+        // virtual void Store();
+    };
+}
+
 
 #endif

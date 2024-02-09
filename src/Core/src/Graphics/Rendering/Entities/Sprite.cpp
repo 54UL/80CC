@@ -146,13 +146,16 @@ namespace ettycc
         unsigned char* image = stbi_load(spriteFilePath_, &width, &height, &numChannels, 0);
 
         // Pass the data to the gpu
-        if (image) {
+        if (image)
+        {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
             glGenerateMipmap(GL_TEXTURE_2D);
 
             // Free the image data after generating the texture
             stbi_image_free(image);
-        } else {
+        }
+        else
+        {
             // Handle error loading the image
             std::cerr << "Error loading image: " << stbi_failure_reason() << std::endl;
         }
