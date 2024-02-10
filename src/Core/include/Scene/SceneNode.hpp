@@ -25,7 +25,7 @@ namespace ettycc
         std::vector<std::shared_ptr<SceneNode>> children_; 
 
     public:
-        SceneNode() = delete; // check below =)
+        SceneNode();
         SceneNode(const std::shared_ptr<SceneNode>& root); // we need the reference from somewhere...
         SceneNode(const std::shared_ptr<SceneNode>& root, const std::vector<std::shared_ptr<SceneNode>>& children);
         ~SceneNode();

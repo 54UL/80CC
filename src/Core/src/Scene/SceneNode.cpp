@@ -2,6 +2,11 @@
 
 namespace ettycc 
 {
+    SceneNode::SceneNode()
+    {
+        
+    }
+      
     SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root) : parent_{root}
     {
         

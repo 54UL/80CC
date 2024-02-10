@@ -30,6 +30,8 @@ namespace ettycc
         auto Init() -> void; // not used 4 the moment
 
         auto AddNode(const std::shared_ptr<SceneNode>& node) -> uint64_t;
+        auto AddNodes(const std::vector<std::shared_ptr<SceneNode>>& node) -> std::vector<uint64_t>;
+
         auto RemoveNode(uint64_t id) -> void;
 
         auto GetNodeById(uint64_t id) -> std::shared_ptr<SceneNode>;

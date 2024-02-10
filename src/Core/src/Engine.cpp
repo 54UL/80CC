@@ -52,6 +52,11 @@ namespace ettycc
     
     void Engine::TestScene()
     {
+        // Scene initialization
+        mainScene_ = std::make_shared<Scene>(this);
+        mainScene_->Init();
+        
+        // some resources path lol xd
         const char* loonaImagePath = "D:/repos2/ALPHA_V1/assets/images/loona.jpg";// TODO: FETCH FROM config???
         const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";// TODO: FETCH FROM config???
 
@@ -70,7 +75,8 @@ namespace ettycc
         renderEngine_.SetViewPortFrameBuffer(mainCamera->offScreenFrameBuffer); // Instead of passing the framebuffer should pass the whole camera refference???
         ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera); // todo: refactorize this into a game module...
     
-        std::shared_ptr<SceneNode> rootNode = std::make_shared<SceneNode>(rootNode);
+        std::shared_ptr<SceneNode> rootNode = std::make_shared<SceneNode>();
+
 
         std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>(rootNode);
         sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
@@ -84,7 +90,8 @@ namespace ettycc
         std::vector<std::shared_ptr<SceneNode>> nodes = {rootNode, sprite1Node, sprite2Node, cameraNode};
 
         // yeah insert it like that...
-        mainScene_->nodes_.insert(mainScene_->nodes_.end(), nodes.begin(), nodes.end());
+        // mainScene_->nodes_.insert(mainScene_->nodes_.end(), nodes.begin(), nodes.end());
+        mainScene_->AddNodes(nodes);
     }
 
     void Engine::Init()
@@ -109,8 +116,9 @@ namespace ettycc
 
     void Engine::PresentFrame()
     { 
-        // renderEngine_.Pass(appInstance_->GetCurrentTime());
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::RENDERING);
+        
+        renderEngine_.Pass(appInstance_->GetCurrentTime());
 
         inputSystem_.ResetState(); // TODO: FIX THIS THRASH WITH INPUT UP AND DOWN EVENTS (INTERNALLY)
     }

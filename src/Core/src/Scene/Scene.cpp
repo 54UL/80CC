@@ -16,16 +16,13 @@ namespace ettycc
     {
         // Order of component intalization...
         // executionComponentMap_[ProcessingChannel::RENDERING]
+        nodes_ = std::vector<std::shared_ptr<SceneNode>>();
     }
 
-    uint64_t Scene::AddNode(const std::shared_ptr<SceneNode> &node)// tf is
+    uint64_t Scene::AddNode(const std::shared_ptr<SceneNode> &node)
     {
         // executionChannels_[processingChannel].emplace_back(node);
         nodes_.emplace_back(node);
-
-        // put all the components in a vector to iterate them in order later on the execution pipeline
-        // auto executionVectorChannel = executionComponentMap_[processingChannel];
-        // executionVectorChannel.insert(executionVectorChannel.end(), node->components_[processingChannel].begin(), node->components_[processingChannel].end());
 
         for (const auto &kvp : node->components_)
         {
@@ -40,6 +37,20 @@ namespace ettycc
         }
 
         return node->GetId();
+    }
+    
+    auto Scene::AddNodes(const std::vector<std::shared_ptr<SceneNode>> &nodes) -> std::vector<uint64_t>
+    {
+        //todo: not the best solution, use a better algo
+        std::vector<uint64_t> ids;
+    
+        for (const auto& node : nodes)
+        {
+            auto id = AddNode(node);
+            ids.emplace_back(id);
+        }
+
+        return ids;
     }
 
     std::shared_ptr<SceneNode> Scene::GetNodeById(uint64_t id)
