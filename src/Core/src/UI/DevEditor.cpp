@@ -64,6 +64,7 @@ namespace ettycc
 
         // ImGui::End();
     }
+    
     static int viewportNumber = 1;
 
     void DevEditor::ShowViewport()
@@ -112,7 +113,6 @@ namespace ettycc
         RenderTree(); // demo example
         
         // Add content for the scene hierarchy here
-
         ImGui::End();
     }
 
@@ -120,7 +120,7 @@ namespace ettycc
     {
         ImGui::Begin("Assets");
 
-        RenderTree(); // demo example
+        // RenderTree(); // demo example
         
         // Add content for the scene hierarchy here
 
@@ -154,8 +154,6 @@ namespace ettycc
         return textureID; // IMPORTANT (DONT LOSE THIS ID SO IT WOULD BE GREAT TO ENCAPSULATE THIS IN A CLASS TO USE RAII)
     }
 
-    
-
     void ShowContextMenu()
     {
         if (ImGui::BeginPopupContextItem()) // This creates a context menu for the current item
@@ -176,35 +174,31 @@ namespace ettycc
     }
 
     // Function to recursively render the tree
-    void DevEditor::RenderTree(const Object &obj)
-    {
-        if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
-        {
-            ShowContextMenu();
-        }
-
-        // Display the current object in the tree
-        if (ImGui::TreeNode(obj.name.c_str()))
-        {
-          
-            // Render children recursively
-            for (const auto &child : obj.children)
-            {
-                RenderTree(child);
-            }
-
-            // Close the tree node
-            ImGui::TreePop();
-        }
-    }
-
     void DevEditor::RenderTree()
     {
-        // Sample data: Create a tree structure
-        Object rootObject{"Root", {{"Object1", {{"Child1", {}}, {"Child2", {}}}}, {"Object2", {{"Child3", {}}, {"Child4", {{"Grandchild1", {}}, {"Grandchild2", {}}}}}}}};
+        const char *names[5] = {"Label1", "Label2", "Label3", "Label4", "Label5"};
+        static bool selection[5] = { false, false, false, false, false };
+        char buf[32];
+        for (int n = 0; n < 5; n++)
+        {
+            sprintf(buf, "Object %s", names[n]);
+            if (ImGui::Selectable(buf, selection[n]))
+            {
+                if (!ImGui::GetIO().KeyCtrl) // Clear selection when CTRL is not held
+                    memset(selection, 0, sizeof(selection));
+                selection[n] ^= 1;
+            }
 
+            if (ImGui::BeginPopupContextItem())
+            {
+                ImGui::Text("This a popup for \"%s\"!", names[n]);
+                if (ImGui::Button("Close"))
+                    ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
+            ImGui::SetItemTooltip("Right-click to open popup");
+        }
         // Render the tree structure
-        RenderTree(rootObject);
     }
     
     static const int MAX_SAMPLES = 32;
@@ -222,16 +216,11 @@ namespace ettycc
 
     void DevEditor::ShowDebugger()
     {
-        // ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
-
-        ImGui::Begin("debug");
-    
-
-        // Begin a new tab bar
+        ImGui::Begin("Debug");
         if (ImGui::BeginTabBar("tools", ImGuiTabBarFlags_Reorderable))
         {
             // Tab 1
-            if (ImGui::BeginTabItem("Misc"))
+            if (ImGui::BeginTabItem("Stats"))
             {
                 auto mousepos = engineInstance_->inputSystem_.GetMousePos();
                 ImGui::Text("Delta time: %.4f", engineInstance_->appInstance_->GetDeltaTime());
@@ -255,13 +244,6 @@ namespace ettycc
                     sampleIndex = 0;
                 }
 
-                ImGui::EndTabItem();
-            }
-
-            // Tab 2
-            if (ImGui::BeginTabItem("Rendering"))
-            {
-                RenderTree();
                 ImGui::EndTabItem();
             }
 

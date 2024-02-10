@@ -21,7 +21,7 @@ namespace ettycc
         Engine * engineInstance_;
 
     public:
-            std::vector<std::shared_ptr<SceneNode>> nodes_;
+        std::vector<std::shared_ptr<SceneNode>> nodes_;
 
         Scene(Engine * engine);
         ~Scene();
@@ -29,6 +29,7 @@ namespace ettycc
         // Scene API
         auto Init() -> void; // not used 4 the moment
 
+        // move these into Scene node...
         auto AddNode(const std::shared_ptr<SceneNode>& node) -> uint64_t;
         auto AddNodes(const std::vector<std::shared_ptr<SceneNode>>& node) -> std::vector<uint64_t>;
 

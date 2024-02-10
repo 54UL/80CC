@@ -14,8 +14,6 @@ namespace ettycc
 
     auto Scene::Init() -> void
     {
-        // Order of component intalization...
-        // executionComponentMap_[ProcessingChannel::RENDERING]
         nodes_ = std::vector<std::shared_ptr<SceneNode>>();
     }
 

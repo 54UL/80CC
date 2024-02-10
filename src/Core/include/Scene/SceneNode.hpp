@@ -17,7 +17,6 @@ namespace ettycc
         std::string name_;
         bool enabled_;
 
-
     public:
         //experimental...
         std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> components_;
