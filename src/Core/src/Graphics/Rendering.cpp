@@ -6,6 +6,7 @@ namespace ettycc
     Rendering::Rendering(): renderingTime(0)
     {
         this->renderingCtx_ = std::make_shared<RenderingContext>();
+        renderables_ = std::vector<std::shared_ptr<Renderable>>();
     }
 
     Rendering::~Rendering()
@@ -17,7 +18,7 @@ namespace ettycc
         this->renderingCtx_->ScreenSize = glm::vec2(width, height);
     }
 
-    void Rendering::InitGraphicsBackend()
+    void Rendering::Init()
     {
         
     }

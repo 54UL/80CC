@@ -15,35 +15,24 @@ namespace ettycc
     class Scene
     {        
     private:
-
-        // components by his processing channel (ordered...)
-        std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> executionComponentMap_; // for the moment only used to separate the execution layers...        
-        Engine * engineInstance_;
+        std::string sceneName_;
 
     public:
-        std::vector<std::shared_ptr<SceneNode>> nodes_;
+        std::shared_ptr<SceneNode> root_node_;     
+        std::vector<std::shared_ptr<SceneNode>> nodes_flat_; // this is used to avoid recursion and depth search yeah (idc about memory)
 
-        Scene(Engine * engine);
+        Scene(const std::string& name);
         ~Scene();
 
         // Scene API
         auto Init() -> void; // not used 4 the moment
 
-        // move these into Scene node...
-        auto AddNode(const std::shared_ptr<SceneNode>& node) -> uint64_t;
-        auto AddNodes(const std::vector<std::shared_ptr<SceneNode>>& node) -> std::vector<uint64_t>;
-
-        auto RemoveNode(uint64_t id) -> void;
-
+        // High level node operations....
         auto GetNodeById(uint64_t id) -> std::shared_ptr<SceneNode>;
         auto GetNodesByName(const std::string &name) -> std::vector<std::shared_ptr<SceneNode>>;
         auto GetAllNodes() -> std::vector<std::shared_ptr<SceneNode>>;
        
         auto Process(float deltaTime, ProcessingChannel processingChannel) -> void; // this is called from the engine api...
-
-        // serialization part...
-        // auto LoadScene(/*file path???*/);
-        // auto StoreScene(/*Store the current scene nodes...*/);
     };
 }
 

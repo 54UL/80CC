@@ -23,7 +23,7 @@ namespace ettycc
 
         // NodeComponent api...
         NodeComponentInfo GetComponentInfo() override;
-        void OnStart(Engine *engineInstance) override;
+        void OnStart(std::shared_ptr<Engine> engineInstance) override;
         void OnUpdate(float deltaTime) override;
     };  
 } // namespace ettycc

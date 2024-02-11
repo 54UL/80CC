@@ -2,9 +2,10 @@
 
 namespace ettycc
 {
-    Scene::Scene(Engine * engine): engineInstance_(engine)
+    Scene::Scene(const std::string& name): sceneName_{name}
     {
-
+        root_node_ = std::make_shared<SceneNode>();     
+        nodes_flat_ = std::vector<std::shared_ptr<SceneNode>>(); // this is used to avoid recursion and depth search yeah (idc about memory)
     }
 
     Scene::~Scene()
@@ -14,41 +15,7 @@ namespace ettycc
 
     auto Scene::Init() -> void
     {
-        nodes_ = std::vector<std::shared_ptr<SceneNode>>();
-    }
-
-    uint64_t Scene::AddNode(const std::shared_ptr<SceneNode> &node)
-    {
-        // executionChannels_[processingChannel].emplace_back(node);
-        nodes_.emplace_back(node);
-
-        for (const auto &kvp : node->components_)
-        {
-            const std::vector<std::shared_ptr<NodeComponent>> &channelValues = kvp.second;
-            executionComponentMap_[kvp.first].insert(executionComponentMap_[kvp.first].end(), channelValues.begin(), channelValues.end());
-            // after added to the exec map initialize them...
-
-            for (const auto &component : node->components_[kvp.first])
-            {
-                component->OnStart(engineInstance_);
-            }
-        }
-
-        return node->GetId();
-    }
-    
-    auto Scene::AddNodes(const std::vector<std::shared_ptr<SceneNode>> &nodes) -> std::vector<uint64_t>
-    {
-        //todo: not the best solution, use a better algo
-        std::vector<uint64_t> ids;
-    
-        for (const auto& node : nodes)
-        {
-            auto id = AddNode(node);
-            ids.emplace_back(id);
-        }
-
-        return ids;
+        root_node_ = std::make_shared<SceneNode>("SCENE-ROOT");
     }
 
     std::shared_ptr<SceneNode> Scene::GetNodeById(uint64_t id)
@@ -63,23 +30,16 @@ namespace ettycc
 
     auto Scene::GetAllNodes() -> std::vector<std::shared_ptr<SceneNode>>
     {
-        return nodes_;
+        return nodes_flat_;
     }
-    
+
     auto Scene::Process(float deltaTime, ProcessingChannel processingChannel) -> void
-    {        
-        auto nodesToProcessUpdate = executionComponentMap_[processingChannel];
-
-        // lol iterate just like this, multi thread compatible????
-        for (auto &node : nodesToProcessUpdate)
-        {
-            node->OnUpdate(deltaTime);
-        }
-    }
-
-    void Scene::RemoveNode(uint64_t id)
     {
-
+        // iterate over all the nodes like this 4 the moment (improvents here pls)
+        for (auto &node : nodes_flat_)
+        {
+            node->ComputeComponents(deltaTime, processingChannel);
+        }
     }
 }
 

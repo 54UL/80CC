@@ -1,10 +1,12 @@
 #include <UI/DevEditor.hpp>
 #include <imgui_internal.h>  // For docking
 #include <stb_image.h>
+#include <stack>
+#include <Dependency.hpp>
 
 namespace ettycc
 {
-    DevEditor::DevEditor(std::shared_ptr<Engine> engineInstance) : engineInstance_(engineInstance)
+    DevEditor::DevEditor()
     {
     }
 
@@ -73,7 +75,7 @@ namespace ettycc
 
         // Rendering of the main engine viewport (it's suppossed to have multiple frame buffers for split screen or image effects (todo: composited game view))
         // Get the framebuffer texture ID
-        auto frambuffer = engineInstance_->renderEngine_.GetViewPortFrameBuffer();
+        auto frambuffer = ettycc::EngineSingleton::engine_g->renderEngine_.GetViewPortFrameBuffer();
         GLuint framebufferTextureID = frambuffer->GetTextureId();
         frambuffer->SetSize(glm::ivec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y));
         
@@ -173,31 +175,108 @@ namespace ettycc
         }
     }
 
+    /*
+    void RenderSceneNode(Node &rootNode)
+    {
+        std::stack<std::pair<Node *, int>> nodeStack;
+        nodeStack.push({&rootNode, 0});
+
+        while (!nodeStack.empty())
+        {
+            std::pair<Node *, int> nodePair = nodeStack.top();
+            Node *currentNode = nodePair.first;
+            int depth = nodePair.second;
+            nodeStack.pop();
+
+            bool isNodeOpen = ImGui::TreeNodeEx(currentNode->name.c_str());
+
+            if (ImGui::IsItemClicked())
+            {
+                currentNode->selected = !currentNode->selected;
+            }
+
+            if (ImGui::BeginPopupContextItem("NodeContextMenu"))
+            {
+                if (ImGui::Selectable("Edit Name"))
+                {
+                    ImGui::OpenPopup("EditNamePopup");
+                }
+                if (ImGui::Selectable("Add Child"))
+                {
+                    currentNode->children.push_back({"New Child", false, {}});
+                }
+                if (ImGui::Selectable("Delete Node"))
+                {
+                    // Add your code here for deleting the node
+                    // This can be done by removing the node from its parent's children vector
+                }
+                if (ImGui::Selectable("Convert to Prefab"))
+                {
+                    // Add your code here for converting the node to a prefab
+                }
+                ImGui::EndPopup();
+            }
+
+            // Edit name popup
+            if (ImGui::BeginPopup("EditNamePopup"))
+            {
+                static char newName[64] = {0};
+                ImGui::InputText("New Name", newName, sizeof(newName));
+                if (ImGui::Button("Apply") && newName[0] != '\0')
+                {
+                    currentNode->name = newName;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+
+            if (isNodeOpen)
+            {
+                ImGui::Indent(depth * 20.0f);
+
+                for (auto it = currentNode->children.rbegin(); it != currentNode->children.rend(); ++it)
+                {
+                    nodeStack.push({&(*it), depth + 1});
+                }
+                ImGui::TreePop();
+                ImGui::Separator();
+
+                // ImGui::Unindent(depth * 20.0f);
+            }
+        }
+    }
+    */
     // Function to recursively render the tree
     void DevEditor::RenderTree()
     {
-        const char *names[5] = {"Label1", "Label2", "Label3", "Label4", "Label5"};
-        static bool selection[5] = { false, false, false, false, false };
-        char buf[32];
-        for (int n = 0; n < 5; n++)
-        {
-            sprintf(buf, "Object %s", names[n]);
-            if (ImGui::Selectable(buf, selection[n]))
-            {
-                if (!ImGui::GetIO().KeyCtrl) // Clear selection when CTRL is not held
-                    memset(selection, 0, sizeof(selection));
-                selection[n] ^= 1;
-            }
+        // engineInstance_->
+        // for (Node &node : nodes)
+        // {
+        //     RenderSceneNode(node);
+        // }
 
-            if (ImGui::BeginPopupContextItem())
-            {
-                ImGui::Text("This a popup for \"%s\"!", names[n]);
-                if (ImGui::Button("Close"))
-                    ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
-            }
-            ImGui::SetItemTooltip("Right-click to open popup");
-        }
+        // const char *names[5] = {"Label1", "Label2", "Label3", "Label4", "Label5"};
+        // static bool selection[5] = { false, false, false, false, false };
+        // char buf[32];
+        // for (int n = 0; n < 5; n++)
+        // {
+        //     sprintf(buf, "Object %s", names[n]);
+        //     if (ImGui::Selectable(buf, selection[n]))
+        //     {
+        //         if (!ImGui::GetIO().KeyCtrl) // Clear selection when CTRL is not held
+        //             memset(selection, 0, sizeof(selection));
+        //         selection[n] ^= 1;
+        //     }
+
+        //     if (ImGui::BeginPopupContextItem())
+        //     {
+        //         ImGui::Text("This a popup for \"%s\"!", names[n]);
+        //         if (ImGui::Button("Close"))
+        //             ImGui::CloseCurrentPopup();
+        //         ImGui::EndPopup();
+        //     }
+        //     ImGui::SetItemTooltip("Right-click to open popup");
+        // }
         // Render the tree structure
     }
     
@@ -216,24 +295,26 @@ namespace ettycc
 
     void DevEditor::ShowDebugger()
     {
+        auto engineInstance = ettycc::EngineSingleton::engine_g;
         ImGui::Begin("Debug");
         if (ImGui::BeginTabBar("tools", ImGuiTabBarFlags_Reorderable))
         {
             // Tab 1
             if (ImGui::BeginTabItem("Stats"))
             {
-                auto mousepos = engineInstance_->inputSystem_.GetMousePos();
-                ImGui::Text("Delta time: %.4f", engineInstance_->appInstance_->GetDeltaTime());
-                ImGui::Text("App time: %.4f", engineInstance_->appInstance_->GetCurrentTime());
+                
+                auto mousepos = engineInstance->inputSystem_.GetMousePos();
+                ImGui::Text("Delta time: %.4f", engineInstance->appInstance_->GetDeltaTime());
+                ImGui::Text("App time: %.4f", engineInstance->appInstance_->GetCurrentTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x, mousepos.y);
-                ImGui::Text("FPS: %.4f", (1.0f / engineInstance_->appInstance_->GetDeltaTime()));
+                ImGui::Text("FPS: %.4f", (1.0f / engineInstance->appInstance_->GetDeltaTime()));
                 // ImVec2 graphSize(200, 200);  // Adjust the size as needed
                 
-                plotStep += engineInstance_->appInstance_->GetDeltaTime();
+                plotStep += engineInstance->appInstance_->GetDeltaTime();
                 ImGui::PlotHistogram("HISTOGRAM", values, IM_ARRAYSIZE(values));
 
                 if (sampleIndex < MAX_SAMPLES && plotStep >= 1) {
-                    values[sampleIndex] = (1.0f / engineInstance_->appInstance_->GetDeltaTime());
+                    values[sampleIndex] = (1.0f / engineInstance->appInstance_->GetDeltaTime());
                     sampleIndex++;
                     plotStep = 0;
                 }

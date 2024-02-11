@@ -2,6 +2,7 @@
 #define EIGHTYCC_HPP
 
 #include <App/App.hpp>
+#include <Dependency.hpp>
 #include <App/SDL2App.hpp>
 #include <App/EnginePipeline.hpp>
 #include <Graphics/Rendering.hpp>
@@ -13,7 +14,7 @@
 #include <Engine.hpp>
 
 namespace ettycc
-{
+{   
     
 }
 

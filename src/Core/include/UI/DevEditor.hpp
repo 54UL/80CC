@@ -18,11 +18,11 @@ namespace ettycc
         };
 
     private:
-        std::shared_ptr<Engine> engineInstance_;
+       
 
 
     public:
-        DevEditor(std::shared_ptr<Engine> engineInstance);
+        DevEditor();
         ~DevEditor();
     
         // Editor execution pipeline
@@ -33,7 +33,6 @@ namespace ettycc
     private:
         void DrawEditor();
         // Editor internals
-        void RenderTree(const Object &obj);
         void RenderTree();
 
         // MAIN EDITOR "WINDOWS"

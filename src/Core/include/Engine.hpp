@@ -23,7 +23,9 @@ namespace ettycc
         std::shared_ptr<App>   appInstance_;
         Rendering              renderEngine_;
         PlayerInput            inputSystem_;
-        std::shared_ptr<Scene>  mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
+        std::shared_ptr<Scene> mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
+        
+        
         std::shared_ptr<GhostCamera> ghostCamera_; //THIS ONE SHOULD BE ON THE GAME MODULE LAYER... woops
     
     public:
@@ -31,7 +33,6 @@ namespace ettycc
         ~Engine();
 
         // TESTING...
-        void RenderingEngineDemo();
         void TestScene();
 
         // Engine pipeline impl

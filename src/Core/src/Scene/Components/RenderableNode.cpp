@@ -17,7 +17,7 @@ namespace ettycc
         return NodeComponentInfo {0, COLLOQUIAL_NAME, true, ProcessingChannel::RENDERING};
     }
 
-    void RenderableNode::OnStart(Engine *engineInstance)
+    void RenderableNode::OnStart(std::shared_ptr<Engine> engineInstance)
     {
         engineInstance->renderEngine_.AddRenderable(renderable_);
     }

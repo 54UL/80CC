@@ -83,8 +83,8 @@ namespace ettycc
 
         RenderingInit();
 
-  
 
+        currentEngine_ = std::move(EngineSingleton::engine_g);
         currentEngine_->Init();
           // From here you can start using IMGUI + GL
         for(auto execution : executionPipelines_)
@@ -180,7 +180,8 @@ namespace ettycc
     {
         return currentDeltaTime_;
     }
-    float  SDL2App::GetCurrentTime()
+    
+    float SDL2App::GetCurrentTime()
     {
         return currentAppTime_;
     }
@@ -188,11 +189,6 @@ namespace ettycc
     glm::ivec2 SDL2App::GetMainWindowSize()
     {
         return mainWindowSize_;
-    }
-
-    void SDL2App::SetUnderlyingEngine(std::shared_ptr<EnginePipeline> engine)
-    {
-        currentEngine_ = engine;
     }
 
     void SDL2App::AddExecutionPipeline(std::shared_ptr<ExecutionPipeline> editor)

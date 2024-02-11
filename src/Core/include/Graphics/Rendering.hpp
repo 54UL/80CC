@@ -25,7 +25,7 @@ namespace ettycc
 
     public:
         void SetScreenSize(int width, int height);
-        void InitGraphicsBackend();
+        void Init();
         
         void SetViewPortFrameBuffer(std::shared_ptr<FrameBuffer> frameBuffer);
         std::shared_ptr<FrameBuffer> GetViewPortFrameBuffer();

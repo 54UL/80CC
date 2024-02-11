@@ -7,6 +7,7 @@ set(80CC_CORE_HEADERS
     include/80CC.hpp
     include/Engine.hpp
     include/App/App.hpp
+    include/Dependency.hpp
     include/App/EnginePipeline.hpp
     include/App/ExecutionPipeline.hpp
     include/App/SDL2App.hpp
