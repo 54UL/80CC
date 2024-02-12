@@ -4,15 +4,21 @@
 #include <memory>
 #include <iostream>
 
+using namespace ettycc; // IMPORTANT!!!
+
 int main(int argc, char* argv[]) 
 {
-    std::shared_ptr<ettycc::App> app = std::make_shared<ettycc::SDL2App>("80CC");
-    ettycc::EngineSingleton::engine_g = std::make_shared<ettycc::Engine>(app);
+    std::shared_ptr<App> app = std::make_shared<SDL2App>("80CC");
+    
+    std::shared_ptr<Engine> engineInstance = std::make_shared<Engine>(app);
+    auto developmentEditor = std::make_shared<DevEditor>();
 
-    auto developmentEditor = std::make_shared<ettycc::DevEditor>();
+    // dependency test <remove>....
+    RegisterDependency(Engine, engineInstance);
+    std::shared_ptr<Engine> xd = GetDependency(Engine);
+    xd->appInstance_;
 
     // Configure the engine instance and the development UI (IF NEEDED...)
-    // app->SetUnderlyingEngine(ettycc::EngineSingleton::engine_g);
     app->AddExecutionPipeline(developmentEditor);
 
     if (app->Init(argc, argv))

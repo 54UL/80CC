@@ -75,7 +75,7 @@ namespace ettycc
 
         // Rendering of the main engine viewport (it's suppossed to have multiple frame buffers for split screen or image effects (todo: composited game view))
         // Get the framebuffer texture ID
-        auto frambuffer = ettycc::EngineSingleton::engine_g->renderEngine_.GetViewPortFrameBuffer();
+        auto frambuffer = GetDependency(Engine)->renderEngine_.GetViewPortFrameBuffer();
         GLuint framebufferTextureID = frambuffer->GetTextureId();
         frambuffer->SetSize(glm::ivec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y));
         
@@ -295,7 +295,7 @@ namespace ettycc
 
     void DevEditor::ShowDebugger()
     {
-        auto engineInstance = ettycc::EngineSingleton::engine_g;
+        auto engineInstance = GetDependency(Engine);
         ImGui::Begin("Debug");
         if (ImGui::BeginTabBar("tools", ImGuiTabBarFlags_Reorderable))
         {

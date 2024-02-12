@@ -80,13 +80,15 @@ namespace ettycc
             SDL_Quit();
             return 1;
         }
-
+        
+        // Underlying window graphics initialization
         RenderingInit();
 
-
-        currentEngine_ = std::move(EngineSingleton::engine_g);
+        // Engine initialization
+        currentEngine_ = GetDependency(Engine);
         currentEngine_->Init();
-          // From here you can start using IMGUI + GL
+
+        // From here you can start using IMGUI + GL
         for(auto execution : executionPipelines_)
         {
             execution->Init();
@@ -95,8 +97,6 @@ namespace ettycc
     }
 
     void SDL2App::RenderingInit() {
-  
-        
         // Setup ImGui
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -113,7 +113,6 @@ namespace ettycc
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window_);
         ImGui::NewFrame();
-
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0f,1.0f, 0.0f, 1.0f); // BACKGROUND COLOR...

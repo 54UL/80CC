@@ -55,7 +55,7 @@ namespace ettycc
             // after added to the exec map initialize them...
             for (const auto &component : node->components_[kvp.first])
             {
-                component->OnStart(EngineSingleton::engine_g);
+                component->OnStart(GetDependency(Engine));
             }
         }
 
@@ -79,7 +79,7 @@ namespace ettycc
 
         // todo: fix this with an internal scene state to avoid passing Scene * parentScene... with something like:
         // SceneContext::RegisterNodes(nodes, sceneId);
-        auto mainScene = EngineSingleton::engine_g->mainScene_;
+        auto mainScene = GetDependency(Engine)->mainScene_;
         mainScene->nodes_flat_.insert(mainScene->nodes_flat_.end(), nodes.begin(), nodes.end());
 
         return ids;
