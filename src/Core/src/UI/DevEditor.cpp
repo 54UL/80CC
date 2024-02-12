@@ -303,6 +303,11 @@ namespace ettycc
 
                 ImGui::EndTabItem();
             }
+            if (ImGui::BeginTabItem("Console"))
+            {
+                uiConsole.Draw("Debuging consle", &uiConsoleOpen_);
+                ImGui::EndTabItem();
+            }
 
             // End the tab bar
             ImGui::EndTabBar();

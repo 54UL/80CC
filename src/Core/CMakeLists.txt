@@ -29,6 +29,7 @@ set(80CC_CORE_HEADERS
     include/Input/PlayerInput.hpp
     include/Input/Controls/GhostCamera.hpp
     include/UI/DevEditor.hpp
+    include/UI/Console.hpp
 
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h

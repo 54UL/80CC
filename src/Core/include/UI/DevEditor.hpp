@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <Engine.hpp>
 #include <App/ExecutionPipeline.hpp>
+#include <UI/Console.hpp>
 #include <memory>
 
 namespace ettycc
@@ -20,6 +21,8 @@ namespace ettycc
     private:
         std::vector<std::shared_ptr<SceneNode>> selectedNodes_;
         std::string searchFilter_;
+        DebugConsole uiConsole;
+        bool uiConsoleOpen_;
 
     public:
         DevEditor();
