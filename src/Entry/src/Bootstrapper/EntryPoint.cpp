@@ -13,10 +13,8 @@ int main(int argc, char* argv[])
     std::shared_ptr<Engine> engineInstance = std::make_shared<Engine>(app);
     auto developmentEditor = std::make_shared<DevEditor>();
 
-    // dependency test <remove>....
+    // Dependency registration
     RegisterDependency(Engine, engineInstance);
-    std::shared_ptr<Engine> xd = GetDependency(Engine);
-    xd->appInstance_;
 
     // Configure the engine instance and the development UI (IF NEEDED...)
     app->AddExecutionPipeline(developmentEditor);

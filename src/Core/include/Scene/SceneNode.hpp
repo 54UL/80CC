@@ -21,6 +21,7 @@ namespace ettycc
 
     public:
         //experimental...
+        bool isSelected_;
         std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> components_;
         std::shared_ptr<SceneNode> parent_;
         std::vector<std::shared_ptr<SceneNode>> children_; 
@@ -29,6 +30,8 @@ namespace ettycc
         SceneNode();
         SceneNode(const std::string& name);
         SceneNode(const std::shared_ptr<SceneNode>& root);
+        SceneNode(const std::shared_ptr<SceneNode>& root, const std::string& name);
+
         SceneNode(const std::shared_ptr<SceneNode>& root, const std::vector<std::shared_ptr<SceneNode>>& children);
         ~SceneNode();
         auto InitNode() -> void;

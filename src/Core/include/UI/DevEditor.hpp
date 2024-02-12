@@ -6,7 +6,7 @@
 #include <memory>
 
 namespace ettycc
-{    
+{
     class DevEditor : public ExecutionPipeline
     {
     public:
@@ -18,18 +18,17 @@ namespace ettycc
         };
 
     private:
-       
-
+        std::vector<std::shared_ptr<SceneNode>> selectedNodes_;
+        std::string searchFilter_;
 
     public:
         DevEditor();
         ~DevEditor();
-    
         // Editor execution pipeline
         void Init() override;
         void UpdateUI() override;
         void Update() override;
-        
+
     private:
         void DrawEditor();
         // Editor internals
@@ -44,9 +43,9 @@ namespace ettycc
         void ShowInspector();
         void ShowAssetsView();
         void ShowSceneHierarchy();
-    
-    private:// FUNCTIONS THAT MUST BE EVERYWHERE OR BE IN A GENERIC CLASS !!!
-        GLuint LoadTextureFromFile(const char * filePath);
+
+    private: // FUNCTIONS THAT MUST BE EVERYWHERE OR BE IN A GENERIC CLASS !!!
+        GLuint LoadTextureFromFile(const char *filePath);
     };
 } // namespace ettycc
 

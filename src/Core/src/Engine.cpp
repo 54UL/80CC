@@ -32,7 +32,8 @@ namespace ettycc
         std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(mainWindowSize.x,  mainWindowSize.y, 90, 0.01f);// editor view port camera
         std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath);
         std::shared_ptr<Sprite> someSprite2 = std::make_shared<Sprite>(notFoundTexturePath);
-          
+        std::shared_ptr<Sprite> someSpriteChildren = std::make_shared<Sprite>(notFoundTexturePath);
+
         // mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
         someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
         someSprite2->underylingTransform.setGlobalPosition(glm::vec3(1, 0, -2));
@@ -42,13 +43,18 @@ namespace ettycc
     
         std::shared_ptr<SceneNode> rootNode = std::make_shared<SceneNode>("Parent");
 
-        std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>(rootNode);
+        std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>(rootNode,"sprite node 1");
         sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
+        
+        std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>(sprite1Node,"children node fr");
+        sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSpriteChildren));
 
-        std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>(rootNode);
+        sprite1Node->children_.emplace_back(childrenNode);
+
+        std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>(rootNode, "sprite node 2");
         sprite2Node->AddComponent(std::make_shared<RenderableNode>(someSprite2));
 
-        std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>(rootNode);
+        std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>(rootNode,"cameraNode");
         cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
 
         std::vector<std::shared_ptr<SceneNode>> nodes = {rootNode, sprite1Node, sprite2Node, cameraNode};

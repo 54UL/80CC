@@ -122,8 +122,6 @@ namespace ettycc
     {
         ImGui::Begin("Assets");
 
-        // RenderTree(); // demo example
-        
         // Add content for the scene hierarchy here
 
         ImGui::End();
@@ -175,109 +173,87 @@ namespace ettycc
         }
     }
 
-    /*
-    void RenderSceneNode(Node &rootNode)
+    void RenderSceneNode(std::shared_ptr<SceneNode> rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth = 0)
     {
-        std::stack<std::pair<Node *, int>> nodeStack;
-        nodeStack.push({&rootNode, 0});
+        auto treeNodeName = rootNode->GetName();
+        const char *nodeName = treeNodeName.empty() ? "UNNAMED" : treeNodeName.c_str();
 
-        while (!nodeStack.empty())
+        bool isNodeOpen = ImGui::TreeNodeEx(nodeName);
+
+        // Check if the node is selected
+        bool isSelected = std::find(selectedNodes.begin(), selectedNodes.end(), rootNode) != selectedNodes.end();
+
+        if (ImGui::IsItemClicked(0)) // Left click for selection
         {
-            std::pair<Node *, int> nodePair = nodeStack.top();
-            Node *currentNode = nodePair.first;
-            int depth = nodePair.second;
-            nodeStack.pop();
+            if (!ImGui::GetIO().KeyShift) // If shift key is not pressed
+                selectedNodes.clear();    // Clear previous selection if not using multi-select
 
-            bool isNodeOpen = ImGui::TreeNodeEx(currentNode->name.c_str());
+            if (!isSelected) // Toggle selection if not already selected
+                selectedNodes.push_back(rootNode);
+            else // Deselect if already selected
+                selectedNodes.erase(std::remove(selectedNodes.begin(), selectedNodes.end(), rootNode), selectedNodes.end());
+        }
 
-            if (ImGui::IsItemClicked())
+        if (ImGui::BeginDragDropSource())
+        {
+            ImGui::SetDragDropPayload("SCENE_NODE", &rootNode, sizeof(std::shared_ptr<SceneNode>));
+            ImGui::TextUnformatted(nodeName);
+            ImGui::EndDragDropSource();
+        }
+
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("SCENE_NODE"))
             {
-                currentNode->selected = !currentNode->selected;
-            }
+                IM_ASSERT(payload->DataSize == sizeof(std::shared_ptr<SceneNode>));
+                std::shared_ptr<SceneNode> payload_node = *(const std::shared_ptr<SceneNode> *)payload->Data;
 
-            if (ImGui::BeginPopupContextItem("NodeContextMenu"))
+                // Handle reordering logic here
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        if (ImGui::BeginPopupContextItem("NodeContextMenu"))
+        {
+            // Context menu options
+
+            ImGui::EndPopup();
+        }
+
+        // Edit name popup
+        if (ImGui::BeginPopup("EditNamePopup"))
+        {
+            // Edit name logic
+            ImGui::EndPopup();
+        }
+
+        if (isNodeOpen)
+        {
+            ImGui::Separator();
+            for (auto &child : rootNode->children_)
             {
-                if (ImGui::Selectable("Edit Name"))
-                {
-                    ImGui::OpenPopup("EditNamePopup");
-                }
-                if (ImGui::Selectable("Add Child"))
-                {
-                    currentNode->children.push_back({"New Child", false, {}});
-                }
-                if (ImGui::Selectable("Delete Node"))
-                {
-                    // Add your code here for deleting the node
-                    // This can be done by removing the node from its parent's children vector
-                }
-                if (ImGui::Selectable("Convert to Prefab"))
-                {
-                    // Add your code here for converting the node to a prefab
-                }
-                ImGui::EndPopup();
+                RenderSceneNode(child, selectedNodes, depth + 1);
             }
-
-            // Edit name popup
-            if (ImGui::BeginPopup("EditNamePopup"))
-            {
-                static char newName[64] = {0};
-                ImGui::InputText("New Name", newName, sizeof(newName));
-                if (ImGui::Button("Apply") && newName[0] != '\0')
-                {
-                    currentNode->name = newName;
-                    ImGui::CloseCurrentPopup();
-                }
-                ImGui::EndPopup();
-            }
-
-            if (isNodeOpen)
-            {
-                ImGui::Indent(depth * 20.0f);
-
-                for (auto it = currentNode->children.rbegin(); it != currentNode->children.rend(); ++it)
-                {
-                    nodeStack.push({&(*it), depth + 1});
-                }
-                ImGui::TreePop();
-                ImGui::Separator();
-
-                // ImGui::Unindent(depth * 20.0f);
-            }
+            ImGui::TreePop();
         }
     }
-    */
-    // Function to recursively render the tree
+
     void DevEditor::RenderTree()
     {
-        // engineInstance_->
-        // for (Node &node : nodes)
-        // {
-        //     RenderSceneNode(node);
-        // }
+        if (ImGui::Button("Collapse"))
+        {
 
-        // const char *names[5] = {"Label1", "Label2", "Label3", "Label4", "Label5"};
-        // static bool selection[5] = { false, false, false, false, false };
-        // char buf[32];
-        // for (int n = 0; n < 5; n++)
-        // {
-        //     sprintf(buf, "Object %s", names[n]);
-        //     if (ImGui::Selectable(buf, selection[n]))
-        //     {
-        //         if (!ImGui::GetIO().KeyCtrl) // Clear selection when CTRL is not held
-        //             memset(selection, 0, sizeof(selection));
-        //         selection[n] ^= 1;
-        //     }
+        }
+        ImGui::SameLine(); 
+        static char search[32] = "Object name...";
+        ImGui::InputText("##Search", search, IM_ARRAYSIZE(search));
+        ImGui::SameLine(); 
+        if (ImGui::Button("Search"))
+        {
 
-        //     if (ImGui::BeginPopupContextItem())
-        //     {
-        //         ImGui::Text("This a popup for \"%s\"!", names[n]);
-        //         if (ImGui::Button("Close"))
-        //             ImGui::CloseCurrentPopup();
-        //         ImGui::EndPopup();
-        //     }
-        //     ImGui::SetItemTooltip("Right-click to open popup");
-        // }
-        // Render the tree structure
+        }
+        ImGui::Separator();
+        RenderSceneNode(GetDependency(Engine)->mainScene_->root_node_, selectedNodes_, 0);
     }
     
     static const int MAX_SAMPLES = 32;

@@ -16,7 +16,12 @@ namespace ettycc
     SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root) : parent_(root)
     {
         InitNode();
-    }   
+    }
+
+    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::string &name) : parent_(root), name_(name)
+    {
+        InitNode();
+    }
 
     SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::vector<std::shared_ptr<SceneNode>> &children) : parent_(root), children_(children)
     {

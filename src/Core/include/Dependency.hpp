@@ -3,7 +3,7 @@
 
 #include <Engine.hpp>
 #include <memory>
-
+#include <spdlog/spdlog.h>
 // BRIEF:
 // SINGLETONS AND ALL SHARED STATIC DEPENDENCIES ACROSS ALL THE WHOLE CORE(I SAID)
 #define RegisterDependency(type, instance) Dependency::getInstance().registerInstance(""#type"", instance)
@@ -25,9 +25,8 @@ namespace ettycc
         template <typename T>
         void registerInstance(const std::string &key, std::shared_ptr<T> instance)
         {
-            // key.replace("\"","");
-
             instances[key] = std::static_pointer_cast<void>(instance);
+            spdlog::info("DEPENDENCY REGISTERED [{}]", key.c_str());
         }
 
         template <typename T>

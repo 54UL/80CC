@@ -84,7 +84,7 @@ namespace ettycc
         GLenum framebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (framebufferStatus == GL_FRAMEBUFFER_COMPLETE)
         {
-            spdlog::warn("Frame buffer is complete!! id: {}", id_);
+            // spdlog::warn("Frame buffer is complete!! id: {}", id_);
         }
         else
         {
@@ -110,7 +110,7 @@ namespace ettycc
     void FrameBuffer::SetSize(glm::ivec2 size)
     {
         if (size_ != size){
-            spdlog::info("Frame-buffer(id:{}) resized ivec2[{},{}]",id_,size.x, size.y);
+            // spdlog::info("Frame-buffer(id:{}) resized ivec2[{},{}]",id_,size.x, size.y);
             size_ = size;
             CleanUp();
             Init();
