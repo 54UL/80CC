@@ -37,6 +37,7 @@ namespace ettycc
         // mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
         someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
         someSprite2->underylingTransform.setGlobalPosition(glm::vec3(1, 0, -2));
+        someSpriteChildren->underylingTransform.setGlobalPosition(glm::vec3(0, 1, -2));
 
         renderEngine_.SetViewPortFrameBuffer(mainCamera->offScreenFrameBuffer); // Instead of passing the framebuffer should pass the whole camera refference???
         ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera); // todo: refactor this into a game module...
