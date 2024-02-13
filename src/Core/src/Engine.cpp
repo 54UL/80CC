@@ -42,15 +42,14 @@ namespace ettycc
         renderEngine_.SetViewPortFrameBuffer(mainCamera->offScreenFrameBuffer); // Instead of passing the framebuffer should pass the whole camera refference???
         ghostCamera_ = std::make_shared<GhostCamera>(&inputSystem_, mainCamera); // todo: refactor this into a game module...
     
-        std::shared_ptr<SceneNode> rootNode = std::make_shared<SceneNode>("Parent");
+        std::shared_ptr<SceneNode> rootNode = std::make_shared<SceneNode>("parent");
 
         std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>(rootNode,"sprite node 1");
         sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
-        
-        std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>(sprite1Node,"children node fr");
-        sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSpriteChildren));
 
-        sprite1Node->children_.emplace_back(childrenNode);
+        std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>(sprite1Node,"child sprite");
+        childrenNode->AddComponent(std::make_shared<RenderableNode>(someSpriteChildren));
+        sprite1Node->AddNode(childrenNode);
 
         std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>(rootNode, "sprite node 2");
         sprite2Node->AddComponent(std::make_shared<RenderableNode>(someSprite2));
@@ -58,9 +57,7 @@ namespace ettycc
         std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>(rootNode,"cameraNode");
         cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
 
-        std::vector<std::shared_ptr<SceneNode>> nodes = {rootNode, sprite1Node, sprite2Node, cameraNode};
-
-        mainScene_->root_node_->AddNodes(nodes);
+        mainScene_->root_node_->AddNode(rootNode);
     }
 
     void Engine::Init()

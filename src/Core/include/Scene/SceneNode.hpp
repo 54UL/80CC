@@ -20,7 +20,7 @@ namespace ettycc
         bool enabled_;
 
     public:
-        //experimental...
+        // PUBLIC EXPERIMENTAL MEMBERS 
         bool isSelected_;
         std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> components_;
         std::shared_ptr<SceneNode> parent_;
@@ -31,22 +31,25 @@ namespace ettycc
         SceneNode(const std::string& name);
         SceneNode(const std::shared_ptr<SceneNode>& root);
         SceneNode(const std::shared_ptr<SceneNode>& root, const std::string& name);
-
         SceneNode(const std::shared_ptr<SceneNode>& root, const std::vector<std::shared_ptr<SceneNode>>& children);
+        
         ~SceneNode();
+
         auto InitNode() -> void;
         auto GetId() -> uint64_t;
         auto GetName() -> std::string;
+
+        auto SetParent(const std::shared_ptr<SceneNode>& node) -> bool; 
 
         auto AddNode(const std::shared_ptr<SceneNode>& node) -> uint64_t;
         auto AddNodes(const std::vector<std::shared_ptr<SceneNode>>& node) -> std::vector<uint64_t>;
         auto RemoveNode(uint64_t id) -> void;
 
         auto AddComponent(std::shared_ptr<NodeComponent> component) -> uint64_t;
+
         auto GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>;
         auto GetComponentByName(const std::string& name) -> std::shared_ptr<NodeComponent>;
 
-        // auto RegisterComponents(float deltaTime);
         auto ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void;
     };
 }

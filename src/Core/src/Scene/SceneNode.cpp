@@ -1,5 +1,6 @@
 #include <Scene/SceneNode.hpp>
 #include <Dependency.hpp>
+#include <spdlog/spdlog.h>
 
 namespace ettycc 
 {
@@ -16,11 +17,13 @@ namespace ettycc
     SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root) : parent_(root)
     {
         InitNode();
+        SetParent(root);
     }
 
     SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::string &name) : parent_(root), name_(name)
     {
         InitNode();
+        SetParent(root);
     }
 
     SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::vector<std::shared_ptr<SceneNode>> &children) : parent_(root), children_(children)
@@ -49,10 +52,21 @@ namespace ettycc
         return name_;
     }
 
+    auto SceneNode::SetParent(const std::shared_ptr<SceneNode> &node) -> bool
+    {
+        if (parent_ != node) {
+            node->AddNode(parent_);
+            parent_ = node;
+            return true;
+        } 
+
+        spdlog::warn("node {} is already a child of {}", name_, node->name_);
+        return false;
+    }
+
     auto SceneNode::AddNode(const std::shared_ptr<SceneNode> &node) -> uint64_t
     {
         children_.emplace_back(node);
-
         for (const auto &kvp : node->components_)
         {
             const std::vector<std::shared_ptr<NodeComponent>> &channelValues = kvp.second;
@@ -63,6 +77,11 @@ namespace ettycc
                 component->OnStart(GetDependency(Engine));
             }
         }
+
+        // todo: fix this with an internal scene state to avoid passing Scene * parentScene... with something like:
+        // SceneContext::RegisterNodes(nodes, sceneId);
+        auto mainScene = GetDependency(Engine)->mainScene_;
+        mainScene->nodes_flat_.emplace_back(node);
 
         return node->GetId();
     }
@@ -81,11 +100,6 @@ namespace ettycc
             auto id = AddNode(node);
             ids.emplace_back(id);
         }
-
-        // todo: fix this with an internal scene state to avoid passing Scene * parentScene... with something like:
-        // SceneContext::RegisterNodes(nodes, sceneId);
-        auto mainScene = GetDependency(Engine)->mainScene_;
-        mainScene->nodes_flat_.insert(mainScene->nodes_flat_.end(), nodes.begin(), nodes.end());
 
         return ids;
     }

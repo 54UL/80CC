@@ -1,7 +1,4 @@
 #include <UI/DevEditor.hpp>
-#include <imgui_internal.h>  // For docking
-#include <stb_image.h>
-#include <stack>
 #include <Dependency.hpp>
 
 namespace ettycc
@@ -112,7 +109,7 @@ namespace ettycc
     {
         ImGui::Begin("Scene Hierarchy");
 
-        RenderTree(); // demo example
+        RenderSceneTree(); // demo example
         
         // Add content for the scene hierarchy here
         ImGui::End();
@@ -154,26 +151,90 @@ namespace ettycc
         return textureID; // IMPORTANT (DONT LOSE THIS ID SO IT WOULD BE GREAT TO ENCAPSULATE THIS IN A CLASS TO USE RAII)
     }
 
-    void ShowContextMenu()
+    void DevEditor::ShowSceneContextMenu(const std::shared_ptr<SceneNode>& node)
     {
         if (ImGui::BeginPopupContextItem()) // This creates a context menu for the current item
         {
-            if (ImGui::MenuItem("Option 1"))
+            if (ImGui::MenuItem("Add"))
             {
-                // Code to execute when Option 1 is selected
-            }
-            if (ImGui::MenuItem("Option 2"))
-            {
-                // Code to execute when Option 2 is selected
-            }
+                if (ImGui::MenuItem("Node")) {
+                    // ADD CONTEXT MENU WITH AN INPUT FIELD TO PROVIDE AN NAME...
+                    AddNode(node);
+                }
+                if (ImGui::BeginMenu("Components"))
+                {
+                    // EXAMPLE CODE... (IMPROVE!!!)
+                    // TODO: FETCH COMPONENTS FROM THE PERSISTANCE UNIT (SHOULD BE ABLE TO SAVE COMPONENT PRESETS)
+                    if (ImGui::MenuItem("Camera", NULL))
+                    {
+                        AddComponentFromTemplate(node, "Camera");
+                    }
+                    if (ImGui::MenuItem("Sprite", NULL))
+                    {
+                        AddComponentFromTemplate(node, "Sprite");
+                    }
+                    ImGui::EndMenu();
+                }
 
-            // Add more items as needed
+                ImGui::EndMenu();
+            }
+            if (ImGui::MenuItem("Remove"))
+            {
+                // TODO: IMPLEMENT...
+            }
+            if (ImGui::MenuItem("Duplicate"))
+            {
+                // TODO: IMPLEMENT...
+            }
+            if (ImGui::MenuItem("Persist"))
+            {
+                // TODO: IMPLEMENT...
+            }
 
             ImGui::EndPopup();
         }
     }
 
-    void RenderSceneNode(std::shared_ptr<SceneNode> rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth = 0)
+    void DevEditor::AddNode(const std::shared_ptr<SceneNode> &selectedNode)
+    {
+        static char node_name[128] = "";
+     
+        ImGui::OpenPopup("New Node");
+        
+        if (ImGui::BeginPopup("New Node"))
+        {
+            ImGui::Text("Enter node name:");
+            ImGui::InputText("##node_name", node_name, IM_ARRAYSIZE(node_name));
+
+            if (ImGui::Button("Apply"))
+            {
+                // Add the new node with the propper name
+                std::shared_ptr<SceneNode> newNode = std::make_shared<SceneNode>(selectedNode, node_name);
+                selectedNode->AddNode(newNode);
+
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+    }
+
+    void DevEditor::AddComponentFromTemplate(const std::shared_ptr<SceneNode> &selectedNode, const char *templateName)
+    {
+        const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";// TODO: FETCH FROM config???
+
+        // TODO: DUMMY CODE, IMPLEMENT A REAL TEMPLATE PARSER TO BUILD UP BUILT INS COMPONENTS
+        if (strcmp("Camera", templateName) == 0)
+        {
+        }
+        if (strcmp("Sprite", templateName) == 0)
+        {
+            std::shared_ptr<Sprite> notFoundSprite = std::make_shared<Sprite>(notFoundTexturePath);
+            selectedNode->AddComponent(std::make_shared<RenderableNode>(notFoundSprite));
+        }
+    }
+
+    void DevEditor::RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth = 0)
     {
         auto treeNodeName = rootNode->GetName();
         const char *nodeName = treeNodeName.empty() ? "UNNAMED" : treeNodeName.c_str();
@@ -213,19 +274,7 @@ namespace ettycc
             ImGui::EndDragDropTarget();
         }
 
-        if (ImGui::BeginPopupContextItem("NodeContextMenu"))
-        {
-            // Context menu options
-
-            ImGui::EndPopup();
-        }
-
-        // Edit name popup
-        if (ImGui::BeginPopup("EditNamePopup"))
-        {
-            // Edit name logic
-            ImGui::EndPopup();
-        }
+        ShowSceneContextMenu(rootNode);
 
         if (isNodeOpen)
         {
@@ -238,35 +287,72 @@ namespace ettycc
         }
     }
 
-    void DevEditor::RenderTree()
+    void DevEditor::RenderSceneTree()
     {
-        if (ImGui::Button("Collapse"))
+        if (ImGui::SmallButton("Collapse"))
         {
 
         }
+
         ImGui::SameLine(); 
         static char search[32] = "Object name...";
         ImGui::InputText("##Search", search, IM_ARRAYSIZE(search));
         ImGui::SameLine(); 
-        if (ImGui::Button("Search"))
+
+        if (ImGui::SmallButton("Search"))
         {
 
         }
+
         ImGui::Separator();
         RenderSceneNode(GetDependency(Engine)->mainScene_->root_node_, selectedNodes_, 0);
     }
-    
+
+    // BASE CURVE EDITOR
+    struct Point
+    {
+        ImVec2 pos;
+        bool selected;
+    };
+
+    std::vector<Point> points;
+
+    void CurveEditor()
+    {
+        // Draw the graph
+        ImGuiWindow *window = ImGui::GetCurrentWindow();
+        ImVec2 start = window->DC.CursorPos;
+   
+        ImVec2 size(400, 200);
+        ImVec2 end = ImVec2(start.x + size.x, start.y + size.y);
+
+        ImGui::GetWindowDrawList()->AddRectFilled(start, end, IM_COL32(50, 50, 50, 255));
+        ImGui::GetWindowDrawList()->AddRect(start, end, IM_COL32(255, 255, 255, 255));
+
+        // Handle mouse input
+        ImGuiIO &io = ImGui::GetIO();
+        ImVec2 mouse_pos_in_canvas = ImVec2(io.MousePos.x - start.x, io.MousePos.y - start.y);
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(start, end))
+        {
+            points.push_back({mouse_pos_in_canvas, false});
+        }
+
+        // Draw points
+        for (Point &point : points)
+        {
+            ImVec2 p1 = ImVec2(start.x + point.pos.x, start.y + point.pos.y);
+            ImVec2 p2 = ImVec2(p1.x + 5, p1.y + 5);
+            ImGui::GetWindowDrawList()->AddRectFilled(p1, p2, point.selected ? IM_COL32(255, 0, 0, 255) : IM_COL32(255, 255, 255, 255));
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(p1, p2))
+            {
+                point.selected = !point.selected;
+            }
+        }
+    }
+
     static const int MAX_SAMPLES = 32;
     static float values[MAX_SAMPLES] = { 0.0f };  // Your data values
     static int sampleIndex = 0;  // Your data values
-
-    void PlotGraph()
-    {
-
-        // Alternatively, you can use ImGui::PlotHistogram for a histogram plot
-        // ImGui::PlotHistogram("Graph Title", values, IM_ARRAYSIZE(values));
-    }
-
     static float plotStep = 0.0f;
 
     void DevEditor::ShowDebugger()
@@ -318,7 +404,10 @@ namespace ettycc
 
     void DevEditor::DrawEditor()
     {
-        bool open = true;
+        // MAIN STYLES...
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
+        bool open = true; // MOVE THIS FROM HERE...
+
         ShowMenuBar();
         
         ShowDockSpace(); 
