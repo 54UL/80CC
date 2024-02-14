@@ -14,19 +14,19 @@ namespace ettycc
         InitNode();
     }
 
-    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root) : parent_(root)
+    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root)
     {
         InitNode();
         SetParent(root);
     }
 
-    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::string &name) : parent_(root), name_(name)
+    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::string &name) : name_(name)
     {
         InitNode();
         SetParent(root);
     }
 
-    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::vector<std::shared_ptr<SceneNode>> &children) : parent_(root), children_(children)
+    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::vector<std::shared_ptr<SceneNode>> &children)
     {
         // TODO: DO THIS CASE...
     }
@@ -38,6 +38,7 @@ namespace ettycc
 
     auto SceneNode::InitNode() -> void
     {
+        parent_ = std::shared_ptr<SceneNode>();
         children_ = std::vector<std::shared_ptr<SceneNode>>();
         components_ = std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>>();        
     }
@@ -54,14 +55,12 @@ namespace ettycc
 
     auto SceneNode::SetParent(const std::shared_ptr<SceneNode> &node) -> bool
     {
-        if (parent_ != node) {
-            node->AddNode(parent_);
-            parent_ = node;
-            return true;
-        } 
+        if (parent_ == node) return false;
+        parent_ = node;
 
-        spdlog::warn("node {} is already a child of {}", name_, node->name_);
-        return false;
+        // node->AddNode(children_);
+        return true;
+        spdlog::warn("node [{}] is now parent of [{}]", node->name_, name_);
     }
 
     auto SceneNode::AddNode(const std::shared_ptr<SceneNode> &node) -> uint64_t
