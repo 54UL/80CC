@@ -151,46 +151,47 @@ namespace ettycc
         return textureID; // IMPORTANT (DONT LOSE THIS ID SO IT WOULD BE GREAT TO ENCAPSULATE THIS IN A CLASS TO USE RAII)
     }
 
-    void DevEditor::ShowSceneContextMenu(const std::shared_ptr<SceneNode>& node)
+    void DevEditor::ShowSceneContextMenu(const std::shared_ptr<SceneNode> &node)
     {
         if (ImGui::BeginPopupContextItem()) // This creates a context menu for the current item
         {
-            if (ImGui::MenuItem("Add"))
-            {
-                if (ImGui::MenuItem("Node")) {
-                    // ADD CONTEXT MENU WITH AN INPUT FIELD TO PROVIDE AN NAME...
-                    AddNode(node);
-                }
-                if (ImGui::BeginMenu("Components"))
+           
+                if (ImGui::MenuItem("Add"))
                 {
-                    // EXAMPLE CODE... (IMPROVE!!!)
-                    // TODO: FETCH COMPONENTS FROM THE PERSISTANCE UNIT (SHOULD BE ABLE TO SAVE COMPONENT PRESETS)
-                    if (ImGui::MenuItem("Camera", NULL))
+                    if (ImGui::MenuItem("Node"))
                     {
-                        AddComponentFromTemplate(node, "Camera");
+                        // ADD CONTEXT MENU WITH AN INPUT FIELD TO PROVIDE AN NAME...
+                        AddNode(node);
                     }
-                    if (ImGui::MenuItem("Sprite", NULL))
+                    if (ImGui::BeginMenu("Components"))
                     {
-                        AddComponentFromTemplate(node, "Sprite");
+                        // EXAMPLE CODE... (IMPROVE!!!)
+                        // TODO: FETCH COMPONENTS FROM THE PERSISTANCE UNIT (SHOULD BE ABLE TO SAVE COMPONENT PRESETS)
+                        if (ImGui::MenuItem("Camera", NULL))
+                        {
+                            AddComponentFromTemplate(node, "Camera");
+                        }
+                        if (ImGui::MenuItem("Sprite", NULL))
+                        {
+                            AddComponentFromTemplate(node, "Sprite");
+                        }
+                        ImGui::EndMenu();
                     }
-                    ImGui::EndMenu();
                 }
-
-                ImGui::EndMenu();
-            }
-            if (ImGui::MenuItem("Remove"))
-            {
-                // TODO: IMPLEMENT...
-            }
-            if (ImGui::MenuItem("Duplicate"))
-            {
-                // TODO: IMPLEMENT...
-            }
-            if (ImGui::MenuItem("Persist"))
-            {
-                // TODO: IMPLEMENT...
-            }
-
+                if (ImGui::MenuItem("Remove"))
+                {
+                    // TODO: IMPLEMENT...
+                }
+                if (ImGui::MenuItem("Duplicate"))
+                {
+                    // TODO: IMPLEMENT...
+                }
+                if (ImGui::MenuItem("Persist"))
+                {
+                    // TODO: IMPLEMENT...
+                }
+         
+            
             ImGui::EndPopup();
         }
     }
@@ -289,7 +290,7 @@ namespace ettycc
 
     void DevEditor::RenderSceneTree()
     {
-        if (ImGui::SmallButton("Collapse"))
+        if (ImGui::ArrowButton("##Collapse", ImGuiDir_Down))
         {
 
         }
@@ -395,6 +396,12 @@ namespace ettycc
                 ImGui::EndTabItem();
             }
 
+            if (ImGui::BeginTabItem("CURVE EDITOR[TEST]"))
+            {
+                CurveEditor();
+                ImGui::EndTabItem();
+            }
+
             // End the tab bar
             ImGui::EndTabBar();
         }
@@ -405,7 +412,7 @@ namespace ettycc
     void DevEditor::DrawEditor()
     {
         // MAIN STYLES...
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
+        // ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
         bool open = true; // MOVE THIS FROM HERE...
 
         ShowMenuBar();
