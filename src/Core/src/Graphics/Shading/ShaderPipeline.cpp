@@ -62,7 +62,6 @@ namespace ettycc
         glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
         if (!success)
         {
-
             glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
             std::cerr << "Shader program linking failed:\n"
                       << infoLog << std::endl;

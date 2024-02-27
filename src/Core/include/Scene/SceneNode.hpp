@@ -7,6 +7,7 @@
 #include <memory>
 #include <map>
 #include <vector>
+#include <spdlog/spdlog.h>
 
 namespace ettycc 
 {

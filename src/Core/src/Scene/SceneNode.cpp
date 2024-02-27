@@ -1,6 +1,5 @@
 #include <Scene/SceneNode.hpp>
 #include <Dependency.hpp>
-#include <spdlog/spdlog.h>
 
 namespace ettycc 
 {

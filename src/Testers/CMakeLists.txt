@@ -26,5 +26,5 @@ add_executable(Testers ${Testers_SOURCES})
 #     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 # )
 
-target_link_libraries(Testers PRIVATE gtest_main 80CC_CORE)
+target_link_libraries(Testers PUBLIC gtest_main 80CC_CORE)
 gtest_discover_tests(Testers)

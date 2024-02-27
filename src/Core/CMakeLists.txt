@@ -95,7 +95,7 @@ target_include_directories(80CC_CORE
 
 target_link_libraries(80CC_CORE
     PRIVATE ${SDL2_LIBRARIES}
-    PRIVATE spdlog::spdlog
+    PUBLIC spdlog::spdlog
     PRIVATE glm::glm
     PRIVATE GLEW::GLEW
 )

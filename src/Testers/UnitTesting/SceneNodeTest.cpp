@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
 #include <80CC.hpp>
 #include <memory>
-
+#include <spdlog/spdlog.h>
 using namespace ettycc;
+
 std::shared_ptr<App> app_;
 std::shared_ptr<Engine> engineInstance_;
 
@@ -27,14 +28,6 @@ protected:
     }
 };
 
-/*  
- parenting nodes idiom:
- addChild(parent, node){
-    setParent(parent, node);
-    parent->AddNode(node);
- }
-
-*/
 
 TEST_F(SceneNodeTestFixture, basic_scene)
 {
@@ -46,8 +39,11 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     // 1st node with one child node (2 in total)
     std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite node 1");
     std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child sprite");
-    sprite1Node->AddNode(childrenNode);
-    
+
+    // create a new child
+    sprite1Node->AddChild(sprite1Node, childrenNode);
+
+    // add the new node with a chidl to the main parent
     sprite1Node->AddChild(parentNode, sprite1Node);
 
     // 2nd node
@@ -59,7 +55,7 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     cameraNode->AddChild(parentNode, cameraNode);
 
     // Add them to the scene root node...
-    mainScene->root_node_->AddNode(parentNode);
+    mainScene->root_node_->AddChild(mainScene->root_node_, parentNode);
     
     // expecting 3 children on the parent node...
     EXPECT_TRUE(mainScene->root_node_->children_.at(0)->children_.size() == 3);
