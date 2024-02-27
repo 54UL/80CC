@@ -14,19 +14,7 @@ namespace ettycc
         InitNode();
     }
 
-    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root)
-    {
-        InitNode();
-        SetParent(root);
-    }
-
-    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::string &name) : name_(name)
-    {
-        InitNode();
-        SetParent(root);
-    }
-
-    SceneNode::SceneNode(const std::shared_ptr<SceneNode> &root, const std::vector<std::shared_ptr<SceneNode>> &children)
+    SceneNode::SceneNode(const std::vector<std::shared_ptr<SceneNode>> &children)
     {
         // TODO: DO THIS CASE...
     }
@@ -55,12 +43,16 @@ namespace ettycc
 
     auto SceneNode::SetParent(const std::shared_ptr<SceneNode> &node) -> bool
     {
+        // todo: implement case where the node has an parent and is gonna be unparented from some place... (swap nodes??)
         if (parent_ == node) return false;
+        
         parent_ = node;
-
-        // node->AddNode(children_);
+        // parent_->AddNode(this...(has to be a shared ptr...));
+        
+        // add itself to the parent node tree
+        
+        spdlog::warn("Node [{}] is now parent of [{}]", node->name_, name_);
         return true;
-        spdlog::warn("node [{}] is now parent of [{}]", node->name_, name_);
     }
 
     auto SceneNode::AddNode(const std::shared_ptr<SceneNode> &node) -> uint64_t
@@ -87,6 +79,7 @@ namespace ettycc
 
     auto SceneNode::RemoveNode(uint64_t id) -> void
     {
+
     }
 
     auto SceneNode::AddNodes(const std::vector<std::shared_ptr<SceneNode>> &nodes) -> std::vector<uint64_t>
@@ -108,6 +101,20 @@ namespace ettycc
         NodeComponentInfo info = component->GetComponentInfo(); 
         components_[info.processingChannel].emplace_back(component);
         return  info.id;
+    }
+
+    // todo: should be static???
+    // Also a todo: this shouldn't exist beacuse i had 2 use smart pointers and got this pice of shit on my code (adding as child node when parenting a node)
+    auto SceneNode::AddChild(std::shared_ptr<SceneNode> parent, std::shared_ptr<SceneNode> nodeToBeChild) -> void
+    {
+        if (SetParent(parent))
+        {
+            parent->AddNode(parent);
+        }
+        else
+        {
+            spdlog::error("Cannot set node [{}] as parent", parent->name_);
+        }
     }
 
     auto SceneNode::GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>

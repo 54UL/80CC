@@ -15,6 +15,7 @@ namespace ettycc
     
     }
     
+    // TODO: MOVE THIS PICE OF CODE INTO THE GOOGL UNIT TEST...
     void Engine::TestScene()
     {
         // Scene initialization
@@ -44,17 +45,17 @@ namespace ettycc
     
         std::shared_ptr<SceneNode> rootNode = std::make_shared<SceneNode>("parent");
 
-        std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>(rootNode,"sprite node 1");
+        std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite node 1");
         sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
 
-        std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>(sprite1Node,"child sprite");
+        std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child sprite");
         childrenNode->AddComponent(std::make_shared<RenderableNode>(someSpriteChildren));
         sprite1Node->AddNode(childrenNode);
 
-        std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>(rootNode, "sprite node 2");
+        std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>("sprite node 2");
         sprite2Node->AddComponent(std::make_shared<RenderableNode>(someSprite2));
 
-        std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>(rootNode,"cameraNode");
+        std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>("cameraNode");
         cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
 
         mainScene_->root_node_->AddNode(rootNode);
@@ -65,7 +66,7 @@ namespace ettycc
         // RenderingEngineDemo();
         spdlog::warn("App and Game engine ready...");
 
-        TestScene();
+        // TestScene();
     }
  
     void Engine::Update()

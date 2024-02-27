@@ -1,15 +1,24 @@
 project(Testers CXX)
+set(CMAKE_CXX_STANDARD 17)	
 
+# gtests
+include(CTest)
+include(GoogleTest)
+enable_testing()
+
+# headers and source
 # set(Testers_HEADERS 
 #     include/Modules/HelloWorldModule.hpp
 # )
 
 set(Testers_SOURCES 
-    StandAlone/bullet_softbodies.cpp
+    UnitTesting/SceneNodeTest.cpp
 )
-find_package(SDL2 REQUIRED)
-find_package(GLUT REQUIRED)
-find_package(Bullet CONFIG REQUIRED)
+
+# libraries...
+# find_package(SDL2 REQUIRED)
+# find_package(GLUT REQUIRED)
+# find_package(Bullet CONFIG REQUIRED)
 
 add_executable(Testers ${Testers_SOURCES})
 
@@ -17,4 +26,5 @@ add_executable(Testers ${Testers_SOURCES})
 #     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 # )
 
-target_link_libraries(Testers PRIVATE 80CC_CORE ${BULLET_LIBRARIES} GLUT::GLUT SDL2::SDL2)
+target_link_libraries(Testers PRIVATE gtest_main 80CC_CORE)
+gtest_discover_tests(Testers)

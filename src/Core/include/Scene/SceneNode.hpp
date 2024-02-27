@@ -29,9 +29,7 @@ namespace ettycc
     public:
         SceneNode();
         SceneNode(const std::string& name);
-        SceneNode(const std::shared_ptr<SceneNode>& root);
-        SceneNode(const std::shared_ptr<SceneNode>& root, const std::string& name);
-        SceneNode(const std::shared_ptr<SceneNode>& root, const std::vector<std::shared_ptr<SceneNode>>& children);
+        SceneNode(const std::vector<std::shared_ptr<SceneNode>>& children);
         
         ~SceneNode();
 
@@ -46,6 +44,8 @@ namespace ettycc
         auto RemoveNode(uint64_t id) -> void;
 
         auto AddComponent(std::shared_ptr<NodeComponent> component) -> uint64_t;
+
+        auto AddChild(std::shared_ptr<SceneNode> parent, std::shared_ptr<SceneNode> nodeToBeChild) -> void;
 
         auto GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>;
         auto GetComponentByName(const std::string& name) -> std::shared_ptr<NodeComponent>;

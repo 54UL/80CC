@@ -210,8 +210,9 @@ namespace ettycc
             if (ImGui::Button("Apply"))
             {
                 // Add the new node with the propper name
-                std::shared_ptr<SceneNode> newNode = std::make_shared<SceneNode>(selectedNode, node_name);
-                selectedNode->AddNode(newNode);
+                //TODO: FIX THIS BELOW DUE TO THE PARENTING IDIOM CHANGES
+                // std::shared_ptr<SceneNode> newNode = std::make_shared<SceneNode>(selectedNode, node_name);
+                // selectedNode->AddNode(newNode);
 
                 ImGui::CloseCurrentPopup();
             }
@@ -279,7 +280,10 @@ namespace ettycc
 
         if (isNodeOpen)
         {
-            ImGui::Separator();
+            if (rootNode->children_.size() > 0 ) {
+                ImGui::Separator();
+            }
+            
             for (auto &child : rootNode->children_)
             {
                 RenderSceneNode(child, selectedNodes, depth + 1);
@@ -300,7 +304,7 @@ namespace ettycc
         ImGui::InputText("##Search", search, IM_ARRAYSIZE(search));
         ImGui::SameLine(); 
 
-        if (ImGui::SmallButton("Search"))
+        if (ImGui::ArrowButton("##Search_scene", ImGuiDir_Right))
         {
 
         }
@@ -374,7 +378,7 @@ namespace ettycc
                 // ImVec2 graphSize(200, 200);  // Adjust the size as needed
                 
                 plotStep += engineInstance->appInstance_->GetDeltaTime();
-                ImGui::PlotHistogram("HISTOGRAM", values, IM_ARRAYSIZE(values));
+                ImGui::PlotHistogram("##HISTOGRAM", values, IM_ARRAYSIZE(values));
 
                 if (sampleIndex < MAX_SAMPLES && plotStep >= 1) {
                     values[sampleIndex] = (1.0f / engineInstance->appInstance_->GetDeltaTime());

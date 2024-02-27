@@ -9,7 +9,7 @@
 
 namespace ettycc
 {
-    SDL2App::SDL2App(const char * windowTitle) : runningStatus_(true), windowTitle_(windowTitle)
+    SDL2App::SDL2App(const char * windowTitle) : runningStatus_(true), windowTitle_(windowTitle), initialized_(false)
     {
         currentAppTime_ =0;
     }
@@ -93,6 +93,9 @@ namespace ettycc
         {
             execution->Init();
         }
+
+        // well if we reached this point it means all was initialized successfully
+        initialized_ = true;
         return 0;
     }
 
@@ -164,15 +167,18 @@ namespace ettycc
 
     void SDL2App::Dispose()
     {
-        // Cleanup ImGui 
-        ImGui_ImplOpenGL3_Shutdown(); 
-        ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
+        if (initialized_)
+        {
+            // Cleanup ImGui 
+            ImGui_ImplOpenGL3_Shutdown(); 
+            ImGui_ImplSDL2_Shutdown();
+            ImGui::DestroyContext();
 
-        // Destroy gl and window...
-        SDL_GL_DeleteContext(glContext_);
-        SDL_DestroyWindow(window_);
-        SDL_Quit();
+            // Destroy gl and window...
+            SDL_GL_DeleteContext(glContext_);
+            SDL_DestroyWindow(window_);
+            SDL_Quit();
+        }
     }
 
     float SDL2App::GetDeltaTime()

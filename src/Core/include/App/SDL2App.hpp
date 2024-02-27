@@ -24,6 +24,7 @@ namespace ettycc
         SDL_GLContext glContext_;
         
         bool runningStatus_;
+        bool initialized_;
         SDL_Thread *eventThread_;
         SDL_mutex  *eventMutex_;
 
