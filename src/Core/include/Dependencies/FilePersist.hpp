@@ -10,22 +10,22 @@ using json = nlohmann::json;
 
 namespace ettycc
 {
-    class PathManager
+    class FilePersist
     {
     public:
-        PathManager(){}
-        ~PathManager(){}
+        FilePersist(){}
+        ~FilePersist(){}
         
     public:
-        void AddPath(const std::string &key, const std::string &path)
+        void AddValue(const std::string &key, const std::string &value)
         {
-            paths[key] = path;
+            values[key] = value;
         }
 
-        std::string GetPath(const std::string &key) const
+        std::string GetValue(const std::string &key) const
         {
-            auto it = paths.find(key);
-            if (it != paths.end())
+            auto it = values.find(key);
+            if (it != values.end())
             {
                 return it->second;
             }
@@ -46,7 +46,7 @@ namespace ettycc
 
             for (auto &el : j.items())
             {
-                paths[el.key()] = el.value();
+                values[el.key()] = el.value();
             }
 
             file.close();
@@ -55,7 +55,7 @@ namespace ettycc
         void SaveToJson(const std::string &filename) const
         {
             json j;
-            for (const auto &pair : paths)
+            for (const auto &pair : values)
             {
                 j[pair.first] = pair.second;
             }
@@ -66,7 +66,7 @@ namespace ettycc
         }
 
     private:
-        std::unordered_map<std::string, std::string> paths;
+        std::unordered_map<std::string, std::string> values;
     };
 } // namespace ettycc
 
