@@ -1,0 +1,14 @@
+{
+    "app":
+    {
+        "title" : "80CC-ENGINE",
+        "window-size": "800,600",
+        "window-flags": "RESIZABLE,BORDERLESS,FULL_SCREEN"
+    },
+    "game-engine":
+    {
+        "assets-root":"../assets",
+        "textures-folder": "/images",
+        "shaders-folder": "/shaders"
+    }
+}

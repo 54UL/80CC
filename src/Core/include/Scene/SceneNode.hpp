@@ -12,7 +12,7 @@
 namespace ettycc 
 {
     class Scene;
-    class SceneNode
+    class SceneNode : public std::enable_shared_from_this<SceneNode>
     {
     private:
         uint64_t id_;
@@ -46,7 +46,7 @@ namespace ettycc
 
         auto AddComponent(std::shared_ptr<NodeComponent> component) -> uint64_t;
 
-        auto AddChild(std::shared_ptr<SceneNode> parent, std::shared_ptr<SceneNode> nodeToBeChild) -> void;
+        auto AddChild(std::shared_ptr<SceneNode> childrenNode) -> void;
 
         auto GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>;
         auto GetComponentByName(const std::string& name) -> std::shared_ptr<NodeComponent>;

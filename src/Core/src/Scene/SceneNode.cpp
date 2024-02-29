@@ -46,11 +46,7 @@ namespace ettycc
         if (parent_ == node) return false;
         
         parent_ = node;
-        // parent_->AddNode(this...(has to be a shared ptr...));
         
-        // add itself to the parent node tree
-        
-        spdlog::warn("Node [{}] is now parent of [{}]", node->name_, name_);
         return true;
     }
 
@@ -102,17 +98,18 @@ namespace ettycc
         return  info.id;
     }
 
-    // todo: should be static???
-    // Also a todo: this shouldn't exist beacuse i had 2 use smart pointers and got this pice of shit on my code (adding as child node when parenting a node)
-    auto SceneNode::AddChild(std::shared_ptr<SceneNode> parent, std::shared_ptr<SceneNode> nodeToBeChild) -> void
+    auto SceneNode::AddChild(std::shared_ptr<SceneNode> childrenNode) -> void
     {
-        if (SetParent(parent))
+        // this* is the new parent of the nodeToBeChild if not setted
+        // add the node to be child to the parent node as child
+        if (childrenNode->SetParent(shared_from_this()))
         {
-            parent->AddNode(parent);
+            spdlog::info("Node [{}] is now parent of [{}]", shared_from_this()->name_, childrenNode->name_);
+            AddNode(childrenNode);
         }
         else
         {
-            spdlog::error("Cannot set node [{}] as parent", parent->name_);
+            spdlog::error("Node [{}] cannot be parent of [{}]", shared_from_this()->name_, childrenNode->name_);
         }
     }
 

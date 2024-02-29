@@ -28,38 +28,35 @@ protected:
     }
 };
 
-
 TEST_F(SceneNodeTestFixture, basic_scene)
 {
     auto mainScene = engineInstance_->mainScene_;
 
     // Some example parent node
-    std::shared_ptr<SceneNode> parentNode = std::make_shared<SceneNode>("some parent node");
+    std::shared_ptr<SceneNode> parentNode = std::make_shared<SceneNode>("parent-node");
 
     // 1st node with one child node (2 in total)
-    std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite node 1");
-    std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child sprite");
+    std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite-node-1");
+    std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child-sprite-1-1");
+    sprite1Node->AddChild(childrenNode);
 
-    // create a new child
-    sprite1Node->AddChild(sprite1Node, childrenNode);
-
-    // add the new node with a chidl to the main parent
-    sprite1Node->AddChild(parentNode, sprite1Node);
+    // Add the node to the parent node...
+    parentNode->AddChild(sprite1Node);
 
     // 2nd node
-    std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>("sprite node 2");
-    sprite2Node->AddChild(parentNode, sprite2Node);
+    std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>("sprite-node-2");
+    parentNode->AddChild(sprite2Node);
 
     // 3rd node
-    std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>("cameraNode");
-    cameraNode->AddChild(parentNode, cameraNode);
+    std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>("camera-node");
+    parentNode->AddChild(cameraNode);
 
     // Add them to the scene root node...
-    mainScene->root_node_->AddChild(mainScene->root_node_, parentNode);
-    
+    mainScene->root_node_->AddChild(parentNode);
+
     // expecting 3 children on the parent node...
-    EXPECT_TRUE(mainScene->root_node_->children_.at(0)->children_.size() == 3);
+    EXPECT_TRUE(parentNode->children_.size() == 3);
     auto flatSize = mainScene->nodes_flat_.size();
-    // expecting 4 nodes overall
-    EXPECT_TRUE( flatSize == 4);
+    // expecting 5 nodes overall (root, )
+    EXPECT_TRUE(flatSize == 5);
 }
