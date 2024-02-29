@@ -57,6 +57,7 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     // expecting 3 children on the parent node...
     EXPECT_TRUE(parentNode->children_.size() == 3);
     auto flatSize = mainScene->nodes_flat_.size();
-    // expecting 5 nodes overall (root, )
+
+    // expecting 5 nodes overall (parent node, sprite-node-1, child-sprite-1-1, sprite-node-2, camera-node)
     EXPECT_TRUE(flatSize == 5);
 }

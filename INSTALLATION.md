@@ -4,15 +4,14 @@
 
 ### VCPKG'
 
-### required:
+### base packages (required):
 ```bash
 # VCPKG
 ./vcpkg install spdlog
 ./vcpkg install sdl2
 ./vcpkg install glew
-./vcpkg install freeglut
 ./vcpkg install imgui
-./vcpkg install bullet3
+./vcpkg install nlohmann-json
 
 # installs
 sudo ubuntu-drivers autoinstall

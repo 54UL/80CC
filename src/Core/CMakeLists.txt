@@ -30,6 +30,7 @@ set(80CC_CORE_HEADERS
     include/Input/Controls/GhostCamera.hpp
     include/UI/DevEditor.hpp
     include/UI/Console.hpp
+    include/Dependencies/PathManager.hpp
 
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
@@ -75,6 +76,7 @@ find_package(SDL2 REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(Stb REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # Include GLEW headers
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -98,4 +100,5 @@ target_link_libraries(80CC_CORE
     PUBLIC spdlog::spdlog
     PRIVATE glm::glm
     PRIVATE GLEW::GLEW
+    PRIVATE nlohmann_json::nlohmann_json
 )

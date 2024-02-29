@@ -24,7 +24,7 @@ namespace ettycc
         // PUBLIC EXPERIMENTAL MEMBERS 
         bool isSelected_;
         std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> components_;
-        std::shared_ptr<SceneNode> parent_;
+        std::shared_ptr<SceneNode> parent_; // make it weak ptr...
         std::vector<std::shared_ptr<SceneNode>> children_; 
 
     public:
