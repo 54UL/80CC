@@ -13,7 +13,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # set(CMAKE_CXX_COMPILER, "g++")
-set(TESTS ON)
+option(TESTS OFF)
 # Set the vcpkg root directory and the tripplet
 set(VCPKG_ROOT "/workspaces/vcpkg" CACHE STRING "")
 set(VCPKG_TARGET_TRIPLET "x64-linux" CACHE STRING "")
