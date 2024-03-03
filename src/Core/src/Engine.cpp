@@ -65,6 +65,16 @@ namespace ettycc
         mainScene_->root_node_->AddChild(someParent);
     }
 
+    void Engine::LoadScene(const std::string &filePath)
+    {
+
+    }
+
+    void Engine::StoreScene(const std::string &filePath)
+    {
+        
+    }
+
     void Engine::Init()
     {
         // RenderingEngineDemo();

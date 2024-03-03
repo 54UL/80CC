@@ -14,8 +14,11 @@
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
+#define DEFAULT_ASSETS_FOLDER "assets"
+
 namespace ettycc
 {
+
     class Engine : public EnginePipeline
     {
     public:
@@ -34,6 +37,10 @@ namespace ettycc
 
         // TESTING...
         void TestScene();
+
+        // Engine api        
+        void LoadScene(const std::string& filePath);
+        void StoreScene(const std::string& filePath);
 
         // Engine pipeline impl
         void Init() override; 

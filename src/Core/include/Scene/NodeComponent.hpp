@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace ettycc 
 {   
@@ -20,6 +21,7 @@ namespace ettycc
         virtual NodeComponentInfo GetComponentInfo() = 0;
         virtual void OnStart(std::shared_ptr<Engine> engineInstance) = 0;
         virtual void OnUpdate(float deltaTime) = 0;
+      
         // This is more like a serialization interface...
         // virtual void Load();
         // virtual void Store();

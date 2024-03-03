@@ -151,69 +151,76 @@ namespace ettycc
         return textureID; // IMPORTANT (DONT LOSE THIS ID SO IT WOULD BE GREAT TO ENCAPSULATE THIS IN A CLASS TO USE RAII)
     }
 
+    static bool showPopup = false;
     void DevEditor::ShowSceneContextMenu(const std::shared_ptr<SceneNode> &node)
     {
         if (ImGui::BeginPopupContextItem()) // This creates a context menu for the current item
         {
-           
-                if (ImGui::MenuItem("Add"))
+            if (ImGui::BeginMenu("Add"))
+            {
+                if (ImGui::MenuItem("Node"))
                 {
-                    if (ImGui::MenuItem("Node"))
+                    showPopup = true;
+                }
+                if (ImGui::BeginMenu("Components"))
+                {
+                    // EXAMPLE CODE... (IMPROVE!!!)
+                    // TODO: FETCH COMPONENTS FROM THE PERSISTANCE UNIT (SHOULD BE ABLE TO SAVE COMPONENT PRESETS)
+                    if (ImGui::MenuItem("Camera", NULL))
                     {
-                        // ADD CONTEXT MENU WITH AN INPUT FIELD TO PROVIDE AN NAME...
-                        AddNode(node);
+                        AddComponentFromTemplate(node, "Camera");
                     }
-                    if (ImGui::BeginMenu("Components"))
+                    if (ImGui::MenuItem("Sprite", NULL))
                     {
-                        // EXAMPLE CODE... (IMPROVE!!!)
-                        // TODO: FETCH COMPONENTS FROM THE PERSISTANCE UNIT (SHOULD BE ABLE TO SAVE COMPONENT PRESETS)
-                        if (ImGui::MenuItem("Camera", NULL))
-                        {
-                            AddComponentFromTemplate(node, "Camera");
-                        }
-                        if (ImGui::MenuItem("Sprite", NULL))
-                        {
-                            AddComponentFromTemplate(node, "Sprite");
-                        }
-                        ImGui::EndMenu();
+                        AddComponentFromTemplate(node, "Sprite");
                     }
+                    ImGui::EndMenu();
                 }
-                if (ImGui::MenuItem("Remove"))
-                {
-                    // TODO: IMPLEMENT...
-                }
-                if (ImGui::MenuItem("Duplicate"))
-                {
-                    // TODO: IMPLEMENT...
-                }
-                if (ImGui::MenuItem("Persist"))
-                {
-                    // TODO: IMPLEMENT...
-                }
-         
-            
+
+                ImGui::EndMenu();
+            }
+            if (ImGui::MenuItem("Remove"))
+            {
+                // TODO: IMPLEMENT...
+            }
+            if (ImGui::MenuItem("Duplicate"))
+            {
+                // TODO: IMPLEMENT...
+            }
+            if (ImGui::MenuItem("Persist"))
+            {
+                // TODO: IMPLEMENT...
+            }
+
             ImGui::EndPopup();
         }
+
+        AddNode(node);
     }
 
     void DevEditor::AddNode(const std::shared_ptr<SceneNode> &selectedNode)
     {
         static char node_name[128] = "";
-     
-        ImGui::OpenPopup("New Node");
-        
-        if (ImGui::BeginPopup("New Node"))
+
+        if (showPopup) {
+            ImGui::OpenPopup("new node");
+            // showPopup = false;
+            showPopup = false;
+        }
+       
+        if (ImGui::BeginPopupModal("new node", NULL))
         {
             ImGui::Text("Enter node name:");
-            ImGui::InputText("##node_name", node_name, IM_ARRAYSIZE(node_name));
+            // TODO: FIX RECURSION ISSUE WITH THIS INPUT BOX
 
-            if (ImGui::Button("Apply"))
+            auto pressed = ImGui::InputText("##node_name", node_name, IM_ARRAYSIZE(node_name), ImGuiInputTextFlags_EnterReturnsTrue);
+            ImGui::SameLine();
+
+            if (ImGui::Button("Apply") || pressed)
             {
                 // Add the new node with the propper name
-                //TODO: FIX THIS BELOW DUE TO THE PARENTING IDIOM CHANGES
-                // std::shared_ptr<SceneNode> newNode = std::make_shared<SceneNode>(selectedNode, node_name);
-                // selectedNode->AddNode(newNode);
-
+                std::shared_ptr<SceneNode> newNode = std::make_shared<SceneNode>(node_name);
+                selectedNode->AddChild(newNode);
                 ImGui::CloseCurrentPopup();
             }
 
@@ -221,19 +228,26 @@ namespace ettycc
         }
     }
 
+    static int positionIndex = 2;
     void DevEditor::AddComponentFromTemplate(const std::shared_ptr<SceneNode> &selectedNode, const char *templateName)
     {
         const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";// TODO: FETCH FROM config???
 
+
         // TODO: DUMMY CODE, IMPLEMENT A REAL TEMPLATE PARSER TO BUILD UP BUILT INS COMPONENTS
         if (strcmp("Camera", templateName) == 0)
         {
+            spdlog::info("Implement camera spawning!!");
         }
         if (strcmp("Sprite", templateName) == 0)
         {
             std::shared_ptr<Sprite> notFoundSprite = std::make_shared<Sprite>(notFoundTexturePath);
+            notFoundSprite->underylingTransform.setGlobalPosition(glm::vec3(positionIndex, positionIndex, -5));
+
             selectedNode->AddComponent(std::make_shared<RenderableNode>(notFoundSprite));
         }
+
+        positionIndex += positionIndex;
     }
 
     void DevEditor::RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth = 0)
