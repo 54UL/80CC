@@ -10,6 +10,19 @@
 namespace ettycc
 {   
     // Front-end class for the renderable interface...
+    // Also serialization and deserialization goes here...
+    
+    // MEMBERS TO SERIALIZE
+    
+    // ### RENDERABLE CLASS
+    // renderable id
+    // underlying transform 
+    // enabled
+    /// ### Sprite: renderable
+    // spriteFilePath_
+    // ### Camera: renderable
+    // projectionMatrix (h, w, fov, znear)
+
     class RenderableNode : public NodeComponent
     {
         const char * COLLOQUIAL_NAME = "Renderable";

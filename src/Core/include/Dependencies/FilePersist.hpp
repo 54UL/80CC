@@ -1,5 +1,5 @@
-#ifndef UTILS_PATH_MANAGER_HPP
-#define UTILS_PATH_MANAGER_HPP
+#ifndef FILE_PERSIST_HPP
+#define FILE_PERSIST_HPP
 
 #include <iostream>
 #include <fstream>
@@ -10,6 +10,7 @@ using json = nlohmann::json;
 
 namespace ettycc
 {
+    // Json key-value env    
     class FilePersist
     {
     public:

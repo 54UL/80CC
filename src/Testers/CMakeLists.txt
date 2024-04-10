@@ -9,7 +9,7 @@ enable_testing()
 set(Testers_SOURCES 
     UnitTesting/SceneNodeTest.cpp
     UnitTesting/PathsManagerTest.cpp
-)
+    UnitTesting/Serialization.cpp)
 
 add_executable(Testers ${Testers_SOURCES})
 

@@ -1,14 +1,26 @@
 
-//SceneComponent
+// SceneComponent
 class someComponent: NodeComponent {
-    Serializable<string> field1;
+    String field1;
+
+    serializedBuffer Serialize()
+    {
+        auto componentDef = new componenetDef() // Dymanic message factory instance...
+        vector<Serializeble> componentSerializable = {{"field1", SERIALIZABLE_STRING}};
+        
+        return componentDef.Serialize(componentSerialiable);
+    }
+
+    void Deserialize(binaryBuffer bin) 
+    {
+        
+    }
 }
 
 class someComponent2: NodeComponent {
-    Serializable<string> field2;
-    Serializable<int>    field3;
+    int field2;
+    float fieldo3;
 }
-
 
 SceneNode::SerializeNode(){
     // Serialize node info itself then components...
