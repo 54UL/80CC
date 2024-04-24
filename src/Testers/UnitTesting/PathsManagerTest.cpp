@@ -28,8 +28,8 @@ TEST_F(PathsManangerTestFixture, json_config_loader)
     auto configFile = GetDependency(FilePersist);
     configFile->AddValue("key1", "path1");
     configFile->AddValue("key2", "path2");
-    configFile->SaveToJson("paths.json");
 
+    configFile->SaveToJson("paths.json");
     configFile->LoadFromJson("paths.json");
 
     spdlog::info("Loaded path for key1: {}", configFile->GetValue("key1"));

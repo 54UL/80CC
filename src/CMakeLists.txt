@@ -12,8 +12,10 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# set(CMAKE_CXX_COMPILER, "g++")
-option(TESTS OFF)
+# 80CC CMAKE COMPILING OPTIONS
+option(80CC_UNIT_TEST "XD" ON)
+
+
 # Set the vcpkg root directory and the tripplet
 set(VCPKG_ROOT "/workspaces/vcpkg" CACHE STRING "")
 set(VCPKG_TARGET_TRIPLET "x64-linux" CACHE STRING "")
@@ -27,9 +29,11 @@ endif()
 add_subdirectory(Core)
 
 # Add subdirectories
-if(TESTS)
+if(80CC_UNIT_TEST)
+    message("Compiling as testers")
     add_subdirectory(Testers)  
 else()
+    message("Compile the whole thing (engine + game + core)")
     add_subdirectory(Entry)
     add_subdirectory(Game)
 endif()

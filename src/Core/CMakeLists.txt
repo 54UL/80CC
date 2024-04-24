@@ -79,6 +79,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(Stb REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(cereal CONFIG REQUIRED)
 
 # Include GLEW headers
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -103,4 +104,5 @@ target_link_libraries(80CC_CORE
     PRIVATE glm::glm
     PRIVATE GLEW::GLEW
     PRIVATE nlohmann_json::nlohmann_json
+    PUBLIC cereal::cereal
 )

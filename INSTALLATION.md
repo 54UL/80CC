@@ -5,6 +5,7 @@
 ### VCPKG'
 
 ### base packages (required):
+
 ```bash
 # VCPKG
 ./vcpkg install spdlog
@@ -25,4 +26,6 @@ apt-get install libxmu-dev libxi-dev libgl-dev
 ```bash
 ./vcpkg install box2d
 ./vcpkg install enet
+./vcpkg install EnTT
+./vcpkg install tinyglft
 ```

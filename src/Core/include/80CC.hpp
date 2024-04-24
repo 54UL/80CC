@@ -16,9 +16,9 @@
 #include <Data/BinaryContainer.hpp>
 #include <Data/Serializable.hpp>
 
-namespace ettycc
-{   
+// namespace ettycc
+// {   
     
-}
+// }
 
 #endif
