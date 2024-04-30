@@ -10,6 +10,14 @@ using namespace ettycc;
 std::shared_ptr<App> app_;
 std::shared_ptr<Engine> engineInstance_;
 
+// TODO: IMPROVE THE WAY TO REGISTER THIS SHIT
+CEREAL_REGISTER_TYPE(ettycc::RenderableNode);
+CEREAL_REGISTER_TYPE(ettycc::Sprite);
+CEREAL_REGISTER_TYPE(ettycc::Renderable);
+
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::RenderableNode)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Sprite)
+
 class SceneNodeTestFixture : public testing::Test
 {
 protected:
@@ -44,6 +52,10 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite-node-1");
     std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child-sprite-1-1");
     sprite1Node->AddChild(childrenNode);
+
+    const char* loonaImagePath = nullptr; // if null backend stuff wont be initialized and its fine for unit testing, TODO: create resource prefix handler (to retrive paths stored into resources.json)
+    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath);
+    sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
 
     // Add the node to the parent node...
     parentNode->AddChild(sprite1Node);

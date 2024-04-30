@@ -8,6 +8,8 @@
 #include "../Renderable.hpp"
 #include <memory>
 
+#include <cereal/archives/json.hpp>
+
 namespace ettycc
 {
     class Sprite : public Renderable
@@ -21,6 +23,7 @@ namespace ettycc
         ShaderPipeline underlyingShader;
     
     public:
+        Sprite();
         Sprite(const char * spriteFilePath);
         ~Sprite();
 
@@ -31,11 +34,11 @@ namespace ettycc
     public:
         void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;
 
-    // Serialization/Deserialziation
+        // Serialization/Deserialziation
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(CEREAL_NVP(underlyingShader), CEREAL_NVP(spriteFilePathStr_));
+            ar(CEREAL_NVP(spriteFilePathStr_));
         }
     };
 

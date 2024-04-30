@@ -2,6 +2,12 @@
 
 namespace ettycc
 {
+
+    RenderableNode::RenderableNode()
+    {
+
+    }
+
     RenderableNode::RenderableNode(const std::shared_ptr<Renderable>& renderable)
     {
         renderable_= renderable;

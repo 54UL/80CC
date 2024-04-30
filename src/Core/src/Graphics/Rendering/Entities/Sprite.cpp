@@ -6,8 +6,19 @@
 
 namespace ettycc
 {
+    Sprite::Sprite()
+    {
+
+    }
+    
     Sprite::Sprite(const char * spriteFilePath): spriteFilePath_(spriteFilePath)
     {
+        // if null nothing to do (THIS IS USED FOR UNIT TESTING)
+        if (!spriteFilePath)
+        {
+            return; 
+        }
+
         // Quad vertices and texture coordinates
         float vertices[] {
             // Positions         // Texture Coords

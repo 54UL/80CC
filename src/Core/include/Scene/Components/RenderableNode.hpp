@@ -6,6 +6,7 @@
 #include <Graphics/Rendering/Entities/Sprite.hpp>
 #include <memory>
 
+#include <cereal/types/polymorphic.hpp>
 #include <cereal/types/memory.hpp>
 #include <cereal/archives/json.hpp>
 
@@ -17,11 +18,12 @@ namespace ettycc
     class RenderableNode : public NodeComponent
     {
         const char * COLLOQUIAL_NAME = "Renderable";
-    
+
     private:
         std::shared_ptr<Renderable> renderable_;
 
     public:
+        RenderableNode();
         RenderableNode(const std::shared_ptr<Renderable>& renderable);
         ~RenderableNode();
 
@@ -37,6 +39,7 @@ namespace ettycc
             ar(CEREAL_NVP(renderable_));
         }
     };  
+
 } // namespace ettycc
 
 
