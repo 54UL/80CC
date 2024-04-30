@@ -15,6 +15,7 @@ namespace ettycc
     private:
         GLuint VAO, VBO, EBO, TEXTURE;
         const char * spriteFilePath_;
+        std::string spriteFilePathStr_;
 
     public:
         ShaderPipeline underlyingShader;
@@ -29,6 +30,13 @@ namespace ettycc
     // Renderable
     public:
         void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;
+
+    // Serialization/Deserialziation
+        template <class Archive>
+        void serialize(Archive &ar)
+        {
+            ar(CEREAL_NVP(underlyingShader), CEREAL_NVP(spriteFilePathStr_));
+        }
     };
 
 } // namespace ettycc

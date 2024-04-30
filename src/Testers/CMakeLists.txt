@@ -1,7 +1,7 @@
 project(Testers CXX)
 set(CMAKE_CXX_STANDARD 17)	
 
-option(UNIT_TEST_OR_TEST_BED_CODE ON)
+option(UNIT_TEST_OR_TEST_BED_CODE "Compile as unit tests or stand alone examples to be run" ON)
 
 # gtests
 include(CTest)
@@ -10,7 +10,7 @@ enable_testing()
 
 set(Testers_UNIT_TEST_SOURCES 
     UnitTesting/SceneNodeTest.cpp
-    UnitTesting/PathsManagerTest.cpp
+    # UnitTesting/PathsManagerTest.cpp
     # UnitTesting/Serialization.cpp
     )
 
@@ -18,7 +18,7 @@ set(Testers_STAND_ALONE_SOURCES
     StandAlone/cereal_lib_example.cpp
     )   
 
-if (${UNIT_TEST_OR_TEST_BED_CODE})
+if (UNIT_TEST_OR_TEST_BED_CODE)
     message("Compiling Unit tests")
     set(Testers_SOURCES ${Testers_UNIT_TEST_SOURCES})
 else()

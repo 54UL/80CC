@@ -135,5 +135,3 @@ namespace ettycc
         } 
     }
 }
-
-

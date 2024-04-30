@@ -1,10 +1,12 @@
 #ifndef IRENDERABLE_HPP
 #define IRENDERABLE_HPP
+#include "RenderingContext.hpp"
 
 #include <memory>
 #include <glm/glm.hpp>
-#include "RenderingContext.hpp"
 #include <Scene/Transform.hpp>
+
+#include <cereal/archives/json.hpp>
 
 namespace ettycc
 {
@@ -15,6 +17,7 @@ namespace ettycc
         uint64_t id;
         bool enabled;
         
+
     public:
         Renderable() {
            
@@ -45,6 +48,12 @@ namespace ettycc
         }
 
         virtual void Pass(const std::shared_ptr<RenderingContext> &ctx,float time) = 0;
+
+        template <class Archive>
+        void serialize(Archive &ar)
+        {
+            ar(CEREAL_NVP(underylingTransform), CEREAL_NVP(id), CEREAL_NVP(enabled));
+        }
     };
 
 } // namespace ettycc

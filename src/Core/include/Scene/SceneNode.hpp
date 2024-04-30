@@ -7,7 +7,13 @@
 #include <memory>
 #include <map>
 #include <vector>
+
 #include <spdlog/spdlog.h>
+
+#include <cereal/types/memory.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/vector.hpp>
 
 namespace ettycc 
 {
@@ -24,8 +30,22 @@ namespace ettycc
         // PUBLIC EXPERIMENTAL MEMBERS 
         bool isSelected_;
         std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> components_;
+
         std::shared_ptr<SceneNode> parent_; // make it weak ptr...
         std::vector<std::shared_ptr<SceneNode>> children_; 
+
+        // Serialization/Deserialization
+        template <class Archive>
+        void serialize(Archive &ar)
+        {
+            ar(CEREAL_NVP(id_),
+               CEREAL_NVP(sceneId_),
+               CEREAL_NVP(name_),
+               CEREAL_NVP(enabled_),
+               CEREAL_NVP(components_),
+               CEREAL_NVP(parent_),
+               CEREAL_NVP(children_));
+        }
 
     public:
         SceneNode();
@@ -51,7 +71,7 @@ namespace ettycc
         auto GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>;
         auto GetComponentByName(const std::string& name) -> std::shared_ptr<NodeComponent>;
 
-        auto ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void;
+        auto ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void;        
     };
 }
 

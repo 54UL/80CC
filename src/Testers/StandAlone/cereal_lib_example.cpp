@@ -1,41 +1,24 @@
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/memory.hpp>
-// #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
+
+// #include <cereal/archives/binary.hpp>
+
 #include <spdlog/spdlog.h>
 #include <sstream>
-
 #include <fstream>
-    
+#include <stdint.h>
+
 struct MyRecord
 {
   uint8_t x, y;
   float z;
-  
+  // const char * lol = "xdxd";
+
   template <class Archive>
-  void serialize( Archive & ar )
+  void serialize(Archive &ar)
   {
-    ar( x, y, z );
-  }
-};
-    
-struct SomeData
-{
-  int32_t id;
-  std::shared_ptr<std::unordered_map<uint32_t, MyRecord>> data;
-  
-  template <class Archive>
-  void save( Archive & ar ) const
-  {
-    ar( data );
-  }
-      
-  template <class Archive>
-  void load( Archive & ar )
-  {
-    static int32_t idGen = 0;
-    id = idGen++;
-    ar( data );
+    ar(CEREAL_NVP(x), CEREAL_NVP(y), CEREAL_NVP(z));
   }
 };
 
@@ -43,14 +26,27 @@ int main()
 {
   // std::ofstream os("out.json", std::ios::binary); // USE THIS TO DUMP THE ARCHIVE INTO  A FILE
   std::stringstream ss;
+  // cereal::BinaryOutputArchive archive( os ); // USE THIS TO DUMP THE ARCHIVE INTO  A FILE
 
-//   cereal::BinaryOutputArchive archive( os ); // USE THIS TO DUMP THE ARCHIVE INTO  A FILE
-  cereal::JSONOutputArchive archive(ss);
+  { 
+    // IMPORTANT USE RAII OR THIS WON'T WORK !!
+    cereal::JSONOutputArchive archive(ss);
 
-  SomeData myData;
-  SomeData myData2;
+    MyRecord exampleData;
+    exampleData.x = 1;
+    exampleData.y = 0xff;
+    exampleData.z = 0.033f;
 
-  archive( myData, myData2);
-  spdlog::info("JSON VALUE {}",ss.str());
+    archive(CEREAL_NVP(exampleData));
+    spdlog::info("JSON VALUE {}", ss.str());
+  }
+
+  {
+    MyRecord newData;
+    cereal::JSONInputArchive archive2(ss);
+    archive2(newData);
+    spdlog::info("DESERIALIZED VALUE x:{} y:{} z:{}", newData.x, newData.y, newData.z);
+  }
+
   return 0;
 }
