@@ -7,6 +7,8 @@
 
 using namespace ettycc;
 
+constexpr const char * UNIT_TEST_SCENE_NAME = "80CC-UNIT-TEST-SCENE";
+
 std::shared_ptr<App> app_;
 std::shared_ptr<Engine> engineInstance_;
 
@@ -28,7 +30,7 @@ protected:
         app_ = std::make_shared<SDL2App>("80CC-UNIT-TEST");
         engineInstance_ = std::make_shared<Engine>(app_);
 
-        engineInstance_->mainScene_ = std::make_shared<Scene>("80CC-UNIT-TEST-SCENE");
+        engineInstance_->mainScene_ = std::make_shared<Scene>(UNIT_TEST_SCENE_NAME);
         engineInstance_->mainScene_->Init();
 
         // Dependency registration
@@ -98,6 +100,9 @@ TEST_F(SceneNodeTestFixture, basic_scene_serialization)
 
         auto parentNode = readedScene->root_node_->children_.at(0); 
         
+        // Check the scene name
+        EXPECT_TRUE(readedScene->sceneName_.compare(UNIT_TEST_SCENE_NAME) == 0);
+
         // expecting 3 children on the parent node...
         EXPECT_TRUE(parentNode->children_.size() == 3);
         auto flatSize = readedScene->nodes_flat_.size();

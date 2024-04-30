@@ -104,7 +104,7 @@ namespace ettycc
         // add the node to be child to the parent node as child
         if (childrenNode->SetParent(shared_from_this()))
         {
-            spdlog::info("Node [{}] is now parent of [{}]", shared_from_this()->name_, childrenNode->name_);
+            // spdlog::info("Node [{}] is now parent of [{}]", shared_from_this()->name_, childrenNode->name_);
             AddNode(childrenNode);
         }
         else
