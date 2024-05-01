@@ -36,7 +36,7 @@ namespace ettycc
         ~Engine();
 
         // TESTING...
-        void TestScene();
+        void LoadDefaultScene();
 
         // Engine api        
         void LoadScene(const std::string& filePath);

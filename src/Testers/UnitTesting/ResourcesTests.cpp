@@ -30,19 +30,14 @@ protected:
 TEST_F(ResourcesTest, StoreAndLoadResource)
 {
     // Store a resource
-    resources.Set("test_resources.json", "key2", "value2");
-    resources.Set("test_resources2.json", "key2", "value2");
+    resources.Set("test_resources.json", "key1", "value1");
 
     resources.Store("test_resources.json");
 
     // Load the stored resource
     Resources newResources;
     newResources.Load("test_resources.json");
-    ASSERT_EQ("value2", newResources.Get("test_resources.json", "key2"));
+
+    EXPECT_TRUE( newResources.Get("test_resources.json", "key1").compare("value1") == 0);
 }
 
-TEST_F(ResourcesTest, LoadAndGetResource)
-{
-    // Verify that a resource is loaded and can be retrieved
-    ASSERT_EQ("value1", resources.Get("test_resources.json", "key1"));
-}

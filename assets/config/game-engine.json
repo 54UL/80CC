@@ -1,0 +1,5 @@
+{
+    "assets-root":"../assets",
+    "textures-folder": "/images",
+    "shaders-folder": "/shaders"
+}

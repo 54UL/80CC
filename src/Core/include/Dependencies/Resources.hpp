@@ -15,8 +15,9 @@ namespace ettycc
     class ResourceDescriptor
     {
     public:
-        ResourceDescriptor() {}
-        ResourceDescriptor(const std::unordered_map<std::string, std::string>& valuesMap) : resources(valuesMap) {}
+        ResourceDescriptor() {
+            resources = std::unordered_map<std::string, std::string>();
+        }
         ~ResourceDescriptor() {}
 
     public:
@@ -51,35 +52,28 @@ namespace ettycc
 
             if (!file.is_open())
             {
-                spdlog::error("Failed to open file: {}", fileName);
-                return;
+                spdlog::info("Creating file because does not exists...", fileName);
             }
 
             cereal::JSONInputArchive archive(file);
-            archive(*loadedResources_[fileName]);
+            archive(loadedResources_[fileName]);
         }
 
         auto Store(const std::string &fileName) -> void
         {
             std::ofstream file(fileName);
 
-            if (!file.is_open())
-            {
-                spdlog::error("Failed to create file: {}", fileName);
-                return;
-            }
-
             cereal::JSONOutputArchive archive(file);
-            archive(*loadedResources_[fileName]);
+            archive(loadedResources_[fileName]);
         }
 
         auto Set(const std::string &fileName, std::string key, std::string value) -> void
         {
-            // if (loadedResources_.find(fileName) == loadedResources_.end())
-            // {
-            //     spdlog::error("Resource file '{}' not loaded", fileName);
-            //     return;
-            // }
+            if (loadedResources_.find(fileName) == loadedResources_.end())
+            {
+                spdlog::warn("Resource file '{}' not loaded", fileName);
+            }
+
             auto resourcePack = loadedResources_[fileName];
             if (resourcePack)
             {
@@ -87,11 +81,14 @@ namespace ettycc
             }
             else 
             {
-            //    loadedResources_[fileName] = std::make_shared<ResourceDescriptor>({key, value});
+               auto freshDescriptor =  std::make_shared<ResourceDescriptor>();
+               freshDescriptor->resources[key] = value;
+
+               loadedResources_[fileName] = freshDescriptor;
             }
         }
 
-        auto Get(const std::string &fileName, std::string key) -> std::string
+        auto Get(const std::string &fileName, const std::string& key) -> std::string
         {
             if (loadedResources_.find(fileName) == loadedResources_.end())
             {
