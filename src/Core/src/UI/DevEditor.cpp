@@ -318,10 +318,10 @@ namespace ettycc
         ImGui::InputText("##Search", search, IM_ARRAYSIZE(search));
         ImGui::SameLine(); 
 
-        if (ImGui::ArrowButton("##Search_scene", ImGuiDir_Right))
-        {
+        // if (ImGui::ArrowButton("##Search_scene", ImGuiDir_Right))
+        // {
 
-        }
+        // }
 
         ImGui::Separator();
         RenderSceneNode(GetDependency(Engine)->mainScene_->root_node_, selectedNodes_, 0);

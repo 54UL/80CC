@@ -31,6 +31,7 @@ set(80CC_CORE_HEADERS
     include/UI/DevEditor.hpp
     include/UI/Console.hpp
     include/Dependencies/FilePersist.hpp
+    include/Dependencies/Resources.hpp
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
     external/imgui/imgui_internal.h

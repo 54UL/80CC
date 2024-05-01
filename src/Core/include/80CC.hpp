@@ -13,6 +13,7 @@
 #include <UI/DevEditor.hpp>
 #include <Engine.hpp>
 #include <Dependencies/FilePersist.hpp>
+#include <Dependencies/Resources.hpp>
 
 // namespace ettycc
 // {   
