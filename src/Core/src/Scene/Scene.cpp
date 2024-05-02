@@ -4,7 +4,8 @@ namespace ettycc
 {
     Scene::Scene(const std::string& name): sceneName_{name}
     {
-        root_node_ = std::make_shared<SceneNode>();     
+        root_node_ = std::make_shared<SceneNode>("SCENE-ROOT");
+
         nodes_flat_ = std::vector<std::shared_ptr<SceneNode>>(); // this is used to avoid recursion and depth search yeah (idc about memory)
     }
 

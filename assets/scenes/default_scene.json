@@ -7,7 +7,7 @@
                 "data": {
                     "id_": 0,
                     "sceneId_": 0,
-                    "name_": "",
+                    "name_": "SCENE-ROOT",
                     "enabled_": false,
                     "components_": [],
                     "parent_": {
@@ -35,7 +35,7 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483651,
                                                 "data": {
-                                                    "id_": 2314885530818453536,
+                                                    "id_": 2314861394129526842,
                                                     "sceneId_": 2314885530818453536,
                                                     "name_": "sprite node 1",
                                                     "enabled_": true,
@@ -55,7 +55,12 @@
                                                                                 "ptr_wrapper": {
                                                                                     "id": 2147483653,
                                                                                     "data": {
-                                                                                        "spriteFilePath_": "@ø\u001EÇ£U"
+                                                                                        "value0": {
+                                                                                            "underylingTransform": {},
+                                                                                            "id": 2,
+                                                                                            "enabled": true
+                                                                                        },
+                                                                                        "spriteFilePath_": "àH±Õ®X"
                                                                                     }
                                                                                 }
                                                                             }
@@ -75,8 +80,8 @@
                                                             "ptr_wrapper": {
                                                                 "id": 2147483654,
                                                                 "data": {
-                                                                    "id_": 7306087014311403552,
-                                                                    "sceneId_": 2476826281856360307,
+                                                                    "id_": 2314885530818453536,
+                                                                    "sceneId_": 2478221290249396256,
                                                                     "name_": "child sprite",
                                                                     "enabled_": true,
                                                                     "components_": [
@@ -93,7 +98,12 @@
                                                                                                 "ptr_wrapper": {
                                                                                                     "id": 2147483656,
                                                                                                     "data": {
-                                                                                                        "spriteFilePath_": "`\u0007 Ç£U"
+                                                                                                        "value0": {
+                                                                                                            "underylingTransform": {},
+                                                                                                            "id": 0,
+                                                                                                            "enabled": false
+                                                                                                        },
+                                                                                                        "spriteFilePath_": ""
                                                                                                     }
                                                                                                 }
                                                                                             }
@@ -105,7 +115,7 @@
                                                                     ],
                                                                     "parent_": {
                                                                         "ptr_wrapper": {
-                                                                            "id": 0
+                                                                            "id": 3
                                                                         }
                                                                     },
                                                                     "children_": []
@@ -120,7 +130,7 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483657,
                                                 "data": {
-                                                    "id_": 2308718370534614121,
+                                                    "id_": 2314885530818453536,
                                                     "sceneId_": 2314885530818453536,
                                                     "name_": "sprite node 2",
                                                     "enabled_": true,
@@ -138,7 +148,12 @@
                                                                                 "ptr_wrapper": {
                                                                                     "id": 2147483659,
                                                                                     "data": {
-                                                                                        "spriteFilePath_": "`\u0007 Ç£U"
+                                                                                        "value0": {
+                                                                                            "underylingTransform": {},
+                                                                                            "id": 1,
+                                                                                            "enabled": true
+                                                                                        },
+                                                                                        "spriteFilePath_": ""
                                                                                     }
                                                                                 }
                                                                             }
@@ -161,7 +176,7 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483660,
                                                 "data": {
-                                                    "id_": 2314885530818453536,
+                                                    "id_": 2308793136888946720,
                                                     "sceneId_": 2314885530818453536,
                                                     "name_": "cameraNode",
                                                     "enabled_": true,
@@ -180,6 +195,11 @@
                                                                                 "ptr_wrapper": {
                                                                                     "id": 2147483662,
                                                                                     "data": {
+                                                                                        "value0": {
+                                                                                            "underylingTransform": {},
+                                                                                            "id": 1,
+                                                                                            "enabled": true
+                                                                                        },
                                                                                         "ispresp": true
                                                                                     }
                                                                                 }

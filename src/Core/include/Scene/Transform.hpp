@@ -2,7 +2,11 @@
 #define SCENE_TRANSFORM_HPP
 
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+#include <cereal/archives/json.hpp>
 
 namespace ettycc
 {
@@ -29,6 +33,15 @@ namespace ettycc
 
         void SetMatrix(glm::mat4 matrix);
         glm::mat4 GetMatrix();
+
+    // Serialization
+    public:
+        template <class Archive>
+        void serialize(Archive &ar)
+        {
+            // TODO: ACTUALLY HOLY SHIT I NEED TO MANUALLY CONSTRUCT AND DECONSTRUCT GLM STUFF HERE (FUUUUUUUUUUCK)
+            // ar(CEREAL_NVP(modelMatrix), CEREAL_NVP(rotationMatrix));
+        }
     };
 }
 

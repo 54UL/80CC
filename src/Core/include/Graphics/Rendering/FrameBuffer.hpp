@@ -7,6 +7,9 @@
 #include <GL/gl.h>
 #include <glm/glm.hpp>
 
+#include <cereal/archives/json.hpp>
+
+
 namespace ettycc
 {
     class FrameBuffer
@@ -34,6 +37,14 @@ namespace ettycc
 
         void Init();
         void CleanUp(); // internally used...
+    public:
+
+        // Serialization/Deserialziation
+        template <class Archive>
+        void serialize(Archive &ar)
+        {
+            ar(size_, position_);
+        }
     };
 }
 

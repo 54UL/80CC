@@ -12,6 +12,7 @@ namespace ettycc
 	private:
 		bool ispresp;
 		glm::mat4 ProjectionMatrix;
+		
 	public:
 		std::shared_ptr<FrameBuffer> offScreenFrameBuffer;
 
@@ -35,7 +36,7 @@ namespace ettycc
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(CEREAL_NVP(ispresp));
+            ar(cereal::base_class<Renderable>(this), CEREAL_NVP(ispresp));
         }
 	};
 } // namespace ettycc

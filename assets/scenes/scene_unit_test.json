@@ -55,6 +55,11 @@
                                                                                 "ptr_wrapper": {
                                                                                     "id": 2147483653,
                                                                                     "data": {
+                                                                                        "value0": {
+                                                                                            "underylingTransform": {},
+                                                                                            "id": 2314885530818453536,
+                                                                                            "enabled": true
+                                                                                        },
                                                                                         "spriteFilePath_": ""
                                                                                     }
                                                                                 }

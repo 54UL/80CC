@@ -139,38 +139,28 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
 {
     auto mainScene = std::make_shared<Scene>("80CC-DEFAULT-SCENE");
     
-    // Clean up unit test scene to generate the default scene
-
-
-    // some resources path lol xd
-    // const char* loonaImagePath = ;// TODO: FETCH FROM config???
-    // const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";// TODO: FETCH FROM config???
     const char* loonaImagePath = resources_->Get("sprites","loona").c_str();
     const char* notFoundTexturePath = resources_->Get("sprites","not-found").c_str();
     
-    // basic initialization???
+    // Game objects initializations...
     std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);
     std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath, false);
     std::shared_ptr<Sprite> someSprite2 = std::make_shared<Sprite>(notFoundTexturePath, false);
     std::shared_ptr<Sprite> someSpriteChildren = std::make_shared<Sprite>(notFoundTexturePath, false);
 
-    // mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
+    // Setting some arbitrary values to the node components
     someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
     someSprite2->underylingTransform.setGlobalPosition(glm::vec3(1, 0, -2));
     someSpriteChildren->underylingTransform.setGlobalPosition(glm::vec3(0, 1, -2));
 
-    // renderEngine_.SetViewPortFrameBuffer(mainCamera->offScreenFrameBuffer); // Instead of passing the framebuffer should pass the whole camera refference???
-
     std::shared_ptr<SceneNode> someParent = std::make_shared<SceneNode>("parent");
-
     std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite node 1");
     sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
     someParent->AddChild(sprite1Node);
 
     std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child sprite");
     childrenNode->AddComponent(std::make_shared<RenderableNode>(someSpriteChildren));
-    sprite1Node->AddNode(childrenNode);
-    someParent->AddChild(sprite1Node);
+    sprite1Node->AddChild(childrenNode);
 
     std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>("sprite node 2");
     sprite2Node->AddComponent(std::make_shared<RenderableNode>(someSprite2));
@@ -181,8 +171,8 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     someParent->AddChild(cameraNode);
 
     mainScene->root_node_->AddChild(someParent);
+
     { 
-        // IMPORTANT USE RAII OR THIS WON'T WORK !!
         std::ofstream ofs(scenesPath_ + "/default_scene.json"); 
 
         cereal::JSONOutputArchive archive(ofs);    

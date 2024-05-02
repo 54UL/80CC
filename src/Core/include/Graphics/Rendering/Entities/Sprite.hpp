@@ -39,7 +39,7 @@ namespace ettycc
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(CEREAL_NVP(spriteFilePath_));
+            ar(cereal::base_class<Renderable>(this), CEREAL_NVP(spriteFilePath_));
         }
     };
 

@@ -109,7 +109,7 @@ namespace ettycc
         }
         else
         {
-            spdlog::error("Node [{}] cannot be parent of [{}]", shared_from_this()->name_, childrenNode->name_);
+            spdlog::warn("Node [{}] cannot be parent of [{}], reason parent == child_node", shared_from_this()->name_, childrenNode->name_);
         }
     }
 
