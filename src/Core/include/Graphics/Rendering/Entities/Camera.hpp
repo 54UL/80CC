@@ -36,7 +36,7 @@ namespace ettycc
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(cereal::base_class<Renderable>(this), CEREAL_NVP(ispresp));
+            ar(cereal::base_class<Renderable>(this), CEREAL_NVP(offScreenFrameBuffer), CEREAL_NVP(ispresp));
         }
 	};
 } // namespace ettycc

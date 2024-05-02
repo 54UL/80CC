@@ -9,19 +9,20 @@
 
 #include <cereal/archives/json.hpp>
 
-
 namespace ettycc
 {
     class FrameBuffer
     {
     private:
-        GLuint id_,textureId_,depthBuffer_;
+        GLuint id_, textureId_, depthBuffer_;
 
     public:
         glm::ivec2 size_;
         glm::ivec2 position_;
         bool isDefault_;
+
     public:
+        FrameBuffer();
         FrameBuffer(glm::ivec2 position, glm::ivec2 size, bool isDefault);
         ~FrameBuffer();
         
@@ -37,13 +38,18 @@ namespace ettycc
 
         void Init();
         void CleanUp(); // internally used...
-    public:
 
+    public:
         // Serialization/Deserialziation
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(size_, position_);
+            // TODO: IMPLEMENT TO MAKE THIS PROCEDURALLY
+            ar(
+                cereal::make_nvp("size_x", size_.x),
+                cereal::make_nvp("size_y", size_.y),
+                cereal::make_nvp("position_x", position_.x),
+                cereal::make_nvp("position_y", position_.y));
         }
     };
 }

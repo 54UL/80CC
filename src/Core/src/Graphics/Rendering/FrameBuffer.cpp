@@ -3,6 +3,11 @@
 
 namespace ettycc
 {
+    FrameBuffer::FrameBuffer()
+    {
+        
+    }
+
     FrameBuffer::FrameBuffer(glm::ivec2 position, glm::ivec2 size, bool isDefault) : position_(position), size_(size), isDefault_(isDefault)
     {
         id_ = 0;

@@ -14,6 +14,12 @@ namespace ettycc
     class Transform
     {
     protected:
+
+        // TODO: RE-WIRE TRANSORM CALCULATIONS BASED ON THESE VECTORS BELOWS INSTEAD OF HAVING STORED MATRIXES
+        glm::vec3 position_;
+        glm::vec3 rotation_;
+        glm::vec3 scale_;
+
         glm::mat4 modelMatrix; // underlying matrix...
         glm::mat4 transformMatrix; 
         glm::mat4 rotationMatrix;
@@ -39,8 +45,18 @@ namespace ettycc
         template <class Archive>
         void serialize(Archive &ar)
         {
-            // TODO: ACTUALLY HOLY SHIT I NEED TO MANUALLY CONSTRUCT AND DECONSTRUCT GLM STUFF HERE (FUUUUUUUUUUCK)
-            // ar(CEREAL_NVP(modelMatrix), CEREAL_NVP(rotationMatrix));
+            ar(
+                cereal::make_nvp("position_x", position_.x),
+                cereal::make_nvp("position_y", position_.y),
+                cereal::make_nvp("position_z", position_.z),
+
+                cereal::make_nvp("rotation_x", rotation_.x),
+                cereal::make_nvp("rotation_y", rotation_.y),
+                cereal::make_nvp("rotation_z", rotation_.z),
+
+                cereal::make_nvp("scale_x", scale_.x),
+                cereal::make_nvp("scale_y", scale_.y),
+                cereal::make_nvp("scale_z", scale_.z));
         }
     };
 }

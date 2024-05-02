@@ -20,10 +20,10 @@
                             "ptr_wrapper": {
                                 "id": 2147483650,
                                 "data": {
-                                    "id_": 0,
-                                    "sceneId_": 0,
+                                    "id_": 2314885530818453536,
+                                    "sceneId_": 2314885530818453536,
                                     "name_": "parent",
-                                    "enabled_": false,
+                                    "enabled_": true,
                                     "components_": [],
                                     "parent_": {
                                         "ptr_wrapper": {
@@ -35,7 +35,7 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483651,
                                                 "data": {
-                                                    "id_": 2314861394129526842,
+                                                    "id_": 2314885436631169570,
                                                     "sceneId_": 2314885530818453536,
                                                     "name_": "sprite node 1",
                                                     "enabled_": true,
@@ -56,11 +56,21 @@
                                                                                     "id": 2147483653,
                                                                                     "data": {
                                                                                         "value0": {
-                                                                                            "underylingTransform": {},
-                                                                                            "id": 2,
-                                                                                            "enabled": true
+                                                                                            "underylingTransform": {
+                                                                                                "position_x": 0.0,
+                                                                                                "position_y": 0.0,
+                                                                                                "position_z": -2.0,
+                                                                                                "rotation_x": 0.0,
+                                                                                                "rotation_y": 0.0,
+                                                                                                "rotation_z": 0.0,
+                                                                                                "scale_x": 1.0,
+                                                                                                "scale_y": 1.0,
+                                                                                                "scale_z": 1.0
+                                                                                            },
+                                                                                            "id": 0,
+                                                                                            "enabled": false
                                                                                         },
-                                                                                        "spriteFilePath_": "‡H±’ÆX"
+                                                                                        "spriteFilePath_": "assets/images/loona.jpg"
                                                                                     }
                                                                                 }
                                                                             }
@@ -81,7 +91,7 @@
                                                                 "id": 2147483654,
                                                                 "data": {
                                                                     "id_": 2314885530818453536,
-                                                                    "sceneId_": 2478221290249396256,
+                                                                    "sceneId_": 2314885530818453536,
                                                                     "name_": "child sprite",
                                                                     "enabled_": true,
                                                                     "components_": [
@@ -99,11 +109,21 @@
                                                                                                     "id": 2147483656,
                                                                                                     "data": {
                                                                                                         "value0": {
-                                                                                                            "underylingTransform": {},
+                                                                                                            "underylingTransform": {
+                                                                                                                "position_x": 0.0,
+                                                                                                                "position_y": 1.0,
+                                                                                                                "position_z": -2.0,
+                                                                                                                "rotation_x": 0.0,
+                                                                                                                "rotation_y": 0.0,
+                                                                                                                "rotation_z": 0.0,
+                                                                                                                "scale_x": 1.0,
+                                                                                                                "scale_y": 1.0,
+                                                                                                                "scale_z": 1.0
+                                                                                                            },
                                                                                                             "id": 0,
                                                                                                             "enabled": false
                                                                                                         },
-                                                                                                        "spriteFilePath_": ""
+                                                                                                        "spriteFilePath_": "assets/images/not_found_texture.png"
                                                                                                     }
                                                                                                 }
                                                                                             }
@@ -130,8 +150,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483657,
                                                 "data": {
-                                                    "id_": 2314885530818453536,
-                                                    "sceneId_": 2314885530818453536,
+                                                    "id_": 4049922662216114234,
+                                                    "sceneId_": 2314861393472730675,
                                                     "name_": "sprite node 2",
                                                     "enabled_": true,
                                                     "components_": [
@@ -149,11 +169,21 @@
                                                                                     "id": 2147483659,
                                                                                     "data": {
                                                                                         "value0": {
-                                                                                            "underylingTransform": {},
-                                                                                            "id": 1,
+                                                                                            "underylingTransform": {
+                                                                                                "position_x": 1.0,
+                                                                                                "position_y": 0.0,
+                                                                                                "position_z": -2.0,
+                                                                                                "rotation_x": 0.0,
+                                                                                                "rotation_y": 0.0,
+                                                                                                "rotation_z": 0.0,
+                                                                                                "scale_x": 1.0,
+                                                                                                "scale_y": 1.0,
+                                                                                                "scale_z": 1.0
+                                                                                            },
+                                                                                            "id": 2,
                                                                                             "enabled": true
                                                                                         },
-                                                                                        "spriteFilePath_": ""
+                                                                                        "spriteFilePath_": "assets/images/not_found_texture.png"
                                                                                     }
                                                                                 }
                                                                             }
@@ -176,8 +206,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483660,
                                                 "data": {
-                                                    "id_": 2308793136888946720,
-                                                    "sceneId_": 2314885530818453536,
+                                                    "id_": 4189015488210952801,
+                                                    "sceneId_": 2308706573254554656,
                                                     "name_": "cameraNode",
                                                     "enabled_": true,
                                                     "components_": [
@@ -196,9 +226,30 @@
                                                                                     "id": 2147483662,
                                                                                     "data": {
                                                                                         "value0": {
-                                                                                            "underylingTransform": {},
-                                                                                            "id": 1,
+                                                                                            "underylingTransform": {
+                                                                                                "position_x": 0.0,
+                                                                                                "position_y": -1.0,
+                                                                                                "position_z": -2.0,
+                                                                                                "rotation_x": 0.0,
+                                                                                                "rotation_y": 0.0,
+                                                                                                "rotation_z": 0.0,
+                                                                                                "scale_x": 1.0,
+                                                                                                "scale_y": 1.0,
+                                                                                                "scale_z": 1.0
+                                                                                            },
+                                                                                            "id": 110661751617688,
                                                                                             "enabled": true
+                                                                                        },
+                                                                                        "offScreenFrameBuffer": {
+                                                                                            "ptr_wrapper": {
+                                                                                                "id": 2147483663,
+                                                                                                "data": {
+                                                                                                    "size_x": 600,
+                                                                                                    "size_y": 800,
+                                                                                                    "position_x": 0,
+                                                                                                    "position_y": 0
+                                                                                                }
+                                                                                            }
                                                                                         },
                                                                                         "ispresp": true
                                                                                     }

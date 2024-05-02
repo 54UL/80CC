@@ -56,8 +56,18 @@
                                                                                     "id": 2147483653,
                                                                                     "data": {
                                                                                         "value0": {
-                                                                                            "underylingTransform": {},
-                                                                                            "id": 2314885530818453536,
+                                                                                            "underylingTransform": {
+                                                                                                "position_x": 0.0,
+                                                                                                "position_y": -1.0,
+                                                                                                "position_z": -2.0,
+                                                                                                "rotation_x": 0.0,
+                                                                                                "rotation_y": 0.0,
+                                                                                                "rotation_z": 0.0,
+                                                                                                "scale_x": 1.0,
+                                                                                                "scale_y": 1.0,
+                                                                                                "scale_z": 1.0
+                                                                                            },
+                                                                                            "id": 7376742736594957157,
                                                                                             "enabled": true
                                                                                         },
                                                                                         "spriteFilePath_": ""
@@ -102,7 +112,7 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483655,
                                                 "data": {
-                                                    "id_": 2314861732406370917,
+                                                    "id_": 2314885437319035426,
                                                     "sceneId_": 2314885530818453536,
                                                     "name_": "sprite-node-2",
                                                     "enabled_": true,
@@ -120,8 +130,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483656,
                                                 "data": {
-                                                    "id_": 2314885530449495109,
-                                                    "sceneId_": 2314885530818453536,
+                                                    "id_": 2314885530818453536,
+                                                    "sceneId_": 8872126588269895712,
                                                     "name_": "camera-node",
                                                     "enabled_": true,
                                                     "components_": [],

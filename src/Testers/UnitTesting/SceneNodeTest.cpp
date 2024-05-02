@@ -56,7 +56,6 @@ protected:
         // Dependency registration
         RegisterDependency(Engine, engineInstance_);
         RegisterDependency(Resources, resources_);
-
     }
 
     void TearDown() override
@@ -139,9 +138,12 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
 {
     auto mainScene = std::make_shared<Scene>("80CC-DEFAULT-SCENE");
     
-    const char* loonaImagePath = resources_->Get("sprites","loona").c_str();
-    const char* notFoundTexturePath = resources_->Get("sprites","not-found").c_str();
-    
+    std::string loonaImagePath = resources_->Get("sprites","loona");
+    std::string notFoundTexturePath = resources_->Get("sprites","not-found");
+
+    spdlog::info("loona path: {}", loonaImagePath);
+    spdlog::info("notFoundTexturePath: {}", notFoundTexturePath);
+
     // Game objects initializations...
     std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);
     std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath, false);
@@ -152,7 +154,8 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
     someSprite2->underylingTransform.setGlobalPosition(glm::vec3(1, 0, -2));
     someSpriteChildren->underylingTransform.setGlobalPosition(glm::vec3(0, 1, -2));
-
+    
+    // Configure parenting herarchy 
     std::shared_ptr<SceneNode> someParent = std::make_shared<SceneNode>("parent");
     std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite node 1");
     sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
@@ -172,6 +175,7 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
 
     mainScene->root_node_->AddChild(someParent);
 
+    // Store the scene into the scenes folder
     { 
         std::ofstream ofs(scenesPath_ + "/default_scene.json"); 
 
