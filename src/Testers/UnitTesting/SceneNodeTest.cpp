@@ -36,6 +36,8 @@ protected:
 
         // Dependency registration
         RegisterDependency(Engine, engineInstance_);
+        RegisterDependency(Resources, resources_);
+
     }
 
     void TearDown() override

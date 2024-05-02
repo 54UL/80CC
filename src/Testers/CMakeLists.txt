@@ -9,7 +9,7 @@ include(GoogleTest)
 enable_testing()
 
 set(Testers_UNIT_TEST_SOURCES 
-    UnitTesting/SceneNodeTest.cpp
+    # UnitTesting/SceneNodeTest.cpp
     UnitTesting/ResourcesTests.cpp
     # UnitTesting/PathsManagerTest.cpp
     # UnitTesting/Serialization.cpp

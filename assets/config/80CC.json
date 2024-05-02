@@ -1,0 +1,49 @@
+{
+    "engine_data": [
+        {
+            "key": "shaders",
+            "value": {
+                "resources": [
+                    {
+                        "key": "sprite_shader",
+                        "value": "assets/shaders/main"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "sprites",
+            "value": {
+                "resources": [
+                    {
+                        "key": "not-found",
+                        "value": "assets/images/not_found_texture.png"
+                    },
+                    {
+                        "key": "loona",
+                        "value": "assets/images/loona.jpg"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "app",
+            "value": {
+                "resources": [
+                    {
+                        "key": "resolution",
+                        "value": "800,600"
+                    },
+                    {
+                        "key": "flags",
+                        "value": "WINDOWED"
+                    },
+                    {
+                        "key": "title",
+                        "value": "80CC"
+                    }
+                ]
+            }
+        }
+    ]
+}

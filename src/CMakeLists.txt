@@ -3,7 +3,7 @@ project(80CC_ENGINE_AND_GAME)
 set(CMAKE_CXX_STANDARD 17)
 
 # 80CC CMAKE COMPILING OPTIONS
-option(80CC_UNIT_TEST "Compile as unit tests" OFF)
+option(80CC_UNIT_TEST "Compile as unit tests" ON)
 
 # gtests
 include(FetchContent)
