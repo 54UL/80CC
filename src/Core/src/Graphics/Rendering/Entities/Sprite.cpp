@@ -1,6 +1,6 @@
 
 #include <Graphics/Rendering/Entities/Sprite.hpp>
-#include <glm/gtc/type_ptr.hpp> 
+#include <glm/gtc/type_ptr.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -8,31 +8,34 @@ namespace ettycc
 {
     Sprite::Sprite()
     {
-
+        // spriteFilePath_ = std::string();
     }
-    
-    Sprite::Sprite(const char * spriteFilePath): spriteFilePath_(spriteFilePath)
+
+    Sprite::Sprite(const std::string &spriteFilePath, bool initialize) : spriteFilePath_(spriteFilePath)
     {
         // if null nothing to do (THIS IS USED FOR UNIT TESTING)
-        if (!spriteFilePath)
+        if (spriteFilePath.empty() || !initialize)
         {
-            return; 
+            return;
         }
+        Init();
+    }
+
+    auto Sprite::Init() -> void
+    {
 
         // Quad vertices and texture coordinates
-        float vertices[] {
+        float vertices[]{
             // Positions         // Texture Coords
-            -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
-            0.5f,  0.5f, 0.0f,  1.0f, 1.0f,
-            0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
-            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f
-        };
+            -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+            0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f};
 
         // Indices to form two triangles for the quad
-        unsigned int indices[]  {
+        unsigned int indices[]{
             0, 1, 2,
-            2, 3, 0
-        };
+            2, 3, 0};
 
         // Generate and bind a Vertex Array Object (VAO)
         glGenVertexArrays(1, &VAO);
@@ -154,7 +157,7 @@ namespace ettycc
 
         // load the image with stbi_load
         int width, height, numChannels;
-        unsigned char* image = stbi_load(spriteFilePath_, &width, &height, &numChannels, 0);
+        unsigned char *image = stbi_load(spriteFilePath_.c_str(), &width, &height, &numChannels, 0);
 
         // Pass the data to the gpu
         if (image)
@@ -192,8 +195,8 @@ namespace ettycc
         underlyingShader.Bind();
 
         // Multiply projection * view * model matrix to compute sprite rendering...
-        glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View *  underylingTransform.GetMatrix();
-        glUniformMatrix4fv(glGetUniformLocation(underlyingShader.GetProgramId(), "PVM"),1, GL_FALSE,  glm::value_ptr(ProjectionViewMatrix));
+        glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
+        glUniformMatrix4fv(glGetUniformLocation(underlyingShader.GetProgramId(), "PVM"), 1, GL_FALSE, glm::value_ptr(ProjectionViewMatrix));
 
         // Time is passed to the shader program
         glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "time"), time);

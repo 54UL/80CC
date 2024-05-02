@@ -1,0 +1,168 @@
+{
+    "value0": {
+        "sceneName_": "80CC-UNIT-TEST-SCENE",
+        "root_node_": {
+            "ptr_wrapper": {
+                "id": 2147483649,
+                "data": {
+                    "id_": 0,
+                    "sceneId_": 0,
+                    "name_": "SCENE-ROOT",
+                    "enabled_": false,
+                    "components_": [],
+                    "parent_": {
+                        "ptr_wrapper": {
+                            "id": 0
+                        }
+                    },
+                    "children_": [
+                        {
+                            "ptr_wrapper": {
+                                "id": 2147483650,
+                                "data": {
+                                    "id_": 0,
+                                    "sceneId_": 0,
+                                    "name_": "parent-node",
+                                    "enabled_": false,
+                                    "components_": [],
+                                    "parent_": {
+                                        "ptr_wrapper": {
+                                            "id": 1
+                                        }
+                                    },
+                                    "children_": [
+                                        {
+                                            "ptr_wrapper": {
+                                                "id": 2147483651,
+                                                "data": {
+                                                    "id_": 0,
+                                                    "sceneId_": 0,
+                                                    "name_": "sprite-node-1",
+                                                    "enabled_": false,
+                                                    "components_": [
+                                                        {
+                                                            "key": 1,
+                                                            "value": [
+                                                                {
+                                                                    "polymorphic_id": 2147483649,
+                                                                    "polymorphic_name": "ettycc::RenderableNode",
+                                                                    "ptr_wrapper": {
+                                                                        "id": 2147483652,
+                                                                        "data": {
+                                                                            "renderable_": {
+                                                                                "polymorphic_id": 2147483650,
+                                                                                "polymorphic_name": "ettycc::Sprite",
+                                                                                "ptr_wrapper": {
+                                                                                    "id": 2147483653,
+                                                                                    "data": {
+                                                                                        "spriteFilePath_": ""
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "parent_": {
+                                                        "ptr_wrapper": {
+                                                            "id": 2
+                                                        }
+                                                    },
+                                                    "children_": [
+                                                        {
+                                                            "ptr_wrapper": {
+                                                                "id": 2147483654,
+                                                                "data": {
+                                                                    "id_": 2314885530818453514,
+                                                                    "sceneId_": 7307972341712035872,
+                                                                    "name_": "child-sprite-1-1",
+                                                                    "enabled_": true,
+                                                                    "components_": [],
+                                                                    "parent_": {
+                                                                        "ptr_wrapper": {
+                                                                            "id": 3
+                                                                        }
+                                                                    },
+                                                                    "children_": []
+                                                                }
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "ptr_wrapper": {
+                                                "id": 2147483655,
+                                                "data": {
+                                                    "id_": 2314861732406370917,
+                                                    "sceneId_": 2314885530818453536,
+                                                    "name_": "sprite-node-2",
+                                                    "enabled_": true,
+                                                    "components_": [],
+                                                    "parent_": {
+                                                        "ptr_wrapper": {
+                                                            "id": 2
+                                                        }
+                                                    },
+                                                    "children_": []
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "ptr_wrapper": {
+                                                "id": 2147483656,
+                                                "data": {
+                                                    "id_": 2314885530449495109,
+                                                    "sceneId_": 2314885530818453536,
+                                                    "name_": "camera-node",
+                                                    "enabled_": true,
+                                                    "components_": [],
+                                                    "parent_": {
+                                                        "ptr_wrapper": {
+                                                            "id": 2
+                                                        }
+                                                    },
+                                                    "children_": []
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "nodes_flat_": [
+            {
+                "ptr_wrapper": {
+                    "id": 6
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 3
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 7
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 8
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 2
+                }
+            }
+        ]
+    }
+}

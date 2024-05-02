@@ -7,6 +7,7 @@
 #include "../../Shading/ShaderPipeline.hpp"
 #include "../Renderable.hpp"
 #include <memory>
+#include <string>
 
 #include <cereal/archives/json.hpp>
 
@@ -16,17 +17,17 @@ namespace ettycc
     {
     private:
         GLuint VAO, VBO, EBO, TEXTURE;
-        const char * spriteFilePath_;
-        std::string spriteFilePathStr_;
+        std::string spriteFilePath_;
 
     public:
         ShaderPipeline underlyingShader;
     
     public:
         Sprite();
-        Sprite(const char * spriteFilePath);
+        Sprite(const std::string& spriteFilePath, bool initialize = true);
         ~Sprite();
 
+        void Init();
         void LoadShaders();
         void LoadTextures();
 
@@ -38,7 +39,7 @@ namespace ettycc
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(CEREAL_NVP(spriteFilePathStr_));
+            ar(CEREAL_NVP(spriteFilePath_));
         }
     };
 

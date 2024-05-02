@@ -8,6 +8,7 @@
 using namespace ettycc;
 
 constexpr const char * UNIT_TEST_SCENE_NAME = "80CC-UNIT-TEST-SCENE";
+const std::string scenesPath_ = "../../assets/scenes/";
 
 std::shared_ptr<App> app_;
 std::shared_ptr<Engine> engineInstance_;
@@ -16,10 +17,13 @@ std::shared_ptr<Resources> resources_;
 // TODO: IMPROVE THE WAY TO REGISTER THIS SHIT
 CEREAL_REGISTER_TYPE(ettycc::RenderableNode);
 CEREAL_REGISTER_TYPE(ettycc::Sprite);
+CEREAL_REGISTER_TYPE(ettycc::Camera);
+
 CEREAL_REGISTER_TYPE(ettycc::Renderable);
 
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::RenderableNode)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Sprite)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Camera)
 
 class SceneNodeTestFixture : public testing::Test
 {
@@ -29,10 +33,25 @@ protected:
         app_ = std::make_shared<SDL2App>("80CC-UNIT-TEST");
         engineInstance_ = std::make_shared<Engine>(app_);
         resources_ = std::make_shared<Resources>();
-        resources_->Load("resources.json");
 
         engineInstance_->mainScene_ = std::make_shared<Scene>(UNIT_TEST_SCENE_NAME);
         engineInstance_->mainScene_->Init();
+
+        // TODO: THIS PICE OF CODE NEEDS TO BE INITIALIZED ALONG WITH THE ENGINE
+        const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
+        if (engineWorkingFolder == nullptr) 
+        {
+            spdlog::warn("Engine working folder not set... using '../../assets'");    
+            resources_->SetWorkingFolder(std::string("../../assets") + "/config/");
+        }
+        else 
+        {
+            // Assuming the proyect structure is: 80cc/build/Testers
+            spdlog::info("Engine working folder '{}'", engineWorkingFolder);
+            resources_->SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
+        }
+
+        resources_->Load("80CC.json");
 
         // Dependency registration
         RegisterDependency(Engine, engineInstance_);
@@ -58,8 +77,8 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child-sprite-1-1");
     sprite1Node->AddChild(childrenNode);
 
-    const char* loonaImagePath = nullptr; // if null backend stuff wont be initialized and its fine for unit testing, TODO: create resource prefix handler (to retrive paths stored into resources.json)
-    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath);
+    // const char* loonaImagePath = nullptr; // if null backend stuff wont be initialized and its fine for unit testing, TODO: create resource prefix handler (to retrive paths stored into resources.json)
+    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
     sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
 
     // Add the node to the parent node...
@@ -88,14 +107,14 @@ TEST_F(SceneNodeTestFixture, basic_scene)
 TEST_F(SceneNodeTestFixture, basic_scene_serialization)
 {
     { // IMPORTANT USE RAII OR THIS WON'T WORK !!
-        std::ofstream ofs("scene_unit_test.json"); 
+        std::ofstream ofs(scenesPath_ + "/scene_unit_test.json"); 
 
         cereal::JSONOutputArchive archive(ofs);    
         archive(*engineInstance_->mainScene_);
     }
 
     {
-        std::ifstream ifs("scene_unit_test.json"); 
+        std::ifstream ifs(scenesPath_ + "/scene_unit_test.json"); 
         std::shared_ptr<Scene> readedScene = std::make_shared<Scene>("NULL");
 
         cereal::JSONInputArchive archive2(ifs);
@@ -118,7 +137,10 @@ TEST_F(SceneNodeTestFixture, basic_scene_serialization)
 // Scene by made hand test (this would generate the default scene...)
 TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
 {
-    auto mainScene = engineInstance_->mainScene_;
+    auto mainScene = std::make_shared<Scene>("80CC-DEFAULT-SCENE");
+    
+    // Clean up unit test scene to generate the default scene
+
 
     // some resources path lol xd
     // const char* loonaImagePath = ;// TODO: FETCH FROM config???
@@ -127,10 +149,10 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     const char* notFoundTexturePath = resources_->Get("sprites","not-found").c_str();
     
     // basic initialization???
-    std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);// editor view port camera
-    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath);
-    std::shared_ptr<Sprite> someSprite2 = std::make_shared<Sprite>(notFoundTexturePath);
-    std::shared_ptr<Sprite> someSpriteChildren = std::make_shared<Sprite>(notFoundTexturePath);
+    std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);
+    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath, false);
+    std::shared_ptr<Sprite> someSprite2 = std::make_shared<Sprite>(notFoundTexturePath, false);
+    std::shared_ptr<Sprite> someSpriteChildren = std::make_shared<Sprite>(notFoundTexturePath, false);
 
     // mainCamera->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
     someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
@@ -161,7 +183,7 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     mainScene->root_node_->AddChild(someParent);
     { 
         // IMPORTANT USE RAII OR THIS WON'T WORK !!
-        std::ofstream ofs("scene_unit_test.json"); 
+        std::ofstream ofs(scenesPath_ + "/default_scene.json"); 
 
         cereal::JSONOutputArchive archive(ofs);    
         archive(*mainScene);

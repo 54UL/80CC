@@ -30,6 +30,13 @@ namespace ettycc
 		// Renderable impl
 	public:
 		void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;
+
+		// Serialization/Deserialziation
+        template <class Archive>
+        void serialize(Archive &ar)
+        {
+            ar(CEREAL_NVP(ispresp));
+        }
 	};
 } // namespace ettycc
 

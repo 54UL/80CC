@@ -54,6 +54,12 @@ namespace ettycc
             workingFolderPath_ = path;
         }
 
+        
+        auto GetWorkingFolder() -> const std::string&
+        {
+            return workingFolderPath_;
+        }
+
         auto Load(const std::string &fileName) -> void
         {
             std::ifstream file(workingFolderPath_ + fileName);
