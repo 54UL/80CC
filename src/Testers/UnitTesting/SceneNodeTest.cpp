@@ -136,11 +136,15 @@ TEST_F(SceneNodeTestFixture, basic_scene_serialization)
 // Scene by made hand test (this would generate the default scene...)
 TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
 {
-    auto mainScene = std::make_shared<Scene>("80CC-DEFAULT-SCENE");
-    
+    // TODO: THERE IS A ISSUE WITH MANIPULATING SCENES, IF THEY ARE NOT THEY MAIN SCENE (WORKING SCENE), IT WILL NOT HAVE FLAT NODES POPULATED!!!
+    engineInstance_->mainScene_.reset();
+    engineInstance_->mainScene_ = std::make_shared<Scene>("80CC-DEFAULT-SCENE");
+
+    // todo: this must be changed to an asset loading system like assetSystem->getSprite("loona.jpg")
     std::string loonaImagePath = resources_->Get("sprites","loona");
     std::string notFoundTexturePath = resources_->Get("sprites","not-found");
 
+    // log path info
     spdlog::info("loona path: {}", loonaImagePath);
     spdlog::info("notFoundTexturePath: {}", notFoundTexturePath);
 
@@ -173,13 +177,13 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
     someParent->AddChild(cameraNode);
 
-    mainScene->root_node_->AddChild(someParent);
+    engineInstance_->mainScene_->root_node_->AddChild(someParent);
 
     // Store the scene into the scenes folder
     { 
         std::ofstream ofs(scenesPath_ + "/default_scene.json"); 
 
         cereal::JSONOutputArchive archive(ofs);    
-        archive(*mainScene);
+        archive(*engineInstance_->mainScene_);
     }
 }

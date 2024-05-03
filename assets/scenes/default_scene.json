@@ -8,7 +8,7 @@
                     "id_": 0,
                     "sceneId_": 0,
                     "name_": "SCENE-ROOT",
-                    "enabled_": false,
+                    "enabled_": true,
                     "components_": [],
                     "parent_": {
                         "ptr_wrapper": {
@@ -20,8 +20,8 @@
                             "ptr_wrapper": {
                                 "id": 2147483650,
                                 "data": {
-                                    "id_": 2314885530818453536,
-                                    "sceneId_": 2314885530818453536,
+                                    "id_": 0,
+                                    "sceneId_": 0,
                                     "name_": "parent",
                                     "enabled_": true,
                                     "components_": [],
@@ -35,8 +35,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483651,
                                                 "data": {
-                                                    "id_": 2314885436631169570,
-                                                    "sceneId_": 2314885530818453536,
+                                                    "id_": 0,
+                                                    "sceneId_": 0,
                                                     "name_": "sprite node 1",
                                                     "enabled_": true,
                                                     "components_": [
@@ -67,8 +67,7 @@
                                                                                                 "scale_y": 1.0,
                                                                                                 "scale_z": 1.0
                                                                                             },
-                                                                                            "id": 0,
-                                                                                            "enabled": false
+                                                                                            "enabled": true
                                                                                         },
                                                                                         "spriteFilePath_": "assets/images/loona.jpg"
                                                                                     }
@@ -90,8 +89,8 @@
                                                             "ptr_wrapper": {
                                                                 "id": 2147483654,
                                                                 "data": {
-                                                                    "id_": 2314885530818453536,
-                                                                    "sceneId_": 2314885530818453536,
+                                                                    "id_": 0,
+                                                                    "sceneId_": 0,
                                                                     "name_": "child sprite",
                                                                     "enabled_": true,
                                                                     "components_": [
@@ -120,7 +119,6 @@
                                                                                                                 "scale_y": 1.0,
                                                                                                                 "scale_z": 1.0
                                                                                                             },
-                                                                                                            "id": 0,
                                                                                                             "enabled": false
                                                                                                         },
                                                                                                         "spriteFilePath_": "assets/images/not_found_texture.png"
@@ -150,8 +148,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483657,
                                                 "data": {
-                                                    "id_": 4049922662216114234,
-                                                    "sceneId_": 2314861393472730675,
+                                                    "id_": 0,
+                                                    "sceneId_": 0,
                                                     "name_": "sprite node 2",
                                                     "enabled_": true,
                                                     "components_": [
@@ -180,7 +178,6 @@
                                                                                                 "scale_y": 1.0,
                                                                                                 "scale_z": 1.0
                                                                                             },
-                                                                                            "id": 2,
                                                                                             "enabled": true
                                                                                         },
                                                                                         "spriteFilePath_": "assets/images/not_found_texture.png"
@@ -206,8 +203,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483660,
                                                 "data": {
-                                                    "id_": 4189015488210952801,
-                                                    "sceneId_": 2308706573254554656,
+                                                    "id_": 0,
+                                                    "sceneId_": 0,
                                                     "name_": "cameraNode",
                                                     "enabled_": true,
                                                     "components_": [
@@ -237,7 +234,6 @@
                                                                                                 "scale_y": 1.0,
                                                                                                 "scale_z": 1.0
                                                                                             },
-                                                                                            "id": 110661751617688,
                                                                                             "enabled": true
                                                                                         },
                                                                                         "offScreenFrameBuffer": {
@@ -278,6 +274,32 @@
                 }
             }
         },
-        "nodes_flat_": []
+        "nodes_flat_": [
+            {
+                "ptr_wrapper": {
+                    "id": 3
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 6
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 9
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 12
+                }
+            },
+            {
+                "ptr_wrapper": {
+                    "id": 2
+                }
+            }
+        ]
     }
 }

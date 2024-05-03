@@ -14,10 +14,8 @@ namespace ettycc
     {
     public:
         Transform underylingTransform;
-        uint64_t id;
         bool enabled;
-        
-
+    
     public:
         Renderable() {
            
@@ -25,16 +23,6 @@ namespace ettycc
 
         ~Renderable(){
 
-        }
-
-        virtual void SetId(uint64_t Id)
-        {
-            id = Id;
-        }
-
-        virtual uint64_t GetId()
-        {
-            return id;
         }
 
         virtual void SetTransform(const Transform &trans)
@@ -52,7 +40,7 @@ namespace ettycc
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(CEREAL_NVP(underylingTransform), CEREAL_NVP(id), CEREAL_NVP(enabled));
+            ar(CEREAL_NVP(underylingTransform), CEREAL_NVP(enabled));
         }
     };
 

@@ -25,6 +25,15 @@ namespace ettycc
 
     auto SceneNode::InitNode() -> void
     {
+        id_ = 0;
+        sceneId_ = 0;
+        enabled_ = true;
+        
+        if (name_.empty())
+        {
+            name_ = "unnamed";
+        }
+
         parent_ = std::shared_ptr<SceneNode>();
         children_ = std::vector<std::shared_ptr<SceneNode>>();
         components_ = std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>>();        
@@ -67,7 +76,7 @@ namespace ettycc
         // todo: fix this with an internal scene state to avoid passing Scene * parentScene... with something like:
         // SceneContext::RegisterNodes(nodes, sceneId);
         auto mainScene = GetDependency(Engine)->mainScene_;
-        mainScene->nodes_flat_.emplace_back(node);
+        mainScene->nodes_flat_.push_back(node);
 
         return node->GetId();
     }

@@ -5,13 +5,14 @@ namespace ettycc
 {
     FrameBuffer::FrameBuffer()
     {
-        
+        id_ = 0;
+        textureId_ = 0;
     }
 
     FrameBuffer::FrameBuffer(glm::ivec2 position, glm::ivec2 size, bool isDefault) : position_(position), size_(size), isDefault_(isDefault)
     {
         id_ = 0;
-        textureId_ =0;
+        textureId_ = 0;
     }
 
     FrameBuffer::~FrameBuffer()

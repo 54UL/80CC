@@ -8,7 +8,7 @@
                     "id_": 0,
                     "sceneId_": 0,
                     "name_": "SCENE-ROOT",
-                    "enabled_": false,
+                    "enabled_": true,
                     "components_": [],
                     "parent_": {
                         "ptr_wrapper": {
@@ -23,7 +23,7 @@
                                     "id_": 0,
                                     "sceneId_": 0,
                                     "name_": "parent-node",
-                                    "enabled_": false,
+                                    "enabled_": true,
                                     "components_": [],
                                     "parent_": {
                                         "ptr_wrapper": {
@@ -38,7 +38,7 @@
                                                     "id_": 0,
                                                     "sceneId_": 0,
                                                     "name_": "sprite-node-1",
-                                                    "enabled_": false,
+                                                    "enabled_": true,
                                                     "components_": [
                                                         {
                                                             "key": 1,
@@ -67,7 +67,6 @@
                                                                                                 "scale_y": 1.0,
                                                                                                 "scale_z": 1.0
                                                                                             },
-                                                                                            "id": 7376742736594957157,
                                                                                             "enabled": true
                                                                                         },
                                                                                         "spriteFilePath_": ""
@@ -90,8 +89,8 @@
                                                             "ptr_wrapper": {
                                                                 "id": 2147483654,
                                                                 "data": {
-                                                                    "id_": 2314885530818453514,
-                                                                    "sceneId_": 7307972341712035872,
+                                                                    "id_": 0,
+                                                                    "sceneId_": 0,
                                                                     "name_": "child-sprite-1-1",
                                                                     "enabled_": true,
                                                                     "components_": [],
@@ -112,8 +111,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483655,
                                                 "data": {
-                                                    "id_": 2314885437319035426,
-                                                    "sceneId_": 2314885530818453536,
+                                                    "id_": 0,
+                                                    "sceneId_": 0,
                                                     "name_": "sprite-node-2",
                                                     "enabled_": true,
                                                     "components_": [],
@@ -130,8 +129,8 @@
                                             "ptr_wrapper": {
                                                 "id": 2147483656,
                                                 "data": {
-                                                    "id_": 2314885530818453536,
-                                                    "sceneId_": 8872126588269895712,
+                                                    "id_": 0,
+                                                    "sceneId_": 0,
                                                     "name_": "camera-node",
                                                     "enabled_": true,
                                                     "components_": [],
