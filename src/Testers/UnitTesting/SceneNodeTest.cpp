@@ -136,7 +136,7 @@ TEST_F(SceneNodeTestFixture, basic_scene_serialization)
 // Scene by made hand test (this would generate the default scene...)
 TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
 {
-    // TODO: THERE IS A ISSUE WITH MANIPULATING SCENES, IF THEY ARE NOT THEY MAIN SCENE (WORKING SCENE), IT WILL NOT HAVE FLAT NODES POPULATED!!!
+    // TODO: THERE IS A ISSUE WHEN MANIPULATING SCENES, IF THEY ARE NOT THEY MAIN SCENE (WORKING SCENE), IT WILL NOT HAVE FLAT NODES POPULATED!!!
     engineInstance_->mainScene_.reset();
     engineInstance_->mainScene_ = std::make_shared<Scene>("80CC-DEFAULT-SCENE");
 

@@ -109,6 +109,8 @@ namespace ettycc
 
     auto SceneNode::AddChild(std::shared_ptr<SceneNode> childrenNode) -> void
     {
+        // TODO: THERE IS A ISSUE WHEN MANIPULATING SCENES, IF THEY ARE NOT THEY MAIN SCENE (WORKING SCENE), IT WILL NOT HAVE FLAT NODES POPULATED!!!
+
         // this* is the new parent of the nodeToBeChild if not setted
         // add the node to be child to the parent node as child
         if (childrenNode->SetParent(shared_from_this()))
