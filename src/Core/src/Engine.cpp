@@ -3,6 +3,7 @@
 
 // TEST INCLUDE
 #include <Scene/Components/RenderableNode.hpp>
+#include <Dependencies/Resources.hpp>
 
 namespace ettycc
 {
@@ -18,8 +19,42 @@ namespace ettycc
     // TODO: MOVE THIS PICE OF CODE INTO THE GOOGL UNIT TEST...
     void Engine::LoadDefaultScene()
     {
+        auto resources_ = GetDependency(Resources);
+
+        const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
+        if (engineWorkingFolder == nullptr) 
+        {
+            spdlog::warn("Engine working folder not set... using '../../assets'");    
+            resources_->SetWorkingFolder(std::string("../../../assets") + "/config/");
+        }
+        else 
+        {
+            // Assuming the proyect structure is: 80cc/build/Testers
+            spdlog::info("Engine working folder '{}'", engineWorkingFolder);
+            resources_->SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
+        }
+
+        resources_->Load("80CC.json");
+        const std::string scenesPath_ = "../../../assets/scenes/";
+
         // Scene initialization
-        // mainScene_ = std::make_shared<Scene>("Test scene");
+        {
+            mainScene_.reset();
+            mainScene_ = std::make_shared<Scene>("80CC-NULL-SCENE");
+
+            std::ifstream ifs(scenesPath_ + "/default_scene.json"); 
+
+            cereal::JSONInputArchive archive2(ifs);
+            archive2(*mainScene_);
+        }
+
+        if (mainScene_->nodes_flat_.size() > 0)
+        {
+            for (auto flat_node : mainScene_->nodes_flat_)
+            {
+                flat_node->InitNode();
+            }
+        }
         mainScene_->Init();
 
         //TODO: GET DEFAULT RESOLUTION FROM CONFIG...(USE RESOURCES->GET)
@@ -61,8 +96,8 @@ namespace ettycc
     { 
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::RENDERING);
         
-        renderEngine_.Pass(appInstance_->GetCurrentTime());
 
+        renderEngine_.Pass(appInstance_->GetCurrentTime());
         inputSystem_.ResetState(); // TODO: FIX THIS THRASH WITH INPUT UP AND DOWN EVENTS (INTERNALLY)
     }
 

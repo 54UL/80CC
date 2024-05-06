@@ -17,6 +17,12 @@ namespace ettycc
     auto Scene::Init() -> void
     {
         root_node_ = std::make_shared<SceneNode>("SCENE-ROOT");
+
+        // if node_flat populated means it was loaded
+        for (auto &node : nodes_flat_)
+        {
+            node->InitNode();
+        }
     }
 
     std::shared_ptr<SceneNode> Scene::GetNodeById(uint64_t id)

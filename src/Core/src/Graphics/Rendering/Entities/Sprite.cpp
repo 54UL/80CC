@@ -8,7 +8,10 @@ namespace ettycc
 {
     Sprite::Sprite()
     {
-        // spriteFilePath_ = std::string();
+        if (spriteFilePath_.empty())
+        {
+            return;
+        }
     }
 
     Sprite::Sprite(const std::string &spriteFilePath, bool initialize) : spriteFilePath_(spriteFilePath)

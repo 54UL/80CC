@@ -1,5 +1,6 @@
 
 #include <Graphics/Rendering.hpp>
+#include <spdlog/spdlog.h>
 
 namespace ettycc
 {
@@ -20,7 +21,7 @@ namespace ettycc
 
     void Rendering::Init()
     {
-        
+        spdlog::info("scene init");
     }
 
     void Rendering::SetViewPortFrameBuffer(std::shared_ptr<FrameBuffer> frameBuffer)

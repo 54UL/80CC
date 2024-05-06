@@ -15,6 +15,16 @@
 #include <Dependencies/FilePersist.hpp>
 #include <Dependencies/Resources.hpp>
 
+CEREAL_REGISTER_TYPE(ettycc::RenderableNode);
+CEREAL_REGISTER_TYPE(ettycc::Sprite);
+CEREAL_REGISTER_TYPE(ettycc::Camera);
+
+CEREAL_REGISTER_TYPE(ettycc::Renderable);
+
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::RenderableNode)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Sprite)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Camera)
+
 // namespace ettycc
 // {   
     

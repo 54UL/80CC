@@ -25,6 +25,7 @@ namespace ettycc
 
     auto SceneNode::InitNode() -> void
     {
+
         id_ = 0;
         sceneId_ = 0;
         enabled_ = true;
@@ -36,7 +37,24 @@ namespace ettycc
 
         parent_ = std::shared_ptr<SceneNode>();
         children_ = std::vector<std::shared_ptr<SceneNode>>();
-        components_ = std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>>();        
+
+        for (const auto &kvp : components_)
+        {
+            const std::vector<std::shared_ptr<NodeComponent>> &channelValues = kvp.second;
+
+            // after added to the exec map initialize them...
+            for (const auto &component : components_[kvp.first])
+            {
+                component->OnStart(GetDependency(Engine));
+            }
+        }
+        if (components_.size () > 0 )
+        {
+            return;
+        } else
+        {
+            components_ = std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>>();    
+        }
     }
 
     auto SceneNode::GetId() -> uint64_t
