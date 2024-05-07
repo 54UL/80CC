@@ -18,8 +18,7 @@ namespace ettycc {
     Camera::Camera(int w, int h, float fov,float znear)
     {
         this->SetPrespective(h, w, fov, znear);
-        this->offScreenFrameBuffer = std::make_shared<FrameBuffer>(glm::ivec2(0,0),glm::ivec2(w,h), false);
-        //TransformMatrix = glm::lookAt(glm::vec3(0,0,-5),glm::vec3(0,0,1),glm::vec3(0,1,0));
+        this->offScreenFrameBuffer = std::make_shared<FrameBuffer>(glm::ivec2(0,0), glm::ivec2(w,h), false);
     }
 
     Camera::~Camera()
@@ -42,8 +41,6 @@ namespace ettycc {
     void Camera::SetPrespective(int ScreenXSz, int ScreenYSz, float FOV, float Znear)
     {
         ispresp = true;
-        //this->ProjectionMatrix = glm::infinitePerspective(glm::radians(FOV), (float)ScreenXSz / (float)ScreenYSz, Znear);
-        // this->ProjectionMatrix = glm::mat4(1.0f);
         this->ProjectionMatrix = glm::perspective(glm::radians(FOV), (float)ScreenXSz / (float)ScreenYSz, Znear, 500.0f);
     }
 
@@ -54,15 +51,18 @@ namespace ettycc {
 
     // Renderable
 
-    // void Camera::SetTransform(const Transform &trans)
-    // {
-    //     this->underylingTransform = trans;
-    // } 
-    
-    // Transform Camera::GetTransform()
-    // {
-    //     return this->underylingTransform;
-    // }
+    void Camera::Init() 
+    {
+        // Init frame buffer backend (if deserialized then there's already populated data so might run???)
+        if (offScreenFrameBuffer && initializable_)
+        {
+            spdlog::info("Initializing loaded camera");
+            offScreenFrameBuffer->Init();
+        } else
+        {
+            spdlog::info("Empty camera init");
+        }
+    }
 
     void Camera::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {

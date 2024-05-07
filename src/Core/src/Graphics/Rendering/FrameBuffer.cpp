@@ -40,7 +40,7 @@ namespace ettycc
         {
             spdlog::error("Begin frame buffer bind OpenGL error: {}", glError);
         }
-        // begin gl frame config
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
     }
@@ -88,11 +88,7 @@ namespace ettycc
 
         // Check if the framebuffer is complete
         GLenum framebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (framebufferStatus == GL_FRAMEBUFFER_COMPLETE)
-        {
-            // spdlog::warn("Frame buffer is complete!! id: {}", id_);
-        }
-        else
+        if (framebufferStatus != GL_FRAMEBUFFER_COMPLETE)
         {
             spdlog::error("Frame buffer is not complete!! id: {}", id_);
         }

@@ -69,7 +69,7 @@
                                                                                             },
                                                                                             "enabled": true
                                                                                         },
-                                                                                        "spriteFilePath_": ""
+                                                                                        "spriteFilePath_": "some_sprite_path.jpg"
                                                                                     }
                                                                                 }
                                                                             }

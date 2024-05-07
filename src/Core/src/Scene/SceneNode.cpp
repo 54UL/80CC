@@ -38,6 +38,14 @@ namespace ettycc
         parent_ = std::shared_ptr<SceneNode>();
         children_ = std::vector<std::shared_ptr<SceneNode>>();
 
+        // if no compoments already initialize!
+        if (components_.size () <= 0 )
+        {
+            components_ = std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>>();    
+            return;
+        }   
+
+        // Execute component initialization
         for (const auto &kvp : components_)
         {
             const std::vector<std::shared_ptr<NodeComponent>> &channelValues = kvp.second;
@@ -47,13 +55,6 @@ namespace ettycc
             {
                 component->OnStart(GetDependency(Engine));
             }
-        }
-        if (components_.size () > 0 )
-        {
-            return;
-        } else
-        {
-            components_ = std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>>();    
         }
     }
 

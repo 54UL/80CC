@@ -1,9 +1,12 @@
 #ifndef RENDERING_CAMERA_HPP
 #define RENDERING_CAMERA_HPP
-#include <glm/glm.hpp>
+
 #include <Scene/Transform.hpp>
 #include <Graphics/Rendering/Renderable.hpp>
 #include <Graphics/Rendering/FrameBuffer.hpp>
+
+#include <glm/glm.hpp>
+#include <spdlog/spdlog.h>
 
 namespace ettycc
 {
@@ -30,6 +33,8 @@ namespace ettycc
 
 		// Renderable impl
 	public:
+		void Init() override;
+
 		void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;
 
 		// Serialization/Deserialziation

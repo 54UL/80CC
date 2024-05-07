@@ -14,17 +14,6 @@ std::shared_ptr<App> app_;
 std::shared_ptr<Engine> engineInstance_;
 std::shared_ptr<Resources> resources_;
 
-// TODO: IMPROVE THE WAY TO REGISTER THIS SHIT
-CEREAL_REGISTER_TYPE(ettycc::RenderableNode);
-CEREAL_REGISTER_TYPE(ettycc::Sprite);
-CEREAL_REGISTER_TYPE(ettycc::Camera);
-
-CEREAL_REGISTER_TYPE(ettycc::Renderable);
-
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::RenderableNode)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Sprite)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Camera)
-
 class SceneNodeTestFixture : public testing::Test
 {
 protected:
@@ -77,7 +66,7 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     sprite1Node->AddChild(childrenNode);
 
     // const char* loonaImagePath = nullptr; // if null backend stuff wont be initialized and its fine for unit testing, TODO: create resource prefix handler (to retrive paths stored into resources.json)
-    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>();
+    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>("some_sprite_path.jpg", false);
     sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
 
     // Add the node to the parent node...
@@ -150,6 +139,8 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
 
     // Game objects initializations...
     std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);
+    mainCamera->initializable_ = false; // IMPORTANT: THIS IS USED FOR UNIT TESTING AND SHOULD BE NEVER USED BY THE END USER...
+    
     std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath, false);
     std::shared_ptr<Sprite> someSprite2 = std::make_shared<Sprite>(notFoundTexturePath, false);
     std::shared_ptr<Sprite> someSpriteChildren = std::make_shared<Sprite>(notFoundTexturePath, false);

@@ -1,6 +1,6 @@
 
 #include <Graphics/Rendering/Entities/Sprite.hpp>
-#include <glm/gtc/type_ptr.hpp>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -8,14 +8,13 @@ namespace ettycc
 {
     Sprite::Sprite()
     {
-        if (spriteFilePath_.empty())
-        {
-            return;
-        }
+        initializable_ = true;
     }
 
     Sprite::Sprite(const std::string &spriteFilePath, bool initialize) : spriteFilePath_(spriteFilePath)
     {
+        initializable_ = initialize;
+
         // if null nothing to do (THIS IS USED FOR UNIT TESTING)
         if (spriteFilePath.empty() || !initialize)
         {
@@ -24,7 +23,7 @@ namespace ettycc
         Init();
     }
 
-    auto Sprite::Init() -> void
+    auto Sprite::InitBackend() -> void
     {
 
         // Quad vertices and texture coordinates
@@ -188,6 +187,15 @@ namespace ettycc
     }
 
     // Renderable
+    void Sprite::Init() 
+    {
+        if (!spriteFilePath_.empty() && initializable_)
+        {
+            spdlog::info("Initializing loaded sprite [{}]", spriteFilePath_);
+            InitBackend();
+        }
+    }
+
     void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {
         // Bind the texture

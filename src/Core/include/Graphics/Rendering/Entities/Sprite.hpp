@@ -1,13 +1,19 @@
 #ifndef RENDERING_MESH_HPP
 #define RENDERING_MESH_HPP
 
+#include "../../Shading/ShaderPipeline.hpp"
+#include "../Renderable.hpp"
+
+#include <memory>
+#include <string>
+
+
 #include <GL/glew.h>
 #include <GL/gl.h>
 
-#include "../../Shading/ShaderPipeline.hpp"
-#include "../Renderable.hpp"
-#include <memory>
-#include <string>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <cereal/archives/json.hpp>
 
@@ -18,7 +24,7 @@ namespace ettycc
     private:
         GLuint VAO, VBO, EBO, TEXTURE;
         std::string spriteFilePath_;
-
+        
     public:
         ShaderPipeline underlyingShader;
     
@@ -27,12 +33,13 @@ namespace ettycc
         Sprite(const std::string& spriteFilePath, bool initialize = true);
         ~Sprite();
 
-        void Init();
+        void InitBackend();
         void LoadShaders();
         void LoadTextures();
 
     // Renderable
     public:
+        void Init() override;
         void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;
 
         // Serialization/Deserialziation

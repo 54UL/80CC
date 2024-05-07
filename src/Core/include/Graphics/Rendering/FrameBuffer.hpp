@@ -37,7 +37,7 @@ namespace ettycc
         void EndFrame();
 
         void Init();
-        void CleanUp(); // internally used...
+        void CleanUp();
 
     public:
         // Serialization/Deserialziation

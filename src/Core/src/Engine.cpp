@@ -48,13 +48,6 @@ namespace ettycc
             archive2(*mainScene_);
         }
 
-        if (mainScene_->nodes_flat_.size() > 0)
-        {
-            for (auto flat_node : mainScene_->nodes_flat_)
-            {
-                flat_node->InitNode();
-            }
-        }
         mainScene_->Init();
 
         //TODO: GET DEFAULT RESOLUTION FROM CONFIG...(USE RESOURCES->GET)
@@ -74,16 +67,14 @@ namespace ettycc
 
     void Engine::Init()
     {
-        // RenderingEngineDemo();
-        spdlog::warn("App and Game engine ready...");
-
+        //TODO: instead of loading a default scene it should seek for the last saved scene...
         LoadDefaultScene();
+        spdlog::warn("Scene loaded... be aware!!!");
     }
  
     void Engine::Update()
     {
         // Engine logic goes here
-        // ghostCamera_->Update(appInstance_->GetDeltaTime());
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::MAIN);
     }
 
@@ -93,10 +84,9 @@ namespace ettycc
     }
 
     void Engine::PresentFrame()
-    { 
+    {
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::RENDERING);
         
-
         renderEngine_.Pass(appInstance_->GetCurrentTime());
         inputSystem_.ResetState(); // TODO: FIX THIS THRASH WITH INPUT UP AND DOWN EVENTS (INTERNALLY)
     }
