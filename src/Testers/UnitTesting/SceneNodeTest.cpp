@@ -58,11 +58,11 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     auto mainScene = engineInstance_->mainScene_;
 
     // Some example parent node
-    std::shared_ptr<SceneNode> parentNode = std::make_shared<SceneNode>("parent-node");
+    auto parentNode = std::make_shared<SceneNode>("parent-node");
 
     // 1st node with one child node (2 in total)
-    std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite-node-1");
-    std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child-sprite-1-1");
+    auto sprite1Node = std::make_shared<SceneNode>("sprite-node-1");
+    auto childrenNode = std::make_shared<SceneNode>("child-sprite-1-1");
     sprite1Node->AddChild(childrenNode);
 
     // const char* loonaImagePath = nullptr; // if null backend stuff wont be initialized and its fine for unit testing, TODO: create resource prefix handler (to retrive paths stored into resources.json)
@@ -73,11 +73,11 @@ TEST_F(SceneNodeTestFixture, basic_scene)
     parentNode->AddChild(sprite1Node);
 
     // 2nd node
-    std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>("sprite-node-2");
+    auto sprite2Node = std::make_shared<SceneNode>("sprite-node-2");
     parentNode->AddChild(sprite2Node);
 
     // 3rd node
-    std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>("camera-node");
+    auto cameraNode = std::make_shared<SceneNode>("camera-node");
     parentNode->AddChild(cameraNode);
 
     // Add them to the scene root node...
@@ -141,9 +141,9 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);
     mainCamera->initializable_ = false; // IMPORTANT: THIS IS USED FOR UNIT TESTING AND SHOULD BE NEVER USED BY THE END USER...
     
-    std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>(loonaImagePath, false);
-    std::shared_ptr<Sprite> someSprite2 = std::make_shared<Sprite>(notFoundTexturePath, false);
-    std::shared_ptr<Sprite> someSpriteChildren = std::make_shared<Sprite>(notFoundTexturePath, false);
+    auto someSprite = std::make_shared<Sprite>(loonaImagePath, false);
+    auto someSprite2 = std::make_shared<Sprite>(notFoundTexturePath, false);
+    auto someSpriteChildren = std::make_shared<Sprite>(notFoundTexturePath, false);
 
     // Setting some arbitrary values to the node components
     someSprite->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
@@ -151,20 +151,20 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     someSpriteChildren->underylingTransform.setGlobalPosition(glm::vec3(0, 1, -2));
     
     // Configure parenting herarchy 
-    std::shared_ptr<SceneNode> someParent = std::make_shared<SceneNode>("parent");
-    std::shared_ptr<SceneNode> sprite1Node = std::make_shared<SceneNode>("sprite node 1");
+    auto someParent = std::make_shared<SceneNode>("parent");
+    auto sprite1Node = std::make_shared<SceneNode>("sprite node 1");
     sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
     someParent->AddChild(sprite1Node);
 
-    std::shared_ptr<SceneNode> childrenNode = std::make_shared<SceneNode>("child sprite");
+    auto childrenNode = std::make_shared<SceneNode>("child sprite");
     childrenNode->AddComponent(std::make_shared<RenderableNode>(someSpriteChildren));
     sprite1Node->AddChild(childrenNode);
 
-    std::shared_ptr<SceneNode> sprite2Node = std::make_shared<SceneNode>("sprite node 2");
+    auto sprite2Node = std::make_shared<SceneNode>("sprite node 2");
     sprite2Node->AddComponent(std::make_shared<RenderableNode>(someSprite2));
     someParent->AddChild(sprite2Node);
 
-    std::shared_ptr<SceneNode> cameraNode = std::make_shared<SceneNode>("cameraNode");
+    auto cameraNode = std::make_shared<SceneNode>("cameraNode");
     cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
     someParent->AddChild(cameraNode);
 
