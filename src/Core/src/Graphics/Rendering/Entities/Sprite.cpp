@@ -80,65 +80,20 @@ namespace ettycc
 
     void Sprite::LoadShaders()
     {
-        std::vector<std::shared_ptr<Shader>> shadersIntances;
-        // TODO: FETCH SOURCES FROM FILE...
+        // TODO: THIS OPERATION NEEDS TO BE EAGEAR INITIALIZED INSTEAD OF LAZY INIT...
+        auto resources = GetDependency(Resources);
+        auto shadersPath = resources->Get("paths","shaders");
 
+        // TODO: Make shader types constants...
+        auto vertexShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
+        auto fragmentShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".frag");
+        
+        std::vector<std::shared_ptr<Shader>> shadersIntances =
+            {
+                std::make_shared<Shader>(vertexShaderSource.c_str(), GL_VERTEX_SHADER),
+                std::make_shared<Shader>(fragmentShaderSource.c_str(), GL_FRAGMENT_SHADER)
+            };
         // Shader sources
-        const char *vertexShaderSource = R"(
-            #version 330 core
-            layout (location = 0) in vec3 aPos;
-            layout (location = 1) in vec2 aTexCoord;
-
-            out vec2 TexCoord;
-            uniform  mat4 PVM; 
-
-            void main()
-            {
-                gl_Position = PVM * vec4(aPos, 1);
-                // gl_Position =  vec4(aPos, 1);
-
-                TexCoord = aTexCoord;
-            }
-        )";
-
-        const char *fragmentShaderSource = R"(
-            #version 330 core
-            out vec4 FragColor;
-
-            in vec2 TexCoord;
-            uniform float time;
-
-            uniform sampler2D ourTexture;
- 
-
-            void main()
-            {
-              
-                // vec2 yFlipped = vec2(TexCoord.x, 1 - TexCoord.y);
-                // FragColor = texture(ourTexture, yFlipped);
-
-                // Get the original texture color
-                vec4 originalColor = texture(ourTexture, vec2(TexCoord.x,(1-TexCoord.y)));
-
-                // Add a sine wave effect to the y-coordinate
-                float frequency = 5.0; // Adjust the frequency of the sine wave
-                float amplitude = 0.1; // Adjust the amplitude of the sine wave
-                float wave = amplitude * sin(2.0 * 3.14159 * frequency * TexCoord.x + time) + cos(1 * 3.14159 * frequency * TexCoord.y + time*10);
-
-                // Apply the sine wave effect to the y-coordinate
-                vec2 distortedTexCoord = vec2(TexCoord.x, (1-TexCoord.y) + wave);
-
-                // Sample the texture with the distorted texture coordinates
-                vec4 distortedColor = texture(ourTexture, distortedTexCoord);
-
-                // Blend the original and distorted colors
-                // FragColor = mix(originalColor, distortedColor, 0.5);
-                FragColor = distortedColor;
-            }
-        )";
-
-        shadersIntances.emplace_back(std::make_shared<Shader>(vertexShaderSource, GL_VERTEX_SHADER));
-        shadersIntances.emplace_back(std::make_shared<Shader>(fragmentShaderSource, GL_FRAGMENT_SHADER));
         underlyingShader.AddShaders(shadersIntances);
         underlyingShader.Create();
     }
@@ -220,5 +175,20 @@ namespace ettycc
         underlyingShader.Unbind();
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    std::string Sprite::LoadShaderFile(const std::string &shaderPath)
+    {
+        std::ifstream file(shaderPath);
+        
+        if (!file.is_open())
+        {
+            spdlog::error("Faled to open shader file {}", shaderPath);
+            return std::string();
+        }
+
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        return buffer.str();
     }
 }

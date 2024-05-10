@@ -4,9 +4,13 @@
 #include "../../Shading/ShaderPipeline.hpp"
 #include "../Renderable.hpp"
 
+#include <Dependency.hpp>
+#include <Dependencies/Resources.hpp>
+
 #include <memory>
 #include <string>
-
+#include <fstream>
+#include <sstream>
 
 #include <GL/glew.h>
 #include <GL/gl.h>
@@ -21,6 +25,8 @@ namespace ettycc
 {
     class Sprite : public Renderable
     {
+        const std::string shaderBaseName_ = "sprite";
+
     private:
         GLuint VAO, VBO, EBO, TEXTURE;
         std::string spriteFilePath_;
@@ -48,6 +54,10 @@ namespace ettycc
         {
             ar(cereal::base_class<Renderable>(this), CEREAL_NVP(spriteFilePath_));
         }
+    
+    // Internal usage
+    private:
+        std::string LoadShaderFile(const std::string& shaderPath);
     };
 
 } // namespace ettycc
