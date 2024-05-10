@@ -51,11 +51,16 @@ TEST_F(ResourcesTest, engine_resource_file_generation)
     resources.Set("app", "flags", "WINDOWED");
     resources.Set("app", "resolution", "800,600");
 
+    resources.Set("paths", "config", "assets/config/");
+    resources.Set("paths", "images", "assets/images/");
+    resources.Set("paths", "scenes", "assets/scenes/");
+    resources.Set("paths", "shaders", "assets/shaders/");
+    resources.Set("paths", "templates", "assets/templates/");
+
     resources.Set("sprites", "loona", "assets/images/loona.jpg");
     resources.Set("sprites", "not-found", "assets/images/not_found_texture.png");
 
     resources.Set("shaders", "sprite_shader", "assets/shaders/main");
-
     resources.Set("state", "last_scene", "default_scene.json");
 
     resources.Store(engineConfigPath);

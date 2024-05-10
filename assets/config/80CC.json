@@ -1,6 +1,17 @@
 {
     "engine_data": [
         {
+            "key": "state",
+            "value": {
+                "resources": [
+                    {
+                        "key": "last_scene",
+                        "value": "default_scene.json"
+                    }
+                ]
+            }
+        },
+        {
             "key": "shaders",
             "value": {
                 "resources": [
@@ -22,6 +33,33 @@
                     {
                         "key": "loona",
                         "value": "assets/images/loona.jpg"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "paths",
+            "value": {
+                "resources": [
+                    {
+                        "key": "templates",
+                        "value": "assets/templates/"
+                    },
+                    {
+                        "key": "shaders",
+                        "value": "assets/shaders/"
+                    },
+                    {
+                        "key": "scenes",
+                        "value": "assets/scenes/"
+                    },
+                    {
+                        "key": "images",
+                        "value": "assets/images/"
+                    },
+                    {
+                        "key": "config",
+                        "value": "assets/config/"
                     }
                 ]
             }
