@@ -14,7 +14,8 @@ set(Testers_UNIT_TEST_SOURCES
     )
 
 set(Testers_STAND_ALONE_SOURCES 
-    StandAlone/cereal_lib_example.cpp
+    # StandAlone/cereal_lib_example.cpp
+    StandAlone/enet_rpc_example.cpp
     )   
 
 if (UNIT_TEST_OR_TEST_BED_CODE)

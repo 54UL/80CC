@@ -78,6 +78,7 @@ find_package(GLEW REQUIRED)
 find_package(Stb REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(cereal CONFIG REQUIRED)
+find_package(unofficial-enet CONFIG REQUIRED)
 
 # Include GLEW headers
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -98,9 +99,10 @@ target_include_directories(80CC_CORE
 
 target_link_libraries(80CC_CORE
     PRIVATE ${SDL2_LIBRARIES}
-    PUBLIC spdlog::spdlog
     PRIVATE glm::glm
     PRIVATE GLEW::GLEW
     PRIVATE nlohmann_json::nlohmann_json
+    PUBLIC spdlog::spdlog
     PUBLIC cereal::cereal
+    PUBLIC unofficial::enet::enet
 )
