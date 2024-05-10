@@ -43,6 +43,7 @@ protected:
     }
 };
 
+// This test generates the base configuration file 
 TEST_F(ResourcesTest, engine_resource_file_generation)
 {
     // Store a resource
@@ -54,6 +55,8 @@ TEST_F(ResourcesTest, engine_resource_file_generation)
     resources.Set("sprites", "not-found", "assets/images/not_found_texture.png");
 
     resources.Set("shaders", "sprite_shader", "assets/shaders/main");
+
+    resources.Set("state", "last_scene", "default_scene.json");
 
     resources.Store(engineConfigPath);
 }

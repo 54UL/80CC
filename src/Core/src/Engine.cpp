@@ -13,62 +13,93 @@ namespace ettycc
 
     Engine::~Engine()
     {
-    
+        // TODO: Check if this is appropiate to handle here...
+        if (engineResources_)
+        {
+            engineResources_->Store(ENGINE_RESOURCES_PATH);
+            spdlog::warn("Engine config auto-saved");
+        }
+        else
+        {
+            spdlog::error("can't auto save engine configuration!!!");
+        }
     }
     
     // TODO: MOVE THIS PICE OF CODE INTO THE GOOGL UNIT TEST...
-    void Engine::LoadDefaultScene()
+    void Engine::LoadLastScene()
     {
-        auto resources_ = GetDependency(Resources);
+        auto lastLoadedScene = engineResources_->Get("state", "last_scene");
+
+        LoadScene(lastLoadedScene);
+
+        // TODO: MOVE THIS CODE BELOW BECAUSE IS GENERIC ENGINE INITIALIZATION
+        auto mainWindowSize = appInstance_->GetMainWindowSize();
+        renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
+    }
+
+    void Engine::LoadScene(const std::string &sceneName)
+    {
+        mainScene_.reset();
+        mainScene_ = std::make_shared<Scene>("80CC-EMPTY-SCENE");
+        std::ifstream ifs(scenesPath_ + sceneName);
+
+        if (!ifs.is_open())
+        {
+            spdlog::error("Cannot open file scene {}", sceneName);
+            return;
+        }
+
+        cereal::JSONInputArchive archive2(ifs);
+        archive2(*mainScene_);
+
+        if (mainScene_)
+        {
+            engineResources_->Set("state", "last_scene", sceneName);
+            mainScene_->Init();
+        }
+        else 
+        {
+            spdlog::error("Cannot initialize scene {}", sceneName);
+        }
+    }
+
+    void Engine::StoreScene(const std::string &sceneName)
+    {
+        std::ofstream ofs(scenesPath_ + sceneName); 
+
+        if (!ofs.is_open())
+        {
+            spdlog::error("Cannot store scene {}", sceneName);
+            return;
+        }
+
+        cereal::JSONOutputArchive archive(ofs);    
+        archive(*mainScene_);
+    }
+
+    void Engine::Init()
+    {
+        engineResources_ = GetDependency(Resources);
 
         const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
         if (engineWorkingFolder == nullptr) 
         {
             spdlog::warn("Engine working folder not set... using '../../assets'");    
-            resources_->SetWorkingFolder(std::string("../../../assets") + "/config/");
+            engineResources_->SetWorkingFolder(std::string("../../../assets") + "/config/");
         }
         else 
         {
             // Assuming the proyect structure is: 80cc/build/Testers
             spdlog::info("Engine working folder '{}'", engineWorkingFolder);
-            resources_->SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
+            engineResources_->SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
         }
 
-        resources_->Load("80CC.json");
-        const std::string scenesPath_ = "../../../assets/scenes/";
+        // Load engine resource file
+        engineResources_->Load(ENGINE_RESOURCES_PATH);
 
-        // Scene initialization
-        {
-            mainScene_.reset();
-            mainScene_ = std::make_shared<Scene>("80CC-NULL-SCENE");
+        // Load the last scene provied from the state of the last scene...
+        LoadLastScene();
 
-            std::ifstream ifs(scenesPath_ + "/default_scene.json"); 
-
-            cereal::JSONInputArchive archive2(ifs);
-            archive2(*mainScene_);
-        }
-
-        mainScene_->Init();
-
-        //TODO: GET DEFAULT RESOLUTION FROM CONFIG...(USE RESOURCES->GET)
-        auto mainWindowSize = appInstance_->GetMainWindowSize();
-        renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
-    }
-
-    void Engine::LoadScene(const std::string &filePath)
-    {
-
-    }
-
-    void Engine::StoreScene(const std::string &filePath)
-    {
-        
-    }
-
-    void Engine::Init()
-    {
-        //TODO: instead of loading a default scene it should seek for the last saved scene...
-        LoadDefaultScene();
         spdlog::warn("Scene loaded... be aware!!!");
     }
  

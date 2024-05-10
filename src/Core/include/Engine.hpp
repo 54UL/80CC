@@ -9,21 +9,28 @@
 #include <Input/Controls/GhostCamera.hpp>
 #include <Input/PlayerInput.hpp>
 #include <Scene/Scene.hpp>
+#include <Dependencies/Resources.hpp>
 
 #include <memory>
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
 #define DEFAULT_ASSETS_FOLDER "assets"
+#define ENGINE_RESOURCES_PATH "80CC.json"
 
 namespace ettycc
 {
 
     class Engine : public EnginePipeline
     {
+        // TODO: get this from an config???
+        const std::string scenesPath_ = "../../../assets/scenes/";
+
     public:
         // DRAFT DEPENDENCIES (ONLY INTERNAL SYSTEMS....)
         std::shared_ptr<App>   appInstance_;
+        std::shared_ptr<Resources> engineResources_;
+
         Rendering              renderEngine_;
         PlayerInput            inputSystem_;
         std::shared_ptr<Scene> mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
@@ -36,11 +43,11 @@ namespace ettycc
         ~Engine();
 
         // TESTING...
-        void LoadDefaultScene();
+        void LoadLastScene();
 
         // Engine api        
-        void LoadScene(const std::string& filePath);
-        void StoreScene(const std::string& filePath);
+        void LoadScene(const std::string& sceneName);
+        void StoreScene(const std::string& sceneName);
 
         // Engine pipeline impl
         void Init() override; 
