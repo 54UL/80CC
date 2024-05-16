@@ -10,12 +10,14 @@
 #include <Input/PlayerInput.hpp>
 #include <Scene/Scene.hpp>
 #include <Dependencies/Resources.hpp>
+#include <Game/GameModule.hpp>
 
 #include <memory>
+#include <vector>
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
-#define DEFAULT_ASSETS_FOLDER "assets"
+#define DEFAULT_ASSETS_FOLDER "../../../assets/scenes/"
 #define ENGINE_RESOURCES_PATH "80CC.json"
 
 namespace ettycc
@@ -23,33 +25,27 @@ namespace ettycc
 
     class Engine : public EnginePipeline
     {
-        // TODO: get this from an config???
-        const std::string scenesPath_ = "../../../assets/scenes/";
-
     public:
-        // DRAFT DEPENDENCIES (ONLY INTERNAL SYSTEMS....)
+        // DEPENDENCIES (ONLY INTERNAL SYSTEMS....)
         std::shared_ptr<App>   appInstance_;
         std::shared_ptr<Resources> engineResources_;
+        std::vector<std::shared_ptr<GameModule>> gameModules_;
 
         Rendering              renderEngine_;
         PlayerInput            inputSystem_;
         std::shared_ptr<Scene> mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
         
-        
-        std::shared_ptr<GhostCamera> ghostCamera_; //THIS ONE SHOULD BE ON THE GAME MODULE LAYER... woops
-    
     public:
         Engine(std::shared_ptr<App> appInstance);
         ~Engine();
 
-        // TESTING...
+        // Engine front-end API        
         void LoadLastScene();
-
-        // Engine api        
         void LoadScene(const std::string& sceneName);
         void StoreScene(const std::string& sceneName);
+        void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
 
-        // Engine pipeline impl
+        // Engine pipeline API
         void Init() override; 
         void Update() override;
         void PrepareFrame() override;

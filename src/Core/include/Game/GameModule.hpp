@@ -2,6 +2,7 @@
 #define IGAME_MODULE_HPP
 
 #include <memory>
+#include <string>
 
 namespace ettycc
 {
@@ -12,7 +13,8 @@ namespace ettycc
         GameModule() = default;
         virtual ~GameModule() = default;
 
-        virtual bool OnStart(std::weak_ptr<Engine> engine) = 0;
+        std::string name_;// todo: not shure if is this right...
+        virtual bool OnStart(const Engine* engine) = 0;
         virtual void OnUpdate(const float deltaTime) = 0;
         virtual void OnDestroy() = 0;     
     };    

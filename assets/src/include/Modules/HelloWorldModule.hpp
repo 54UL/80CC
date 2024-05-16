@@ -18,7 +18,7 @@ namespace etycc
       ~HelloWorldModule();
 
       // GameModule interface
-      bool OnStart(std::weak_ptr<Engine> engine)
+      bool OnStart(const Engine* engine)
       {
          engine->LoadScene("first_level");
          auto& scene = engine->mainScene_; 

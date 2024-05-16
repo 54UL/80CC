@@ -41,7 +41,7 @@ namespace ettycc
     {
         mainScene_.reset();
         mainScene_ = std::make_shared<Scene>("80CC-EMPTY-SCENE");
-        std::ifstream ifs(scenesPath_ + sceneName);
+        std::ifstream ifs(DEFAULT_ASSETS_FOLDER + sceneName);
 
         if (!ifs.is_open())
         {
@@ -65,7 +65,7 @@ namespace ettycc
 
     void Engine::StoreScene(const std::string &sceneName)
     {
-        std::ofstream ofs(scenesPath_ + sceneName); 
+        std::ofstream ofs(DEFAULT_ASSETS_FOLDER + sceneName); 
 
         if (!ofs.is_open())
         {
@@ -77,6 +77,15 @@ namespace ettycc
         archive(*mainScene_);
     }
 
+    void Engine::RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules)
+    {
+        gameModules_ = modules;
+        for (const auto& module : gameModules_)
+        {
+            spdlog::warn("Game module registered {}", module->name_);
+        }
+    }
+
     void Engine::Init()
     {
         engineResources_ = GetDependency(Resources);
@@ -84,8 +93,8 @@ namespace ettycc
         const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
         if (engineWorkingFolder == nullptr) 
         {
-            spdlog::warn("Engine working folder not set... using: {}", scenesPath_);    
-            engineResources_->SetWorkingFolder(std::string(scenesPath_) + "/config/");
+            spdlog::warn("Engine working folder not set... using: {}", DEFAULT_ASSETS_FOLDER);    
+            engineResources_->SetWorkingFolder(std::string(DEFAULT_ASSETS_FOLDER) + "/config/");
         }
         else 
         {
@@ -97,16 +106,43 @@ namespace ettycc
         // Load engine resource file
         engineResources_->Load(ENGINE_RESOURCES_PATH);
 
-        // Load the last scene provied from the state of the last scene...
-        LoadLastScene();
+        // If game modules present then they have to load the scene from there, otherwise it will load the last loaded scene (thus due to editor logic)
+        // TODO: This condition is wrong, it needs to know if is an editor or game executable
+        if (gameModules_.size() > 0)
+        {
+            for (const auto &module : gameModules_)
+            {
+                if (!module) 
+                {
+                    spdlog::error("Cannot initialize [{}] game module", module->name_);
+                    continue;
+                }
+                module->OnStart(this);
+                spdlog::info("Game module initialized [{}]", module->name_);
+            }
+        }
+        else
+        {
+             LoadLastScene();
+        }
 
-        spdlog::warn("Scene loaded... be aware!!!");
+        spdlog::warn("Scene loaded... {}");
     }
  
     void Engine::Update()
     {
         // Engine logic goes here
+        auto deltaTime = appInstance_->GetDeltaTime();
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::MAIN);
+
+        // Update game modules state...
+        if (gameModules_.size() > 0)
+        {
+            for (const auto &module : gameModules_)
+            {
+              module->OnUpdate(deltaTime);
+            }
+        }
     }
 
     void Engine::PrepareFrame()
