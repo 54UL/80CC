@@ -12,9 +12,9 @@
 #include <Input/PlayerInput.hpp>
 #include <UI/DevEditor.hpp>
 #include <Engine.hpp>
-#include <Dependencies/FilePersist.hpp>
 #include <Dependencies/Resources.hpp>
 
+// TODO: IMPLEMENT OWN SERIALIZATION API TO REGISTER THIS VALUES....
 CEREAL_REGISTER_TYPE(ettycc::RenderableNode);
 CEREAL_REGISTER_TYPE(ettycc::Sprite);
 CEREAL_REGISTER_TYPE(ettycc::Camera);
@@ -24,10 +24,5 @@ CEREAL_REGISTER_TYPE(ettycc::Renderable);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::RenderableNode)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Sprite)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Camera)
-
-// namespace ettycc
-// {   
-    
-// }
 
 #endif

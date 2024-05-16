@@ -25,7 +25,7 @@ namespace ettycc
         }
     }
     
-    // TODO: MOVE THIS PICE OF CODE INTO THE GOOGL UNIT TEST...
+
     void Engine::LoadLastScene()
     {
         auto lastLoadedScene = engineResources_->Get("state", "last_scene");
@@ -84,8 +84,8 @@ namespace ettycc
         const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
         if (engineWorkingFolder == nullptr) 
         {
-            spdlog::warn("Engine working folder not set... using '../../assets'");    
-            engineResources_->SetWorkingFolder(std::string("../../../assets") + "/config/");
+            spdlog::warn("Engine working folder not set... using: {}", scenesPath_);    
+            engineResources_->SetWorkingFolder(std::string(scenesPath_) + "/config/");
         }
         else 
         {

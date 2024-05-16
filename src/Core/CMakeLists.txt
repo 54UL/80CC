@@ -28,9 +28,9 @@ set(80CC_CORE_HEADERS
     include/Graphics/Shading/ShaderPipeline.hpp
     include/Input/PlayerInput.hpp
     include/Input/Controls/GhostCamera.hpp
+    include/Game/GameModule.hpp
     include/UI/DevEditor.hpp
     include/UI/Console.hpp
-    include/Dependencies/FilePersist.hpp
     include/Dependencies/Resources.hpp
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
