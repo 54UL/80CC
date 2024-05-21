@@ -162,4 +162,15 @@ namespace ettycc
     {
         inputSystem_.ProcessInput(type, data);
     }
+
+    void Engine::BuildExecutable(const std::string& outputPath)
+    {
+        // Get (config,images,scenes,shaders,templates) folders inside of assets and copy them into outputPath
+        // Compile all assets into a binary form (optional meanwhile)
+
+        // Use an env var to locate the engine source code
+        // Compile the assets/src with:
+        //  cmake --build ./  --config Debug --target Game -j 4
+
+    }
 } // namespace ettycc

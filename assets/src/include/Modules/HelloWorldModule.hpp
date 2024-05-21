@@ -4,14 +4,14 @@
 #ifndef HELLO_WORLD_MODULE_HPP
 #define HELLO_WORLD_MODULE_HPP
 
-#include <Game/GameModule.hpp>
+#include <80CC.hpp>
 
 namespace etycc
 {
    class HelloWorldModule : GameModule
    {
    private:
-      GhostCamera playerCamera; 
+      // GhostCamera playerCamera; 
 
    public:
       HelloWorldModule(/* args */);
@@ -20,13 +20,11 @@ namespace etycc
       // GameModule interface
       bool OnStart(const Engine* engine)
       {
-         engine->LoadScene("first_level");
+         engine->LoadScene("default_scene.json");
          auto& scene = engine->mainScene_; 
 
-         scene->instanceNode(Assets::LoadTemplate("default-sprite"));
-
-         auto renderable = dynamic_cast<Sprite*>(scene->findNode("some-node")->addComponent("renderable"));
-
+         // scene->instanceNode(Assets::LoadTemplate("default-sprite"));
+         // auto renderable = dynamic_cast<Sprite*>(scene->findNode("some-node")->addComponent("renderable"));
 
          playerCamera->Init(engine->inputSytem);
          
@@ -35,7 +33,7 @@ namespace etycc
       
       void OnUpdate(const float deltaTime)
       {
-         playerCamera->Update(deltaTime);
+         // playerCamera->Update(deltaTime);
 
          return true
       }

@@ -2,7 +2,7 @@
 
 namespace etycc
 {
-    HelloWorldModule::HelloWorldModule(/* args */)
+    HelloWorldModule::HelloWorldModule()
     {
     }
 

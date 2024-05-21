@@ -44,7 +44,8 @@ namespace ettycc
         void LoadScene(const std::string& sceneName);
         void StoreScene(const std::string& sceneName);
         void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
-
+        void BuildExecutable(const std::string& outputPath);
+        
         // Engine pipeline API
         void Init() override; 
         void Update() override;

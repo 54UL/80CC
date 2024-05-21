@@ -1,7 +1,7 @@
-project(80CC_CORE CXX)
+cmake_minimum_required(VERSION 3.15)
 
+project(80CC_CORE CXX)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_COMPILER gcc)
 
 set(80CC_CORE_HEADERS
     include/80CC.hpp
@@ -41,7 +41,7 @@ set(80CC_CORE_HEADERS
     external/imgui/imconfig.h
     external/imgui/backends/imgui_impl_sdl2.h
     external/imgui/backends/imgui_impl_opengl3.h
-)
+    )
 
 set(80CC_CORE_SOURCES
     src/80CC.cpp
@@ -68,7 +68,7 @@ set(80CC_CORE_SOURCES
     external/imgui/imgui_widgets.cpp
     external/imgui/backends/imgui_impl_sdl2.cpp
     external/imgui/backends/imgui_impl_opengl3.cpp
-)
+    )
 
 # PACKAGES...
 find_package(spdlog CONFIG REQUIRED)
@@ -80,12 +80,10 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(cereal CONFIG REQUIRED)
 find_package(unofficial-enet CONFIG REQUIRED)
 
-# Include GLEW headers
+# DIR INCLUDES
 include_directories(${GLEW_INCLUDE_DIRS})
-# Include Imgui headers
 include_directories(src/Core/external/imgui/**)
 
-# find_package(bgfx CONFIG REQUIRED)
 # ADD THE CORE LIBRARY 
 add_library(80CC_CORE STATIC ${80CC_CORE_SOURCES} ${80CC_CORE_HEADERS})
 
@@ -94,15 +92,13 @@ target_include_directories(80CC_CORE
     PUBLIC ${SDL2_INCLUDE_DIRS}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
-    PRIVATE ${Stb_INCLUDE_DIR}
-)
+    PUBLIC ${Stb_INCLUDE_DIR}
+    PUBLIC ${GLM_INCLUDE_DIRS})
 
 target_link_libraries(80CC_CORE
-    PRIVATE ${SDL2_LIBRARIES}
-    PRIVATE glm::glm
-    PRIVATE GLEW::GLEW
-    PRIVATE nlohmann_json::nlohmann_json
+    PUBLIC ${SDL2_LIBRARIES}
+    PUBLIC GLEW::GLEW
+    PUBLIC glm::glm
     PUBLIC spdlog::spdlog
     PUBLIC cereal::cereal
-    PUBLIC unofficial::enet::enet
-)
+    PUBLIC unofficial::enet::enet)
