@@ -1,8 +1,11 @@
 #include <80CC.hpp>
-#include <Bootstrapper/EntryPoint.hpp>
+#include <EntryPoint.hpp>
 
 #include <memory>
 #include <iostream>
+
+// IMPORTANT: THIS TAG BELOW DOES THE COMPILATION MAGIC SO DON'T FUCKING REMOVE THX
+//_80CC_USER_INCLUDES
 
 using namespace ettycc; // IMPORTANT!!!
 
@@ -22,11 +25,12 @@ int main(int argc, char* argv[])
     RegisterDependency(Engine, engineInstance);
     RegisterDependency(Resources, resourcesInstance);
     
-    // IMPORTANT: THIS TAG BELOW IS WHAT IT DOES THE COMPILATION MAGIC SO DON'T FUCKING REMOVE THX
-    //_80CC_USER_CODE
 
     if (app->Init(argc, argv))
         return 1;
 
+    // IMPORTANT: THIS TAG BELOW DOES THE COMPILATION MAGIC SO DON'T FUCKING REMOVE THX
+    //_80CC_USER_CODE
+    
     return app->Exec();
 }

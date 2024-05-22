@@ -1,3 +1,6 @@
+// TODO: IMPROVE AND REFACTOR MEANWHILE THIS STAYS AS A CLOWN ASS TOY
+// FIRST ITERATION REMOVE WHEN COMPLETED....
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -19,34 +22,48 @@ using namespace clang;
 using namespace clang::tooling;
 using namespace clang::ast_matchers;
 
-class ClassFinder : public MatchFinder::MatchCallback {
+class ClassFinder : public MatchFinder::MatchCallback
+{
 public:
-    explicit ClassFinder(std::vector<std::string>& classes) : Classes(classes) {}
+    explicit ClassFinder(std::vector<std::string> &classes) : Classes(classes) {}
 
-    void run(const MatchFinder::MatchResult &Result) override {
-        if (const CXXRecordDecl *ClassDecl = Result.Nodes.getNodeAs<CXXRecordDecl>("classDecl")) {
-            if (ClassDecl->isThisDeclarationADefinition()) {
+    void run(const MatchFinder::MatchResult &Result) override
+    {
+        if (const CXXRecordDecl *ClassDecl = Result.Nodes.getNodeAs<CXXRecordDecl>("classDecl"))
+        {
+            if (ClassDecl->isThisDeclarationADefinition())
+            {
+                const auto& className = ClassDecl->getNameAsString();
+                std::cout << "Class found: " << className << "\n";
+
+                // TODO: FILTER BY CLASS NAME PREFIX <NAME>GameModule
                 Classes.push_back(ClassDecl->getNameAsString());
             }
         }
     }
 
 private:
-    std::vector<std::string>& Classes;
+    std::vector<std::string> &Classes;
 };
 
-void copyFilesWithStructure(const fs::path &src, const fs::path &dest) {
+// Copies the whole folder tree structure
+void CopyDirectory(const fs::path &src, const fs::path &dest)
+{
     fs::create_directories(dest);
-    for (const auto &entry : fs::recursive_directory_iterator(src)) {
+    for (const auto &entry : fs::recursive_directory_iterator(src))
+    {
         const auto &path = entry.path();
         auto relativePath = fs::relative(path, src);
         fs::copy(path, dest / relativePath);
     }
 }
 
-void generateEngineAddCalls(const std::vector<std::string>& classes, const std::string& mainFilePath) {
+void GenerateEntryPointSource(const std::vector<std::string> &classes, const std::string &mainFilePath, const std::string &outputPath)
+{
     std::ifstream inFile(mainFilePath);
-    if (!inFile.is_open()) {
+
+    if (!inFile.is_open())
+    {
         std::cerr << "Could not open the main file.\n";
         return;
     }
@@ -56,34 +73,57 @@ void generateEngineAddCalls(const std::vector<std::string>& classes, const std::
     std::string mainFileContent = buffer.str();
     inFile.close();
 
-    std::string userCodeTag = "// USER_CODE";
+    std::string userCodeTag = "//_80CC_USER_CODE";
     size_t pos = mainFileContent.find(userCodeTag);
-    if (pos == std::string::npos) {
+
+    if (pos == std::string::npos)
+    {
         std::cerr << "Tag not found in the main file.\n";
         return;
     }
 
-    std::ostringstream codeStream;
-    codeStream << "void addClassesToEngine(Engine* engine) {\n";
-    for (const auto& className : classes) {
-        codeStream << "    engine->add(" << className << ");\n";
+    // Generate the code to instance the module then add it to engine
+    // codeStream << "std::vector<shared_ptr<GameModule>> modules = { \n";
+
+    for (const auto& className : classes)
+    {
+        // TODO: IMPLEMENT ME!!!!
     }
-    codeStream << "}\n";
+
+    codeStream << "};\n";
+    codeStream << "engine->RegisterModules();\n";
 
     mainFileContent.replace(pos, userCodeTag.length(), codeStream.str());
 
-    std::ofstream outFile(mainFilePath);
-    if (!outFile.is_open()) {
-        std::cerr << "Could not write to the main file.\n";
+    std::ofstream outFile(outputPath);
+    if (!outFile.is_open())
+    {
+        std::cerr << "Could not write to the output path.\n";
         return;
     }
+
     outFile << mainFileContent;
     outFile.close();
 }
 
-int main(int argc, const char **argv) {
-    CommonOptionsParser OptionsParser(argc, argv, llvm::cl::GeneralCategory);
-    ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
+int main(int argc, const char **argv)
+{
+    // TESTING HARDCODING.... (REMOVE =3)
+    fs::path src = "../../../assets/src/";
+    fs::path dest = "../../Entry/temp/GameModules/";
+
+    std::vector<std::string> sourceFiles =
+        {
+            "/workspaces/ALPHA_V1/src/Entry/temp/include/Modules/HelloWorldModule.hpp",
+            "/workspaces/ALPHA_V1/src/Entry/temp/src/Modules/HelloWorldModule.cpp",
+        };
+
+    std::vector<std::string> compilationArgs = { "-std=c++17" };
+
+    FixedCompilationDatabase Compilations(".", compilationArgs);
+
+    // Initialize the ClangTool
+    ClangTool Tool(Compilations, sourceFiles);
 
     std::vector<std::string> classes;
     ClassFinder Finder(classes);
@@ -91,19 +131,17 @@ int main(int argc, const char **argv) {
     MatchFinder Matchers;
     Matchers.addMatcher(cxxRecordDecl(isDefinition()).bind("classDecl"), &Finder);
 
-    // Copy files preserving the directory structure
-    fs::path src = "/tmp/sources";
-    fs::path dest = "/tmp/destination";
-    copyFilesWithStructure(src, dest);
+    // Copy game modules source into entry/temp
+    CopyDirectory(src, dest);
 
     // Run the tool over the copied files
     Tool.run(newFrontendActionFactory(&Matchers).get());
 
-    // Generate an entry point
-    std::string mainFilePath = "/tmp/destination/main.cpp"; // Adjust the path to your main file
-    generateEngineAddCalls(classes, mainFilePath);
+    // Generate the entry point...
+    std::string mainFilePath = "../../Entry/src/EntryPoint.cpp";
+    std::string outputMainFile = "../../Entry/temp/GeneratedEntryPoint.cpp";
+
+    GenerateEntryPointSource(classes, mainFilePath, outputMainFile);
 
     return 0;
 }
-
-

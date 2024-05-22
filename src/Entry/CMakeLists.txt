@@ -5,11 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 
 set(ENTRY_HEADERS 
-    include/Bootstrapper/EntryPoint.hpp
+    include/EntryPoint.hpp
 )
 
 set(ENTRY_SOURCES 
-    src/Bootstrapper/EntryPoint.cpp
+    src/EntryPoint.cpp
 )
 
 # TODO: disable all game related stuff if not compiling game modules
