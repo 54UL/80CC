@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(80CC_CORE_HEADERS
     include/80CC.hpp
+    include/Paths.hpp
     include/Engine.hpp
     include/App/App.hpp
     include/Dependency.hpp

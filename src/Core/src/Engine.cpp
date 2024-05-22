@@ -16,7 +16,7 @@ namespace ettycc
         // TODO: Check if this is appropiate to handle here...
         if (engineResources_)
         {
-            engineResources_->Store(ENGINE_RESOURCES_PATH);
+            engineResources_->Store(paths::RESOURCES_DEFAULT);
             spdlog::warn("Engine config auto-saved");
         }
         else
@@ -42,7 +42,7 @@ namespace ettycc
         // TODO: ADD DEFAULT SCENE WITH THE NO TEXTURE FOND AS DEFAULT SCENE...
         mainScene_.reset();
         mainScene_ = std::make_shared<Scene>("80CC-EMPTY-SCENE");
-        std::ifstream ifs(DEFAULT_ASSETS_FOLDER + sceneName);
+        std::ifstream ifs(paths::SCENE_DEFAULT + sceneName);
 
         if (!ifs.is_open())
         {
@@ -66,7 +66,7 @@ namespace ettycc
 
     void Engine::StoreScene(const std::string &sceneName)
     {
-        std::ofstream ofs(DEFAULT_ASSETS_FOLDER + sceneName); 
+        std::ofstream ofs(paths::SCENE_DEFAULT + sceneName); 
 
         if (!ofs.is_open())
         {
@@ -94,8 +94,8 @@ namespace ettycc
         const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
         if (engineWorkingFolder == nullptr) 
         {
-            spdlog::warn("Engine working folder not set... using: {}", DEFAULT_ASSETS_FOLDER);    
-            engineResources_->SetWorkingFolder(std::string(DEFAULT_ASSETS_FOLDER) + "/config/");
+            spdlog::warn("Engine working folder not set... using: {}", paths::ASSETS_DEFAULT);    
+            engineResources_->SetWorkingFolder(paths::CONFIG_DEFAULT);
         }
         else 
         {
@@ -105,7 +105,7 @@ namespace ettycc
         }
 
         // Load engine resource file
-        engineResources_->Load(ENGINE_RESOURCES_PATH);
+        engineResources_->Load(paths::RESOURCES_DEFAULT);
 
         // If game modules present then they have to load the scene from there, otherwise it will load the last loaded scene (thus due to editor logic)
         // TODO: This condition is wrong, it needs to know if is an editor or game executable

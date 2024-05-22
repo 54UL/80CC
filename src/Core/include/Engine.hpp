@@ -2,6 +2,7 @@
 #define ENGINE_80CC_HPP
 
 #include <App/App.hpp>
+#include <Paths.hpp>
 #include <App/EnginePipeline.hpp>
 #include <Graphics/Rendering.hpp>
 #include <Graphics/Rendering/Entities/Camera.hpp>
@@ -17,9 +18,6 @@
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
-//lord 4 give me for this
-#define DEFAULT_ASSETS_FOLDER "../../../assets/"
-#define ENGINE_RESOURCES_PATH "../../../assets/config/80CC.json" 
 
 namespace ettycc
 {

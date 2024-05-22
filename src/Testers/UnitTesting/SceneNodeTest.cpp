@@ -4,11 +4,12 @@
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <fstream>
+#include <string>
 
 using namespace ettycc;
 
 constexpr const char * UNIT_TEST_SCENE_NAME = "80CC-UNIT-TEST-SCENE";
-const std::string scenesPath_ = "../../../assets/scenes/";// change this trashh
+const std::string scenesPath_ = paths::ASSETS_DEFAULT + "scenes/";// change this trashh
 
 std::shared_ptr<App> app_;
 std::shared_ptr<Engine> engineInstance_;
@@ -30,8 +31,8 @@ protected:
         const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
         if (engineWorkingFolder == nullptr) 
         {
-            spdlog::warn("Engine working folder not set... using '../../assets'");    
-            resources_->SetWorkingFolder(std::string("../../../assets") + "/config/");
+            spdlog::warn("Engine working folder not set... using [{}]", paths::CONFIG_DEFAULT);    
+            resources_->SetWorkingFolder(paths::CONFIG_DEFAULT);
         }
         else 
         {

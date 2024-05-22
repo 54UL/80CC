@@ -13,6 +13,7 @@
 #include <UI/DevEditor.hpp>
 #include <Engine.hpp>
 #include <Dependencies/Resources.hpp>
+#include <Paths.hpp>
 
 // TODO: IMPLEMENT OWN SERIALIZATION API TO REGISTER THIS VALUES....
 CEREAL_REGISTER_TYPE(ettycc::RenderableNode);
