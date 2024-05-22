@@ -8,12 +8,12 @@
 using namespace ettycc;
 
 constexpr const char * UNIT_TEST_SCENE_NAME = "80CC-UNIT-TEST-SCENE";
-const std::string scenesPath_ = "../../assets/scenes/";
+const std::string scenesPath_ = "../../../assets/scenes/";// change this trashh
 
 std::shared_ptr<App> app_;
 std::shared_ptr<Engine> engineInstance_;
 std::shared_ptr<Resources> resources_;
-
+ 
 class SceneNodeTestFixture : public testing::Test
 {
 protected:
@@ -31,7 +31,7 @@ protected:
         if (engineWorkingFolder == nullptr) 
         {
             spdlog::warn("Engine working folder not set... using '../../assets'");    
-            resources_->SetWorkingFolder(std::string("../../assets") + "/config/");
+            resources_->SetWorkingFolder(std::string("../../../assets") + "/config/");
         }
         else 
         {

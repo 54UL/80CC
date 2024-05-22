@@ -17,8 +17,9 @@
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
-#define DEFAULT_ASSETS_FOLDER "../../../assets/scenes/"
-#define ENGINE_RESOURCES_PATH "80CC.json"
+//lord 4 give me for this
+#define DEFAULT_ASSETS_FOLDER "../../../assets/"
+#define ENGINE_RESOURCES_PATH "../../../assets/config/80CC.json" 
 
 namespace ettycc
 {

@@ -1,12 +1,62 @@
 {
     "engine_data": [
         {
-            "key": "state",
+            "key": "app",
             "value": {
                 "resources": [
                     {
-                        "key": "last_scene",
-                        "value": "default_scene.json"
+                        "key": "title",
+                        "value": "80CC"
+                    },
+                    {
+                        "key": "flags",
+                        "value": "WINDOWED"
+                    },
+                    {
+                        "key": "resolution",
+                        "value": "800,600"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "paths",
+            "value": {
+                "resources": [
+                    {
+                        "key": "config",
+                        "value": "config/"
+                    },
+                    {
+                        "key": "images",
+                        "value": "images/"
+                    },
+                    {
+                        "key": "templates",
+                        "value": "templates/"
+                    },
+                    {
+                        "key": "scenes",
+                        "value": "scenes/"
+                    },
+                    {
+                        "key": "shaders",
+                        "value": "shaders/"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "sprites",
+            "value": {
+                "resources": [
+                    {
+                        "key": "loona",
+                        "value": "images/loona.jpg"
+                    },
+                    {
+                        "key": "not-found",
+                        "value": "images/not_found_texture.png"
                     }
                 ]
             }
@@ -17,68 +67,18 @@
                 "resources": [
                     {
                         "key": "sprite_shader",
-                        "value": "assets/shaders/main"
+                        "value": "shaders/main"
                     }
                 ]
             }
         },
         {
-            "key": "sprites",
+            "key": "state",
             "value": {
                 "resources": [
                     {
-                        "key": "not-found",
-                        "value": "assets/images/not_found_texture.png"
-                    },
-                    {
-                        "key": "loona",
-                        "value": "assets/images/loona.jpg"
-                    }
-                ]
-            }
-        },
-        {
-            "key": "paths",
-            "value": {
-                "resources": [
-                    {
-                        "key": "templates",
-                        "value": "assets/templates/"
-                    },
-                    {
-                        "key": "shaders",
-                        "value": "assets/shaders/"
-                    },
-                    {
-                        "key": "scenes",
-                        "value": "assets/scenes/"
-                    },
-                    {
-                        "key": "images",
-                        "value": "assets/images/"
-                    },
-                    {
-                        "key": "config",
-                        "value": "assets/config/"
-                    }
-                ]
-            }
-        },
-        {
-            "key": "app",
-            "value": {
-                "resources": [
-                    {
-                        "key": "resolution",
-                        "value": "800,600"
-                    },
-                    {
-                        "key": "flags",
-                        "value": "WINDOWED"
-                    },
-                    {
-                        "key": "title",
-                        "value": "80CC"
+                        "key": "last_scene",
+                        "value": "default_scene.json"
                     }
                 ]
             }

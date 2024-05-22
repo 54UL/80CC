@@ -39,6 +39,7 @@ namespace ettycc
 
     void Engine::LoadScene(const std::string &sceneName)
     {
+        // TODO: ADD DEFAULT SCENE WITH THE NO TEXTURE FOND AS DEFAULT SCENE...
         mainScene_.reset();
         mainScene_ = std::make_shared<Scene>("80CC-EMPTY-SCENE");
         std::ifstream ifs(DEFAULT_ASSETS_FOLDER + sceneName);

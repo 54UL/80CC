@@ -12,7 +12,7 @@ using namespace ettycc;
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/archives/json.hpp>
 
-const std::string engineConfigPath = "80CC.json";
+const std::string engineConfigPath = "config/80CC.json";
 Resources resources;
 
 // Fixture for Resources class
@@ -26,8 +26,8 @@ protected:
         const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
         if (engineWorkingFolder == nullptr) 
         {
-            spdlog::warn("Engine working folder not set... using '../../assets'");    
-            resources.SetWorkingFolder(std::string("../../assets") + "/config/");
+            spdlog::warn("Engine working folder not set... using '../../../assets'");    
+            resources.SetWorkingFolder(std::string("../../../assets") + "/config/");
         }
         else 
         {
@@ -51,16 +51,16 @@ TEST_F(ResourcesTest, engine_resource_file_generation)
     resources.Set("app", "flags", "WINDOWED");
     resources.Set("app", "resolution", "800,600");
 
-    resources.Set("paths", "config", "assets/config/");
-    resources.Set("paths", "images", "assets/images/");
-    resources.Set("paths", "scenes", "assets/scenes/");
-    resources.Set("paths", "shaders", "assets/shaders/");
-    resources.Set("paths", "templates", "assets/templates/");
+    resources.Set("paths", "config", "config/");
+    resources.Set("paths", "images", "images/");
+    resources.Set("paths", "scenes", "scenes/");
+    resources.Set("paths", "shaders", "shaders/");
+    resources.Set("paths", "templates", "templates/");
 
-    resources.Set("sprites", "loona", "assets/images/loona.jpg");
-    resources.Set("sprites", "not-found", "assets/images/not_found_texture.png");
+    resources.Set("sprites", "loona", "images/loona.jpg");
+    resources.Set("sprites", "not-found", "images/not_found_texture.png");
 
-    resources.Set("shaders", "sprite_shader", "assets/shaders/main");
+    resources.Set("shaders", "sprite_shader", "shaders/main");
     resources.Set("state", "last_scene", "default_scene.json");
 
     resources.Store(engineConfigPath);
@@ -71,10 +71,10 @@ TEST_F(ResourcesTest, engine_load_resource)
      // Load the stored resources using the default asset path for development...
     Resources newResources;
     
-    newResources.SetWorkingFolder(std::string("../../assets") + "/config/");
+    newResources.SetWorkingFolder(std::string("../../../assets/"));
     newResources.Load(engineConfigPath);
 
-    EXPECT_TRUE(newResources.Get("sprites", "loona").compare("assets/images/loona.jpg") == 0);
+    EXPECT_TRUE(newResources.Get("sprites", "loona").compare("images/loona.jpg") == 0);
 }
 
 

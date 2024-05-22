@@ -10,9 +10,9 @@ include(CTest)
 include(GoogleTest)
 enable_testing()
 
-set(Testers_UNIT_TEST_SOURCES 
-    UnitTesting/SceneNodeTest.cpp
+set(Testers_UNIT_TEST_SOURCES
     UnitTesting/ResourcesTests.cpp
+    UnitTesting/SceneNodeTest.cpp
     )
 
 set(Testers_STAND_ALONE_SOURCES 

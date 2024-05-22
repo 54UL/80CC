@@ -25,7 +25,6 @@ int main(int argc, char* argv[])
     RegisterDependency(Engine, engineInstance);
     RegisterDependency(Resources, resourcesInstance);
     
-
     if (app->Init(argc, argv))
         return 1;
 

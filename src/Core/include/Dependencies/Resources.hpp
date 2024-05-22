@@ -81,7 +81,7 @@ namespace ettycc
 
             if (!file.is_open())
             {
-                spdlog::info("Cannot store configuration file into '{}'.", workingFolderPath_ + fileName);
+                spdlog::warn("Cannot store configuration file into '{}'.", workingFolderPath_ + fileName);
             }
 
             cereal::JSONOutputArchive archive(file);
