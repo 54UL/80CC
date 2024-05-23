@@ -12,7 +12,6 @@ using namespace ettycc;
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/archives/json.hpp>
 
-const char* configFileName = "80CC.json";
 Resources resources;
 
 // Fixture for Resources class
@@ -22,19 +21,6 @@ protected:
 
     static void SetUpTestCase()
     {
-        // TODO: THIS PICE OF CODE NEEDS TO BE INITIALIZED ALONG WITH THE ENGINE
-        const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
-        if (engineWorkingFolder == nullptr) 
-        {
-            spdlog::warn("Engine working folder not set... using [{}]", paths::CONFIG_DEFAULT);    
-            resources.SetWorkingFolder(paths::CONFIG_DEFAULT);
-        }
-        else 
-        {
-            // Assuming the proyect structure is: 80cc/build/Testers
-            spdlog::info("Engine working folder '{}'", engineWorkingFolder);
-            resources.SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
-        }
     }
 
     void TearDown() override
@@ -63,7 +49,7 @@ TEST_F(ResourcesTest, engine_resource_file_generation)
     resources.Set("shaders", "sprite_shader", "shaders/main");
     resources.Set("state", "last_scene", "default_scene.json");
 
-    resources.Store(configFileName);
+    resources.Store(paths::RESOURCES_FILE_NAME);
 }
 
 TEST_F(ResourcesTest, engine_load_resource)
@@ -71,8 +57,7 @@ TEST_F(ResourcesTest, engine_load_resource)
      // Load the stored resources using the default asset path for development...
     Resources newResources;
     
-    newResources.SetWorkingFolder(paths::CONFIG_DEFAULT);
-    newResources.Load(configFileName);
+    newResources.Load(paths::RESOURCES_FILE_NAME);
 
     EXPECT_TRUE(newResources.Get("sprites", "loona").compare("images/loona.jpg") == 0);
 }

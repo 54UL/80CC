@@ -27,25 +27,13 @@ protected:
         engineInstance_->mainScene_ = std::make_shared<Scene>(UNIT_TEST_SCENE_NAME);
         engineInstance_->mainScene_->Init();
 
-        // TODO: THIS PICE OF CODE NEEDS TO BE INITIALIZED ALONG WITH THE ENGINE
-        const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
-        if (engineWorkingFolder == nullptr) 
-        {
-            spdlog::warn("Engine working folder not set... using [{}]", paths::CONFIG_DEFAULT);    
-            resources_->SetWorkingFolder(paths::CONFIG_DEFAULT);
-        }
-        else 
-        {
-            // Assuming the proyect structure is: 80cc/build/Testers
-            spdlog::info("Engine working folder '{}'", engineWorkingFolder);
-            resources_->SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
-        }
-
-        resources_->Load("80CC.json");
-
+        resources_->Load(paths::RESOURCES_FILE_NAME);
+        
         // Dependency registration
         RegisterDependency(Engine, engineInstance_);
         RegisterDependency(Resources, resources_);
+
+        engineInstance_->SetWorkingResources(resources_);
     }
 
     void TearDown() override

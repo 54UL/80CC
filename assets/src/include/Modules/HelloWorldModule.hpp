@@ -20,7 +20,7 @@ namespace etycc
       // GameModule interface
       bool OnStart(const Engine* engine)
       {
-         engine->LoadScene("default_scene.json");
+         engine->LoadScene(paths::DEFAULT_SCENE_NAME);
          auto& scene = engine->mainScene_; 
 
          // scene->instanceNode(Assets::LoadTemplate("default-sprite"));

@@ -7,6 +7,9 @@ namespace ettycc
     class EnginePipeline
     {
     public:
+        EnginePipeline() = default;
+        virtual ~EnginePipeline() = default;
+
         virtual void Init() = 0;
         virtual void Update() = 0;
         virtual void PrepareFrame() = 0;

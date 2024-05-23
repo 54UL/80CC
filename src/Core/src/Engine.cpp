@@ -16,7 +16,7 @@ namespace ettycc
         // TODO: Check if this is appropiate to handle here...
         if (engineResources_)
         {
-            engineResources_->Store(paths::RESOURCES_DEFAULT);
+            engineResources_->Store(paths::RESOURCES_FILE_NAME);
             spdlog::warn("Engine config auto-saved");
         }
         else
@@ -24,7 +24,11 @@ namespace ettycc
             spdlog::error("can't auto save engine configuration!!!");
         }
     }
-    
+
+    void Engine::SetWorkingResources(const std::shared_ptr<Resources> &instance)
+    {
+        engineResources_ = instance;
+    }
 
     void Engine::LoadLastScene()
     {
@@ -91,21 +95,8 @@ namespace ettycc
     {
         engineResources_ = GetDependency(Resources);
 
-        const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
-        if (engineWorkingFolder == nullptr) 
-        {
-            spdlog::warn("Engine working folder not set... using: {}", paths::ASSETS_DEFAULT);    
-            engineResources_->SetWorkingFolder(paths::CONFIG_DEFAULT);
-        }
-        else 
-        {
-            // Assuming the proyect structure is: 80cc/build/Testers
-            spdlog::info("Engine working folder '{}'", engineWorkingFolder);
-            engineResources_->SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
-        }
-
         // Load engine resource file
-        engineResources_->Load(paths::RESOURCES_DEFAULT);
+        engineResources_->Load(paths::RESOURCES_FILE_NAME);
 
         // If game modules present then they have to load the scene from there, otherwise it will load the last loaded scene (thus due to editor logic)
         // TODO: This condition is wrong, it needs to know if is an editor or game executable

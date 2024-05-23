@@ -34,6 +34,7 @@ namespace ettycc
     // Resource manager, handles pairs of strings read from the resources.json...
     class Resources
     {
+        const std::string_view ENV_80CC_ASSETS_ROOT {"ASSETS_80CC"};
 
     private:
         std::unordered_map<std::string, ResourceDescriptor> loadedResources_;
@@ -44,6 +45,18 @@ namespace ettycc
             // Empty initialization...
             loadedResources_ = std::unordered_map<std::string, ResourceDescriptor>();
             workingFolderPath_ = std::string();
+
+            const char* engineWorkingFolder = std::getenv(ENV_80CC_ASSETS_ROOT.data());
+            if (engineWorkingFolder == nullptr) 
+            {
+                spdlog::warn("Engine working folder not set... using: {}", paths::CONFIG_DEFAULT);    
+                SetWorkingFolder(paths::CONFIG_DEFAULT);
+            }
+            else 
+            {
+                spdlog::info("Engine working folder '{}'", engineWorkingFolder);
+                SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
+            }
         }
         ~Resources() {}
 
