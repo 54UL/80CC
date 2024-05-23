@@ -7,6 +7,7 @@
 #include <vector>
 #include <filesystem>
 #include <sstream>
+#include <string_view>
 
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
@@ -33,7 +34,7 @@ public:
         {
             if (ClassDecl->isThisDeclarationADefinition())
             {
-                const auto& className = ClassDecl->getNameAsString();
+                const auto &className = ClassDecl->getNameAsString();
                 std::cout << "Class found: " << className << "\n";
 
                 // TODO: FILTER BY CLASS NAME PREFIX <NAME>GameModule
@@ -50,12 +51,7 @@ private:
 void CopyDirectory(const fs::path &src, const fs::path &dest)
 {
     fs::create_directories(dest);
-    for (const auto &entry : fs::recursive_directory_iterator(src))
-    {
-        const auto &path = entry.path();
-        auto relativePath = fs::relative(path, src);
-        fs::copy(path, dest / relativePath);
-    }
+    fs::copy(src, dest, std::filesystem::copy_options::recursive);
 }
 
 void GenerateEntryPointSource(const std::vector<std::string> &classes, const std::string &mainFilePath, const std::string &outputPath)
@@ -74,6 +70,9 @@ void GenerateEntryPointSource(const std::vector<std::string> &classes, const std
     inFile.close();
 
     std::string userCodeTag = "//_80CC_USER_CODE";
+    std::string_view buildInfo = "//80CC GAME ENGINE; THIS CODE WAS GENERATED DON'T EDIT THE SOURCE (PREVENT LOSSES!!!)\n";
+    mainFileContent.insert(0, buildInfo);
+    
     size_t pos = mainFileContent.find(userCodeTag);
 
     if (pos == std::string::npos)
@@ -82,16 +81,18 @@ void GenerateEntryPointSource(const std::vector<std::string> &classes, const std
         return;
     }
 
+    std::stringstream codeStream;
+
     // Generate the code to instance the module then add it to engine
     // codeStream << "std::vector<shared_ptr<GameModule>> modules = { \n";
 
-    for (const auto& className : classes)
+    for (const auto &className : classes)
     {
         // TODO: IMPLEMENT ME!!!!
     }
 
-    codeStream << "};\n";
-    codeStream << "engine->RegisterModules();\n";
+    // codeStream << "};\n";
+    // codeStream << "engine->RegisterModules();\n";
 
     mainFileContent.replace(pos, userCodeTag.length(), codeStream.str());
 
@@ -106,19 +107,25 @@ void GenerateEntryPointSource(const std::vector<std::string> &classes, const std
     outFile.close();
 }
 
+// MAIN TODOS::
+// Make sure all source is in the compilation unit
+// Generated build config (cmake cli)
+// Compile using cmake (cmake cli)
+
 int main(int argc, const char **argv)
 {
     // TESTING HARDCODING.... (REMOVE =3)
-    fs::path src = "../../../assets/src/";
-    fs::path dest = "../../Entry/temp/GameModules/";
+    // TODO: ALSO USE path header to use default paths
+    fs::path assetsSrc = "../../../assets/src/";
+    fs::path dest = "../../../Executable/";
 
     std::vector<std::string> sourceFiles =
         {
-            "/workspaces/ALPHA_V1/src/Entry/temp/include/Modules/HelloWorldModule.hpp",
-            "/workspaces/ALPHA_V1/src/Entry/temp/src/Modules/HelloWorldModule.cpp",
+            "/workspaces/ALPHA_V1/Executable/include/Modules/HelloWorldModule.hpp",
+            "/workspaces/ALPHA_V1/Executable/src/Modules/HelloWorldModule.cpp"
         };
 
-    std::vector<std::string> compilationArgs = { "-std=c++17" };
+    std::vector<std::string> compilationArgs = {"-std=c++17"};
 
     FixedCompilationDatabase Compilations(".", compilationArgs);
 
@@ -132,14 +139,14 @@ int main(int argc, const char **argv)
     Matchers.addMatcher(cxxRecordDecl(isDefinition()).bind("classDecl"), &Finder);
 
     // Copy game modules source into entry/temp
-    CopyDirectory(src, dest);
+    CopyDirectory(assetsSrc, dest);
 
     // Run the tool over the copied files
     Tool.run(newFrontendActionFactory(&Matchers).get());
 
     // Generate the entry point...
     std::string mainFilePath = "../../Entry/src/EntryPoint.cpp";
-    std::string outputMainFile = "../../Entry/temp/GeneratedEntryPoint.cpp";
+    std::string outputMainFile = "../../../Executable/src/GeneratedEntryPoint.cpp";
 
     GenerateEntryPointSource(classes, mainFilePath, outputMainFile);
 
