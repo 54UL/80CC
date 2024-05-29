@@ -74,7 +74,7 @@ std::stringstream GenModulesInstancesCode(const std::vector<std::string> &module
 }
 
 
-void GenerateEntryPointSource(const std::vector<std::string> &modulesNames, const std::string &mainFilePath, const std::string &outputPath)
+void GenerateEntryPointSource(const std::vector<std::string> &modulesNames, const std::string &mainFilePath)
 {
     // Open file and read contents
     std::ifstream inFile(mainFilePath);
@@ -107,7 +107,7 @@ void GenerateEntryPointSource(const std::vector<std::string> &modulesNames, cons
     auto codeChunk = GenModulesInstancesCode(modulesNames);
     mainFileContent.replace(pos, userCodeTag.length(), codeChunk.str());
 
-    std::ofstream outFile(outputPath);
+    std::ofstream outFile(mainFilePath);
     if (!outFile.is_open())
     {
         std::cerr << "Could not write to the output path.\n";
@@ -125,6 +125,8 @@ void GenerateEntryPointSource(const std::vector<std::string> &modulesNames, cons
 
 std::vector<std::string> FetchSources()
 {
+    // fetch sources from args or list the paths pragmatically
+
     std::vector<std::string> sourceFiles =
         {
             "/workspaces/ALPHA_V1/Executable/include/Modules/HelloWorldModule.hpp",
@@ -141,8 +143,7 @@ int main(int argc, const char **argv)
     // TODO: ALSO USE path header to use default paths
     fs::path assetsSrc         = "../../../assets/src/";
     fs::path tempalteSrc       = "../../Entry/";
-    fs::path mainFilePath   = "../../Entry/src/EntryPoint.cpp";
-    fs::path outputMainFile = "../../../Executable/src/GeneratedEntryPoint.cpp";
+    fs::path mainFilePath   = "../../../Executable/src/EntryPoint.cpp";
     fs::path dest              = "../../../Executable/";
     
     std::vector<std::string> modulesNames;
@@ -161,22 +162,14 @@ int main(int argc, const char **argv)
     // Copy game modules source into entry/temp
     CopyDirectory(assetsSrc, dest);
 
-    // Run the tool over the copied files
-    Tool.run(newFrontendActionFactory(&Matchers).get());
-
-
-
-    // fs::path a = dest << fs::path("src/EntryPoint.cpp");
-    // fs::path b = dest << fs::path("include/EntryPoint.cpp");
-
-    // fs::remove(a);
-    // fs::remove(b);
-
-    // Generate the entry point...
-    GenerateEntryPointSource(modulesNames, mainFilePath, outputMainFile);
-    
     // Copy "Entry" project to be used as a template after the code was analyzed and generated....
     CopyDirectory(tempalteSrc, dest);
 
+    // Run the tool over the copied files
+    Tool.run(newFrontendActionFactory(&Matchers).get());
+
+    // Generate the entry point...
+    GenerateEntryPointSource(modulesNames, mainFilePath);
+    
     return 0;
 }

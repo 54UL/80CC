@@ -94,7 +94,8 @@ target_include_directories(80CC_CORE
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     PUBLIC ${Stb_INCLUDE_DIR}
-    PUBLIC ${GLM_INCLUDE_DIRS})
+    PUBLIC ${GLM_INCLUDE_DIRS}
+    )
 
 target_link_libraries(80CC_CORE
     PUBLIC ${SDL2_LIBRARIES}
