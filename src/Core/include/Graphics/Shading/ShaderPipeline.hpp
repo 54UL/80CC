@@ -22,8 +22,8 @@ namespace ettycc
         
         // SHADER PIPELINE API 
         void Create();
-        void Bind();
-        void Unbind();
+        int Bind();
+        int Unbind();
 
         GLuint GetProgramId() const;
 

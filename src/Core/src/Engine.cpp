@@ -16,18 +16,43 @@ namespace ettycc
         // TODO: Check if this is appropiate to handle here...
         if (engineResources_)
         {
-            engineResources_->Store(paths::RESOURCES_DEFAULT);
             spdlog::warn("Engine config auto-saved");
+            engineResources_->Store(paths::RESOURCES_DEFAULT);
         }
         else
         {
             spdlog::error("can't auto save engine configuration!!!");
         }
     }
-    
+
+    void Engine::LoadDefaultScene()
+    {
+        // default scene construction (basic sprite with not found texture...)
+        mainScene_ = std::make_shared<Scene>("default-scene");
+
+        auto rootSceneNode = mainScene_->root_node_;
+        
+        // not found sprite
+        std::string notFoundTexturePath = engineResources_->Get("sprites", "not-found");
+        
+        auto notFoundSpriteComponent = std::make_shared<Sprite>(notFoundTexturePath);
+        auto notFoundSpriteNode = std::make_shared<SceneNode>("sprite node 1");
+        notFoundSpriteNode->AddComponent(std::make_shared<RenderableNode>(notFoundSpriteComponent));
+        notFoundSpriteComponent->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
+
+        rootSceneNode->AddChild(notFoundSpriteNode);
+
+        // default camera
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);
+        auto cameraNode = std::make_shared<SceneNode>("cameraNode");
+        mainCamera->mainCamera_ = true;
+        cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
+        rootSceneNode->AddChild(cameraNode);
+    }
 
     void Engine::LoadLastScene()
     {
+        spdlog::warn("Loading last scene...");
         auto lastLoadedScene = engineResources_->Get("state", "last_scene");
 
         LoadScene(lastLoadedScene);
@@ -40,25 +65,28 @@ namespace ettycc
     void Engine::LoadScene(const std::string &sceneName)
     {
         // TODO: ADD DEFAULT SCENE WITH THE NO TEXTURE FOND AS DEFAULT SCENE...
-        mainScene_.reset();
-        mainScene_ = std::make_shared<Scene>("80CC-EMPTY-SCENE");
-        std::ifstream ifs(paths::SCENE_DEFAULT + sceneName);
+        std::ifstream ifs(engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName);
 
         if (!ifs.is_open())
         {
-            spdlog::error("Cannot open file scene {}", sceneName);
-            return;
+            // if not open loads default scene
+            spdlog::error("Cannot open file scene [{}]; loading fall-back scene [default]", sceneName);
+            LoadDefaultScene();
         }
-
-        cereal::JSONInputArchive archive2(ifs);
-        archive2(*mainScene_);
+        else
+        {
+            cereal::JSONInputArchive archive2(ifs);
+            archive2(*mainScene_);
+        }
 
         if (mainScene_)
         {
-            engineResources_->Set("state", "last_scene", sceneName);
-            mainScene_->Init();
+            engineResources_->Set("state", "last_scene", mainScene_->sceneName_);
+            // mainScene_->Init();
+
+            spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
         }
-        else 
+        else
         {
             spdlog::error("Cannot initialize scene {}", sceneName);
         }
@@ -66,7 +94,7 @@ namespace ettycc
 
     void Engine::StoreScene(const std::string &sceneName)
     {
-        std::ofstream ofs(paths::SCENE_DEFAULT + sceneName); 
+        std::ofstream ofs(engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName);
 
         if (!ofs.is_open())
         {
@@ -74,38 +102,31 @@ namespace ettycc
             return;
         }
 
-        cereal::JSONOutputArchive archive(ofs);    
+        cereal::JSONOutputArchive archive(ofs);
         archive(*mainScene_);
     }
 
-    void Engine::RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules)
+    void Engine::RegisterModules(const std::vector<std::shared_ptr<GameModule>> &modules)
     {
         gameModules_ = modules;
-        for (const auto& module : gameModules_)
+        for (const auto &module : gameModules_)
         {
             spdlog::warn("Game module registered {}", module->name_);
         }
     }
 
-    void Engine::Init()
+    void Engine::ConfigResource()
     {
         engineResources_ = GetDependency(Resources);
+        engineResources_->AutoSetWorkingFolder();
 
-        const char* engineWorkingFolder = std::getenv("ASSETS_80CC");
-        if (engineWorkingFolder == nullptr) 
-        {
-            spdlog::warn("Engine working folder not set... using: {}", paths::ASSETS_DEFAULT);    
-            engineResources_->SetWorkingFolder(paths::CONFIG_DEFAULT);
-        }
-        else 
-        {
-            // Assuming the proyect structure is: 80cc/build/Testers
-            spdlog::info("Engine working folder '{}'", engineWorkingFolder);
-            engineResources_->SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
-        }
-
-        // Load engine resource file
+        // Load 80CC.json, the working folder should point to the 80CC.JSON (important as hell...)
         engineResources_->Load(paths::RESOURCES_DEFAULT);
+    }
+
+    void Engine::Init()
+    {
+        ConfigResource();
 
         // If game modules present then they have to load the scene from there, otherwise it will load the last loaded scene (thus due to editor logic)
         // TODO: This condition is wrong, it needs to know if is an editor or game executable
@@ -113,7 +134,7 @@ namespace ettycc
         {
             for (const auto &module : gameModules_)
             {
-                if (!module) 
+                if (!module)
                 {
                     spdlog::error("Cannot initialize [{}] game module", module->name_);
                     continue;
@@ -124,12 +145,12 @@ namespace ettycc
         }
         else
         {
-             LoadLastScene();
+            LoadLastScene();
         }
 
-        spdlog::warn("Scene loaded... {}");
+        spdlog::warn("Scene loaded [{}]", mainScene_->sceneName_);
     }
- 
+
     void Engine::Update()
     {
         // Engine logic goes here
@@ -141,20 +162,19 @@ namespace ettycc
         {
             for (const auto &module : gameModules_)
             {
-              module->OnUpdate(deltaTime);
+                module->OnUpdate(deltaTime);
             }
         }
     }
 
     void Engine::PrepareFrame()
     {
-        
     }
 
     void Engine::PresentFrame()
     {
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::RENDERING);
-        
+
         renderEngine_.Pass(appInstance_->GetCurrentTime());
         inputSystem_.ResetState(); // TODO: FIX THIS THRASH WITH INPUT UP AND DOWN EVENTS (INTERNALLY)
     }
@@ -164,7 +184,7 @@ namespace ettycc
         inputSystem_.ProcessInput(type, data);
     }
 
-    void Engine::BuildExecutable(const std::string& outputPath)
+    void Engine::BuildExecutable(const std::string &outputPath)
     {
         // Get (config,images,scenes,shaders,templates) folders inside of assets and copy them into outputPath
         // Compile all assets into a binary form (optional meanwhile)
@@ -172,6 +192,5 @@ namespace ettycc
         // Use an env var to locate the engine source code
         // Compile the assets/src with:
         //  cmake --build ./  --config Debug --target Game -j 4
-
     }
 } // namespace ettycc

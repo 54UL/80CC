@@ -2,14 +2,16 @@
 #include <Dependency.hpp>
 
 namespace ettycc
-{
+{    
+    static int viewportNumber = 1;
+    static bool frameBufferErrorShown = false;
+
     DevEditor::DevEditor()
     {
     }
 
     DevEditor::~DevEditor()
     {
-
     }
 
     void DevEditor::ShowDockSpace()
@@ -63,8 +65,6 @@ namespace ettycc
 
         // ImGui::End();
     }
-    
-    static int viewportNumber = 1;
 
     void DevEditor::ShowViewport()
     {
@@ -72,14 +72,30 @@ namespace ettycc
 
         // Rendering of the main engine viewport (it's suppossed to have multiple frame buffers for split screen or image effects (todo: composited game view))
         // Get the framebuffer texture ID
+        // this fucking check needs to be replaced by some error texture...
         auto frambuffer = GetDependency(Engine)->renderEngine_.GetViewPortFrameBuffer();
-        GLuint framebufferTextureID = frambuffer->GetTextureId();
-        frambuffer->SetSize(glm::ivec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y));
-        
-        // Display the framebuffer texture in an ImGui image
-        ImVec2 imageSize(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y );
-        ImGui::Image((void*)(intptr_t)framebufferTextureID, imageSize);
 
+        if (frambuffer)
+        {
+            GLuint framebufferTextureID = frambuffer->GetTextureId();
+            frambuffer->SetSize(glm::ivec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y));
+            // Display the framebuffer texture in an ImGui image
+            ImVec2 imageSize(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y);
+            ImGui::Image((void *)(intptr_t)framebufferTextureID, imageSize);
+        }
+        else
+        {
+            // anti-bounce mechanism 
+            if (!frameBufferErrorShown)
+            {
+                spdlog::error("DevEditor:ShowViewport():GetViewPortFrameBuffer() was nullptr");
+                frameBufferErrorShown = true;
+            }
+            
+            
+            // ImVec2 notFoundImageSize (0, 0);
+            // ImGui::Image((void*)(intptr_t)notFoundTextureId, notFoundImageSize);
+        }
         ImGui::End();
     }
 
@@ -88,9 +104,9 @@ namespace ettycc
         ImGui::Begin("Inspector");
 
         std::string name;
-        float position[3] = {0.0f,0.0f,0.0f};
-        float scale[3] = {1.0f,1.0f,1.0f};
-        float rotation[3] = {0.0f,0.0f,0.0f};
+        float position[3] = {0.0f, 0.0f, 0.0f};
+        float scale[3] = {1.0f, 1.0f, 1.0f};
+        float rotation[3] = {0.0f, 0.0f, 0.0f};
 
         // Add other properties as needed
         // ImGui::SameLine();
@@ -110,7 +126,7 @@ namespace ettycc
         ImGui::Begin("Scene Hierarchy");
 
         RenderSceneTree(); // demo example
-        
+
         // Add content for the scene hierarchy here
         ImGui::End();
     }
@@ -128,12 +144,13 @@ namespace ettycc
     {
         // load the image with stbi_load
         int width, height, numChannels;
-        unsigned char* image = stbi_load(filePath, &width, &height, &numChannels, 0);
+        unsigned char *image = stbi_load(filePath, &width, &height, &numChannels, 0);
 
         // Generate OpenGL texture
         GLuint textureID;
 
-        if (image) {
+        if (image)
+        {
             glGenTextures(1, &textureID);
             glBindTexture(GL_TEXTURE_2D, textureID);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
@@ -144,7 +161,9 @@ namespace ettycc
             glGenerateMipmap(GL_TEXTURE_2D);
 
             stbi_image_free(image);
-        } else {
+        }
+        else
+        {
             std::cerr << "Error loading image: " << stbi_failure_reason() << std::endl;
         }
 
@@ -202,12 +221,13 @@ namespace ettycc
     {
         static char node_name[128] = "";
 
-        if (showPopup) {
+        if (showPopup)
+        {
             ImGui::OpenPopup("new node");
             // showPopup = false;
             showPopup = false;
         }
-       
+
         if (ImGui::BeginPopupModal("new node", NULL))
         {
             ImGui::Text("Enter node name:");
@@ -231,8 +251,7 @@ namespace ettycc
     static int positionIndex = 2;
     void DevEditor::AddComponentFromTemplate(const std::shared_ptr<SceneNode> &selectedNode, const char *templateName)
     {
-        const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";// TODO: FETCH FROM config???
-
+        const char *notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png"; // TODO: FETCH FROM config???
 
         // TODO: DUMMY CODE, IMPLEMENT A REAL TEMPLATE PARSER TO BUILD UP BUILT INS COMPONENTS
         if (strcmp("Camera", templateName) == 0)
@@ -250,7 +269,7 @@ namespace ettycc
         positionIndex += positionIndex;
     }
 
-    void DevEditor::RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth = 0)
+    void DevEditor::RenderSceneNode(const std::shared_ptr<SceneNode> &rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth = 0)
     {
         auto treeNodeName = rootNode->GetName();
         const char *nodeName = treeNodeName.empty() ? "UNNAMED" : treeNodeName.c_str();
@@ -294,10 +313,11 @@ namespace ettycc
 
         if (isNodeOpen)
         {
-            if (rootNode->children_.size() > 0 ) {
+            if (rootNode->children_.size() > 0)
+            {
                 ImGui::Separator();
             }
-            
+
             for (auto &child : rootNode->children_)
             {
                 RenderSceneNode(child, selectedNodes, depth + 1);
@@ -310,13 +330,12 @@ namespace ettycc
     {
         if (ImGui::ArrowButton("##Collapse", ImGuiDir_Down))
         {
-
         }
 
-        ImGui::SameLine(); 
+        ImGui::SameLine();
         static char search[32] = "Object name...";
         ImGui::InputText("##Search", search, IM_ARRAYSIZE(search));
-        ImGui::SameLine(); 
+        ImGui::SameLine();
 
         // if (ImGui::ArrowButton("##Search_scene", ImGuiDir_Right))
         // {
@@ -341,7 +360,7 @@ namespace ettycc
         // Draw the graph
         ImGuiWindow *window = ImGui::GetCurrentWindow();
         ImVec2 start = window->DC.CursorPos;
-   
+
         ImVec2 size(400, 200);
         ImVec2 end = ImVec2(start.x + size.x, start.y + size.y);
 
@@ -370,8 +389,8 @@ namespace ettycc
     }
 
     static const int MAX_SAMPLES = 32;
-    static float values[MAX_SAMPLES] = { 0.0f };  // Your data values
-    static int sampleIndex = 0;  // Your data values
+    static float values[MAX_SAMPLES] = {0.0f}; // Your data values
+    static int sampleIndex = 0;                // Your data values
     static float plotStep = 0.0f;
 
     void DevEditor::ShowDebugger()
@@ -383,24 +402,27 @@ namespace ettycc
             // Tab 1
             if (ImGui::BeginTabItem("Stats"))
             {
-                
+
                 auto mousepos = engineInstance->inputSystem_.GetMousePos();
                 ImGui::Text("Delta time: %.4f", engineInstance->appInstance_->GetDeltaTime());
                 ImGui::Text("App time: %.4f", engineInstance->appInstance_->GetCurrentTime());
-                ImGui::Text("Mouse x: [%i] Mouse y:[%i]",mousepos.x, mousepos.y);
+                ImGui::Text("Mouse x: [%i] Mouse y:[%i]", mousepos.x, mousepos.y);
                 ImGui::Text("FPS: %.4f", (1.0f / engineInstance->appInstance_->GetDeltaTime()));
                 // ImVec2 graphSize(200, 200);  // Adjust the size as needed
-                
+
                 plotStep += engineInstance->appInstance_->GetDeltaTime();
                 ImGui::PlotHistogram("##HISTOGRAM", values, IM_ARRAYSIZE(values));
 
-                if (sampleIndex < MAX_SAMPLES && plotStep >= 1) {
+                if (sampleIndex < MAX_SAMPLES && plotStep >= 1)
+                {
                     values[sampleIndex] = (1.0f / engineInstance->appInstance_->GetDeltaTime());
                     sampleIndex++;
                     plotStep = 0;
                 }
-                else if (sampleIndex >= MAX_SAMPLES){
-                    for (int i =0; i < MAX_SAMPLES; i++){
+                else if (sampleIndex >= MAX_SAMPLES)
+                {
+                    for (int i = 0; i < MAX_SAMPLES; i++)
+                    {
                         values[i] = 0;
                     }
                     sampleIndex = 0;
@@ -434,13 +456,13 @@ namespace ettycc
         bool open = true; // MOVE THIS FROM HERE...
 
         ShowMenuBar();
-        
-        ShowDockSpace(); 
+
+        ShowDockSpace();
 
         ImGui::ShowDemoWindow(&open);
 
         ShowDebugger();
-        
+
         ShowViewport();
 
         // ShowInspector();

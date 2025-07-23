@@ -26,9 +26,9 @@ namespace ettycc
     {
     public:
         // DEPENDENCIES (ONLY INTERNAL SYSTEMS....)
-        std::shared_ptr<App>   appInstance_;
-        std::shared_ptr<Resources> engineResources_;
-        std::vector<std::shared_ptr<GameModule>> gameModules_;
+        std::shared_ptr<App>                        appInstance_;
+        std::shared_ptr<Resources>                  engineResources_;
+        std::vector<std::shared_ptr<GameModule>>    gameModules_;
 
         Rendering              renderEngine_;
         PlayerInput            inputSystem_;
@@ -39,14 +39,18 @@ namespace ettycc
         ~Engine();
 
         // Engine front-end API        
+        void LoadDefaultScene();
         void LoadLastScene();
         void LoadScene(const std::string& sceneName);
         void StoreScene(const std::string& sceneName);
+
+
         void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
         void BuildExecutable(const std::string& outputPath);
+        void ConfigResource();
         
-        // Engine pipeline API
-        void Init() override; 
+        // Engine pipeline API (backend)
+        void Init() override;
         void Update() override;
         void PrepareFrame() override;
         void PresentFrame() override;

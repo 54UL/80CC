@@ -14,25 +14,28 @@ namespace ettycc
     Sprite::Sprite(const std::string &spriteFilePath, bool initialize) : spriteFilePath_(spriteFilePath)
     {
         initializable_ = initialize;
-
-        // if null nothing to do (THIS IS USED FOR UNIT TESTING)
-        if (spriteFilePath.empty() || !initialize)
-        {
-            return;
-        }
-        Init();
+        // // if null nothing to do (THIS IS USED FOR UNIT TESTING)
+        // if (spriteFilePath.empty() || !initialize)
+        // {
+        //     return;
+        // }
     }
 
-    auto Sprite::InitBackend() -> void
+    Sprite::Sprite(const std::string &spriteFilePath) : spriteFilePath_(spriteFilePath)
     {
+        initializable_ = true;
+    }
 
+    auto Sprite::InitBackend(const std::string& spritePath) -> void
+    {
         // Quad vertices and texture coordinates
-        float vertices[]{
+        float vertices[] {
             // Positions         // Texture Coords
-            -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f};
+            -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f
+        };
 
         // Indices to form two triangles for the quad
         unsigned int indices[]{
@@ -66,7 +69,7 @@ namespace ettycc
         glBindVertexArray(0);
 
         LoadShaders();
-        LoadTextures();
+        LoadTextures(spritePath);
     }
 
     Sprite::~Sprite()
@@ -82,12 +85,12 @@ namespace ettycc
     {
         // TODO: THIS OPERATION NEEDS TO BE EAGEAR INITIALIZED INSTEAD OF LAZY INIT...
         auto resources = GetDependency(Resources);
-        auto shadersPath = resources->Get("paths","shaders");
+        auto shadersPath = resources->GetWorkingFolder() + resources->Get("paths", "shaders");
 
         // TODO: Make shader types constants...
         auto vertexShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
         auto fragmentShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".frag");
-        
+
         std::vector<std::shared_ptr<Shader>> shadersIntances =
             {
                 std::make_shared<Shader>(vertexShaderSource.c_str(), GL_VERTEX_SHADER),
@@ -98,7 +101,7 @@ namespace ettycc
         underlyingShader.Create();
     }
 
-    void Sprite::LoadTextures()
+    void Sprite::LoadTextures(const std::string& spritePath)
     {
         // TODO MOVE BELOW THIS PICES OF CODE...
         // Load and create a texture
@@ -114,16 +117,15 @@ namespace ettycc
 
         // load the image with stbi_load
         int width, height, numChannels;
-        unsigned char *image = stbi_load(spriteFilePath_.c_str(), &width, &height, &numChannels, 0);
+        unsigned char *image = stbi_load(spritePath.c_str(), &width, &height, &numChannels, 0);
 
         // Pass the data to the gpu
         if (image)
         {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
             glGenerateMipmap(GL_TEXTURE_2D);
-
             // Free the image data after generating the texture
-            stbi_image_free(image);
+            stbi_image_free(image); // TODO: ABSTRACT THIS FUNCTION TO A GENERIC ONE
         }
         else
         {
@@ -142,36 +144,36 @@ namespace ettycc
     }
 
     // Renderable
-    void Sprite::Init() 
+    void Sprite::Init(const std::shared_ptr<Engine>& engineCtx)
     {
         if (!spriteFilePath_.empty() && initializable_)
         {
-            spdlog::info("Initializing loaded sprite [{}]", spriteFilePath_);
-            InitBackend();
+            auto engineResources = GetDependency(Resources);
+            const auto spriteFilePath = engineResources->GetWorkingFolder() + "\\" + spriteFilePath_;
+
+            spdlog::info("Initializing loaded sprite [{}]", spriteFilePath);
+            spriteFilePath_.insert(0, "\\" + engineResources->GetWorkingFolder());
+
+            InitBackend(spriteFilePath);
         }
     }
 
     void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {
-        // Bind the texture
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TEXTURE);
 
-        // Use the shader program and draw the quad
         underlyingShader.Bind();
 
         // Multiply projection * view * model matrix to compute sprite rendering...
         glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
         glUniformMatrix4fv(glGetUniformLocation(underlyingShader.GetProgramId(), "PVM"), 1, GL_FALSE, glm::value_ptr(ProjectionViewMatrix));
 
-        // Time is passed to the shader program
         glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "time"), time);
 
-        // Bind the rendering mesh
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        // Unbind the vertex array to avoid problems
         underlyingShader.Unbind();
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -180,10 +182,10 @@ namespace ettycc
     std::string Sprite::LoadShaderFile(const std::string &shaderPath)
     {
         std::ifstream file(shaderPath);
-        
+
         if (!file.is_open())
         {
-            spdlog::error("Faled to open shader file {}", shaderPath);
+            spdlog::error("failed to open shader file {}", shaderPath);
             return std::string();
         }
 

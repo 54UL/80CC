@@ -25,7 +25,7 @@ namespace ettycc
 
     void RenderableNode::OnStart(std::shared_ptr<Engine> engineInstance)
     {
-        renderable_->Init();
+        renderable_->Init(engineInstance);
         engineInstance->renderEngine_.AddRenderable(renderable_);
     }
 

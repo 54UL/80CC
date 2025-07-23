@@ -25,6 +25,7 @@ namespace ettycc
         uint64_t sceneId_;
         std::string name_;
         bool enabled_;
+        bool initialized;
 
     public:
         // PUBLIC EXPERIMENTAL MEMBERS 
@@ -57,6 +58,7 @@ namespace ettycc
         auto InitNode() -> void;
         auto GetId() -> uint64_t;
         auto GetName() -> std::string;
+        auto SetName(const std::string& name) -> void;
 
         auto SetParent(const std::shared_ptr<SceneNode>& node) -> bool; 
 

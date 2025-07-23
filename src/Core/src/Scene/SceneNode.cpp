@@ -68,6 +68,11 @@ namespace ettycc
         return name_;
     }
 
+    auto SceneNode::SetName(const std::string &name) -> void
+    {
+        name_ = name;
+    }
+
     auto SceneNode::SetParent(const std::shared_ptr<SceneNode> &node) -> bool
     {
         // todo: implement case where the node has an parent and is gonna be unparented from some place... (swap nodes??)
@@ -129,7 +134,7 @@ namespace ettycc
     auto SceneNode::AddChild(std::shared_ptr<SceneNode> childrenNode) -> void
     {
         // TODO: THERE IS A ISSUE WHEN MANIPULATING SCENES, IF THEY ARE NOT THEY MAIN SCENE (WORKING SCENE), IT WILL NOT HAVE FLAT NODES POPULATED!!!
-
+        
         // this* is the new parent of the nodeToBeChild if not setted
         // add the node to be child to the parent node as child
         if (childrenNode->SetParent(shared_from_this()))

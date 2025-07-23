@@ -15,9 +15,10 @@ namespace ettycc
 	private:
 		bool ispresp;
 		glm::mat4 ProjectionMatrix;
-		
+
 	public:
 		std::shared_ptr<FrameBuffer> offScreenFrameBuffer;
+		bool mainCamera_;// no need to have this on all cameras...
 
 	public:
 		Camera();
@@ -33,7 +34,7 @@ namespace ettycc
 
 		// Renderable impl
 	public:
-		void Init() override;
+		void Init(const std::shared_ptr<Engine>& engineCtx) override;
 
 		void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;
 

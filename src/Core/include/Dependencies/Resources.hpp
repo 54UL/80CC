@@ -48,21 +48,40 @@ namespace ettycc
         ~Resources() {}
 
     public:
-
+        
         auto SetWorkingFolder(const std::string& path) -> void
         {
             workingFolderPath_ = path;
         }
 
-        
         auto GetWorkingFolder() -> const std::string&
         {
             return workingFolderPath_;
         }
 
-        auto Load(const std::string &fileName) -> void
+        auto AutoSetWorkingFolder() -> void 
         {
-            std::ifstream file(workingFolderPath_ + fileName);
+            const char *engineWorkingFolder = std::getenv("ASSETS_80CC");
+            if (engineWorkingFolder == nullptr)
+            {
+                this->SetWorkingFolder(paths::CONFIG_DEFAULT);
+                spdlog::warn("Engine working folder not set... using: {}", paths::ASSETS_DEFAULT);
+            }
+            else
+            {
+                this->SetWorkingFolder(std::string(engineWorkingFolder));
+                spdlog::info("Engine working folder '{}'", engineWorkingFolder);
+            }
+
+            // Load engine resource file
+            this->Load(paths::RESOURCES_DEFAULT);
+        }
+
+        
+        auto Load(const std::string &fileName) -> void 
+        {
+            const auto filePath = workingFolderPath_ + fileName;
+            std::ifstream file(filePath);
 
             if (file.is_open())
             {   
@@ -71,7 +90,7 @@ namespace ettycc
             }
             else 
             {
-                spdlog::warn("Resource file does not exist '{}'.", fileName);
+                spdlog::error("Resource file does not exist '{}'.", filePath);
             }
         }
 

@@ -30,23 +30,25 @@ namespace ettycc
     private:
         GLuint VAO, VBO, EBO, TEXTURE;
         std::string spriteFilePath_;
-        
+
     public:
         ShaderPipeline underlyingShader;
-    
+
     public:
         Sprite();
-        Sprite(const std::string& spriteFilePath, bool initialize = true);
+        Sprite(const std::string &spriteFilePath, bool initialize);
+        Sprite(const std::string &spriteFilePath);
+
         ~Sprite();
 
-        void InitBackend();
+        void InitBackend(const std::string &spritePath);
         void LoadShaders();
-        void LoadTextures();
+        void LoadTextures(const std::string &spritePath);
 
-    // Renderable
+        // Renderable
     public:
-        void Init() override;
-        void Pass(const std::shared_ptr<RenderingContext>& ctx, float time) override;
+        void Init(const std::shared_ptr<Engine> &engineCtx) override;
+        void Pass(const std::shared_ptr<RenderingContext> &ctx, float time) override;
 
         // Serialization/Deserialziation
         template <class Archive>
@@ -54,13 +56,12 @@ namespace ettycc
         {
             ar(cereal::base_class<Renderable>(this), CEREAL_NVP(spriteFilePath_));
         }
-    
-    // Internal usage
+
+        // Internal usage
     private:
-        std::string LoadShaderFile(const std::string& shaderPath);
+        std::string LoadShaderFile(const std::string &shaderPath);
     };
 
 } // namespace ettycc
-
 
 #endif

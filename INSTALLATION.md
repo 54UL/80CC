@@ -1,31 +1,25 @@
+# Installation (Build and run instructions)
+Quick guide to build and run 80cc engine editor
 
-## 80CC Engine dependencies:
-- vcpkg
-
-### VCPKG'
-
-### base packages (required):
+# Dependencies installation (optional)
+installl dependencies with:
 
 ```bash
-# VCPKG
-./vcpkg install spdlog
-./vcpkg install sdl2
-./vcpkg install glew
-./vcpkg install imgui
-./vcpkg install nlohmann-json
-
-# installs
-sudo ubuntu-drivers autoinstall
-sudo apt install build-essential
-sudo apt install libglew-dev
-sudo apt install mesa-common-dev
-apt-get install libxmu-dev libxi-dev libgl-dev
+vcpkg install --manifest
 ```
 
-### WOULD BE USEFUL??
+but due to vcpkg being linked to cmake dependencies will be downloaded automatically
+
+# Compilation
+todo...
+
+#### Run `install-external.sh`
+run this script in order to download external repos, this are quite different than the vcpkg version and also experimental.
+`./install-external.sh`
+
+# Running
+- Add env var ASSETS_80CC TO DEFINE editor working path (no multi-proyects for the moment....)
+
 ```bash
-./vcpkg install box2d
-./vcpkg install enet
-./vcpkg install EnTT
-./vcpkg install tinyglft
+set ASSETS_80CC=<some path>/assets
 ```

@@ -1,6 +1,7 @@
 #include <Graphics/Shading/ShaderPipeline.hpp>
 #include <Graphics/Shading/Shader.hpp>
 #include <vector>
+#include <spdlog/spdlog.h>
 
 
 namespace ettycc
@@ -44,39 +45,48 @@ namespace ettycc
 
     void ShaderPipeline::Create()
     {
-        // Create program
         shaderProgram = glCreateProgram();
 
-        // Attach shaders...
         for (auto shader : shaders_)
         {
             glAttachShader(shaderProgram, shader->GetShaderId());
         }
 
-        // Create and link the shader program
         glLinkProgram(shaderProgram);
 
-        // Check for shader program linking errors
         GLint success;
         char * infoLog;
         glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
         if (!success)
         {
             glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
-            std::cerr << "Shader program linking failed:\n"
-                      << infoLog << std::endl;
+            spdlog::error("Shader program linking failed:\n", infoLog);
         }
+        
         glLinkProgram(0);
     }
 
-    void ShaderPipeline::Bind()
+    int ShaderPipeline::Bind()
     {
+        if (shaderProgram == 0)
+        {
+            spdlog::error("Binding shader pipeline with null shader program id (itwas 0)");
+            return 1;
+        }
         glUseProgram(shaderProgram);
+
+        return 0;
     }
 
-    void ShaderPipeline::Unbind()
+    int ShaderPipeline::Unbind()
     {
+        if (shaderProgram == 0)
+        {
+            return 1;
+        }
         glUseProgram(shaderProgram);
+
+        return 0;
     }
 
     GLuint ShaderPipeline::GetProgramId() const

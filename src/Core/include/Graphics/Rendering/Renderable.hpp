@@ -5,11 +5,12 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include <Scene/Transform.hpp>
-
 #include <cereal/archives/json.hpp>
 
 namespace ettycc
 {
+    class Engine;
+
     class Renderable
     {
     public:
@@ -38,8 +39,8 @@ namespace ettycc
             return underylingTransform;
         }
 
-        virtual void Init() = 0;
-        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx,float time) = 0;
+        virtual void Init(const std::shared_ptr<Engine>& engineCtx) = 0;
+        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx, float time) = 0;
 
         template <class Archive>
         void serialize(Archive &ar)

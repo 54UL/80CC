@@ -14,13 +14,13 @@ namespace ettycc
     class FrameBuffer
     {
     private:
-        GLuint id_, textureId_, depthBuffer_;
-
+        GLuint id_, textureId_, depthBufferId_;
+        
     public:
         glm::ivec2 size_;
         glm::ivec2 position_;
-        bool isDefault_;
-
+        bool initialized_;
+        
     public:
         FrameBuffer();
         FrameBuffer(glm::ivec2 position, glm::ivec2 size, bool isDefault);

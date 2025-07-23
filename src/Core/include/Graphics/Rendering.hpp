@@ -34,7 +34,6 @@ namespace ettycc
         auto AddRenderable(std::shared_ptr<Renderable> renderable) -> void;
         void AddRenderables(const std::vector<std::shared_ptr<Renderable>>& renderables);
     };
-
 }
 
 #endif

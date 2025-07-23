@@ -2,23 +2,26 @@
 #include <Graphics/Rendering/Entities/Camera.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
+#include <Engine.hpp>
 
 namespace ettycc {
 
     Camera::Camera()
     {
-
+        this->mainCamera_ = false;
     }
 
     Camera::Camera(int h, int w)
     {
         this->SetOrtho(h, w);  
+        this->mainCamera_ = false;
     }
 
     Camera::Camera(int w, int h, float fov,float znear)
     {
         this->SetPrespective(h, w, fov, znear);
         this->offScreenFrameBuffer = std::make_shared<FrameBuffer>(glm::ivec2(0,0), glm::ivec2(w,h), false);
+        this->mainCamera_ = false;
     }
 
     Camera::~Camera()
@@ -50,15 +53,26 @@ namespace ettycc {
     }
 
     // Renderable
-
-    void Camera::Init() 
+    void Camera::Init(const std::shared_ptr<Engine>& engineCtx) 
     {
         // Init frame buffer backend (if deserialized then there's already populated data so might run???)
         if (offScreenFrameBuffer && initializable_)
         {
-            spdlog::info("Initializing loaded camera");
+            spdlog::info("Initializing seeded camera");
             offScreenFrameBuffer->Init();
-        } else
+
+            // convention just to make this camera the current editor viewport
+            if (mainCamera_) 
+            {
+                //TODO: move SetViewPortFrameBuffer above....
+                spdlog::info("Setting as view port camera...");
+                engineCtx->renderEngine_.SetViewPortFrameBuffer(offScreenFrameBuffer);
+            }
+
+            initializable_ = false;
+            initialized = true;
+        }
+        else
         {
             spdlog::info("Empty camera init");
         }

@@ -126,7 +126,7 @@ namespace ettycc
 
     void SDL2App::PresentFrame()
     {
-        // User code render calls
+        // User code render calls        
         currentEngine_->PresentFrame();
 
         // Also this is for imgui... (editor use it...)
@@ -203,11 +203,12 @@ namespace ettycc
 
     void SDL2App::SetRunningStatus(bool running)
     {
-        SDL_LockMutex(eventMutex_);
+        // multi thread is forbiden until is required... lol
+        // SDL_LockMutex(eventMutex_);
 
         this->runningStatus_ = running;
 
-        SDL_UnlockMutex(eventMutex_);
+        // SDL_UnlockMutex(eventMutex_);
     }
 
     bool SDL2App::IsRunning()

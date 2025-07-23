@@ -27,7 +27,6 @@ namespace ettycc
     void Rendering::SetViewPortFrameBuffer(std::shared_ptr<FrameBuffer> frameBuffer)
     {
         sceneFrameBuffer_ = frameBuffer;
-        sceneFrameBuffer_->Init();
     }
 
     std::shared_ptr<FrameBuffer> Rendering::GetViewPortFrameBuffer()
@@ -38,14 +37,18 @@ namespace ettycc
     void Rendering::Pass(float deltaTime)
     {
         // renderingTime += deltaTime;
-
-        // Frame buffer Single camera  implementation (Get all the cameras instead and then do the framebuffer pass then pass the propper camera model and view matrixes to each viewport...)
+        if (!sceneFrameBuffer_) return;
+        
+        // Frame buffer Single camera  implementation 
+        // TODO: (Get all the cameras instead and then do the framebuffer pass then pass the propper camera model and view matrixes to each viewport...)
         sceneFrameBuffer_->BeginFrame();
+
         for (auto renderable : renderables_)
         {
             renderable->Pass(this->renderingCtx_, deltaTime);
         }
         
+
         sceneFrameBuffer_->EndFrame();
     }
 

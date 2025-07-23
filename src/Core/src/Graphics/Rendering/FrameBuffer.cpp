@@ -7,12 +7,18 @@ namespace ettycc
     {
         id_ = 0;
         textureId_ = 0;
+        depthBufferId_ = 0;
+        initialized_ = 0;
+        spdlog::warn("Empty frame buffer constructed");
     }
 
-    FrameBuffer::FrameBuffer(glm::ivec2 position, glm::ivec2 size, bool isDefault) : position_(position), size_(size), isDefault_(isDefault)
+    FrameBuffer::FrameBuffer(glm::ivec2 position, glm::ivec2 size, bool isDefault) : position_(position), size_(size)
     {
         id_ = 0;
         textureId_ = 0;
+        depthBufferId_ = 0;
+        initialized_ = 0;
+        spdlog::warn("Seeded frame buffer constructed [size: {}, {}] [position: {}, {}] [isDefault: {}] ", size.x, size.y, position.x, position.y, isDefault);
     }
 
     FrameBuffer::~FrameBuffer()
@@ -24,7 +30,8 @@ namespace ettycc
     {
         glDeleteFramebuffers(1, &id_);
         glDeleteTextures(1, &textureId_);
-        glDeleteRenderbuffers(1, &depthBuffer_);
+        glDeleteRenderbuffers(1, &depthBufferId_);
+        initialized_ = false;
     }
 
     void FrameBuffer::BeginFrame()
@@ -38,6 +45,7 @@ namespace ettycc
         GLenum glError = glGetError();
         if (glError != GL_NO_ERROR)
         {
+            // this is catching more than viewport binding errors, thankfully...
             spdlog::error("Begin frame buffer bind OpenGL error: {}", glError);
         }
 
@@ -52,6 +60,12 @@ namespace ettycc
 
     void FrameBuffer::Init()
     {
+        if (initialized_)
+        {
+            spdlog::warn("Frame buffer already initialized id: [{}]", id_);
+            return;
+        }
+        
         glGenFramebuffers(1, &id_);
         glBindFramebuffer(GL_FRAMEBUFFER, id_);
 
@@ -70,14 +84,15 @@ namespace ettycc
         GLenum textureError = glGetError();
         if (textureError != GL_NO_ERROR)
         {
-            spdlog::error("Create texture OpenGL error: {}", textureError);
+            // TODO: OPEN GL 1281 ERROR WHEN RUNNING THIS BEFORE RUNNING THE MAIN GRAPHICS LOOP
+            spdlog::error("FrameBuffer, textureError {}", textureError);
         }
            
         // Create and attach a depth buffer
-        glGenRenderbuffers(1, &depthBuffer_);
-        glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer_);
+        glGenRenderbuffers(1, &depthBufferId_);
+        glBindRenderbuffer(GL_RENDERBUFFER, depthBufferId_);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size_.x, size_.y);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer_);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBufferId_);
 
         // Check for renderbuffer creation errors
         GLenum renderbufferError = glGetError();
@@ -91,6 +106,10 @@ namespace ettycc
         if (framebufferStatus != GL_FRAMEBUFFER_COMPLETE)
         {
             spdlog::error("Frame buffer is not complete!! id: {}", id_);
+        }
+        else 
+        {
+            initialized_ = true;
         }
 
         // Unbind the framebuffer
@@ -111,8 +130,8 @@ namespace ettycc
 
     void FrameBuffer::SetSize(glm::ivec2 size)
     {
-        if (size_ != size){
-            // spdlog::info("Frame-buffer(id:{}) resized ivec2[{},{}]",id_,size.x, size.y);
+        if (size_ != size)
+        {
             size_ = size;
             CleanUp();
             Init();
