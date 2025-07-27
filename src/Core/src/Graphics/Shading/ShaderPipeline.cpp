@@ -55,7 +55,7 @@ namespace ettycc
         glLinkProgram(shaderProgram);
 
         GLint success;
-        char * infoLog;
+        char * infoLog = nullptr;
         glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
         if (!success)
         {

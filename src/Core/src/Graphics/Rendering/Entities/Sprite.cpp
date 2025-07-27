@@ -85,7 +85,7 @@ namespace ettycc
     {
         // TODO: THIS OPERATION NEEDS TO BE EAGEAR INITIALIZED INSTEAD OF LAZY INIT...
         auto resources = GetDependency(Resources);
-        auto shadersPath = resources->GetWorkingFolder() + resources->Get("paths", "shaders");
+        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get("paths", "shaders");
 
         // TODO: Make shader types constants...
         auto vertexShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");

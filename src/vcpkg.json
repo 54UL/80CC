@@ -1,0 +1,14 @@
+{
+    "name": "ettycc",
+    "version": "0.0.1",
+    "dependencies": [
+      "spdlog",
+      "sdl2",
+      "glew",
+      "glm",
+      "stb",
+      "nlohmann-json",
+      "cereal",
+      "enet"
+    ]
+  }

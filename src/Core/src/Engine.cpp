@@ -24,7 +24,7 @@ namespace ettycc
             spdlog::error("can't auto save engine configuration!!!");
         }
     }
-
+    
     void Engine::LoadDefaultScene()
     {
         // default scene construction (basic sprite with not found texture...)
@@ -52,8 +52,8 @@ namespace ettycc
 
     void Engine::LoadLastScene()
     {
-        spdlog::warn("Loading last scene...");
         auto lastLoadedScene = engineResources_->Get("state", "last_scene");
+        spdlog::warn("Loading last scene: {}", lastLoadedScene);
 
         LoadScene(lastLoadedScene);
 

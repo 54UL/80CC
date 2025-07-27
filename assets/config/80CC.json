@@ -1,12 +1,62 @@
 {
     "engine_data": [
         {
-            "key": "state",
+            "key": "app",
             "value": {
                 "resources": [
                     {
-                        "key": "last_scene",
-                        "value": "default_scene.json"
+                        "key": "title",
+                        "value": "80CC"
+                    },
+                    {
+                        "key": "flags",
+                        "value": "WINDOWED"
+                    },
+                    {
+                        "key": "resolution",
+                        "value": "800,600"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "paths",
+            "value": {
+                "resources": [
+                    {
+                        "key": "config",
+                        "value": "config/"
+                    },
+                    {
+                        "key": "images",
+                        "value": "images/"
+                    },
+                    {
+                        "key": "scenes",
+                        "value": "scenes/"
+                    },
+                    {
+                        "key": "shaders",
+                        "value": "shaders/"
+                    },
+                    {
+                        "key": "templates",
+                        "value": "templates/"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "sprites",
+            "value": {
+                "resources": [
+                    {
+                        "key": "loona",
+                        "value": "images/loona.jpg"
+                    },
+                    {
+                        "key": "not-found",
+                        "value": "images/not_found_texture.png"
                     }
                 ]
             }
@@ -23,62 +73,12 @@
             }
         },
         {
-            "key": "sprites",
+            "key": "state",
             "value": {
                 "resources": [
                     {
-                        "key": "not-found",
-                        "value": "images/not_found_texture.png"
-                    },
-                    {
-                        "key": "loona",
-                        "value": "images/loona.jpg"
-                    }
-                ]
-            }
-        },
-        {
-            "key": "paths",
-            "value": {
-                "resources": [
-                    {
-                        "key": "templates",
-                        "value": "templates/"
-                    },
-                    {
-                        "key": "shaders",
-                        "value": "shaders/"
-                    },
-                    {
-                        "key": "scenes",
-                        "value": "scenes/"
-                    },
-                    {
-                        "key": "images",
-                        "value": "images/"
-                    },
-                    {
-                        "key": "config",
-                        "value": "config/"
-                    }
-                ]
-            }
-        },
-        {
-            "key": "app",
-            "value": {
-                "resources": [
-                    {
-                        "key": "resolution",
-                        "value": "800,600"
-                    },
-                    {
-                        "key": "flags",
-                        "value": "WINDOWED"
-                    },
-                    {
-                        "key": "title",
-                        "value": "80CC"
+                        "key": "last_scene",
+                        "value": "default_scene.json"
                     }
                 ]
             }

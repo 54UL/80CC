@@ -81,7 +81,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(cereal CONFIG REQUIRED)
 find_package(unofficial-enet CONFIG REQUIRED)
 
-# DIR INCLUDES
+# DIR INCLUDES (avoid this...)
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(src/Core/external/imgui/**)
 
@@ -90,11 +90,13 @@ add_library(80CC_CORE STATIC ${80CC_CORE_SOURCES} ${80CC_CORE_HEADERS})
 
 # TARGET INCLUDES
 target_include_directories(80CC_CORE
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${SDL2_INCLUDE_DIRS}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
     PUBLIC ${Stb_INCLUDE_DIR}
-    PUBLIC ${GLM_INCLUDE_DIRS})
+    PUBLIC ${GLM_INCLUDE_DIRS}
+    )
 
 target_link_libraries(80CC_CORE
     PUBLIC ${SDL2_LIBRARIES}

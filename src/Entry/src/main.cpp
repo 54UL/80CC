@@ -1,5 +1,5 @@
 #include <80CC.hpp>
-#include <EntryPoint.hpp>
+#include <main.hpp>
 
 #include <memory>
 #include <iostream>

@@ -26,7 +26,7 @@ using namespace clang::ast_matchers;
 class ClassFinder : public MatchFinder::MatchCallback
 {
 public:
-    explicit ClassFinder(std::vector<std::string> &classes) : Classes(classes) {}
+    explicit ClassFinder(std::vector<std::string> &modulesNames) : Classes(modulesNames) {}
 
     void run(const MatchFinder::MatchResult &Result) override
     {
@@ -54,9 +54,31 @@ void CopyDirectory(const fs::path &src, const fs::path &dest)
     fs::copy(src, dest, std::filesystem::copy_options::recursive);
 }
 
-void GenerateEntryPointSource(const std::vector<std::string> &classes, const std::string &mainFilePath, const std::string &outputPath)
+
+std::stringstream GenModulesInstancesCode(const std::vector<std::string> &modulesNames)
 {
+    std::stringstream codeChunk;
+
+   // Generate the code to instance the module then add it to engine
+    codeChunk << "std::vector<shared_ptr<GameModule>> modules = {";
+
+    for (const auto &className : modulesNames)
+    {
+        codeChunk << "      std::make_shared<" << className << ">(),\n";
+    }
+
+    codeChunk << "    };\n";
+    codeChunk << "    engine->RegisterModules(modules);\n";
+    
+    return codeChunk;
+}
+
+
+void GenerateEntryPointSource(const std::vector<std::string> &modulesNames, const std::string &mainFilePath)
+{
+    // Open file and read contents
     std::ifstream inFile(mainFilePath);
+    std::stringstream buffer;
 
     if (!inFile.is_open())
     {
@@ -64,11 +86,11 @@ void GenerateEntryPointSource(const std::vector<std::string> &classes, const std
         return;
     }
 
-    std::stringstream buffer;
     buffer << inFile.rdbuf();
     std::string mainFileContent = buffer.str();
     inFile.close();
 
+    // preprocessing begin by inserting a header message (80CC disclaimer and usage)
     std::string userCodeTag = "//_80CC_USER_CODE";
     std::string_view buildInfo = "//80CC GAME ENGINE; THIS CODE WAS GENERATED DON'T EDIT THE SOURCE (PREVENT LOSSES!!!)\n";
     mainFileContent.insert(0, buildInfo);
@@ -81,22 +103,11 @@ void GenerateEntryPointSource(const std::vector<std::string> &classes, const std
         return;
     }
 
-    std::stringstream codeStream;
+    // Generate code to be stamp on the entry point user code segment
+    auto codeChunk = GenModulesInstancesCode(modulesNames);
+    mainFileContent.replace(pos, userCodeTag.length(), codeChunk.str());
 
-    // Generate the code to instance the module then add it to engine
-    // codeStream << "std::vector<shared_ptr<GameModule>> modules = { \n";
-
-    for (const auto &className : classes)
-    {
-        // TODO: IMPLEMENT ME!!!!
-    }
-
-    // codeStream << "};\n";
-    // codeStream << "engine->RegisterModules();\n";
-
-    mainFileContent.replace(pos, userCodeTag.length(), codeStream.str());
-
-    std::ofstream outFile(outputPath);
+    std::ofstream outFile(mainFilePath);
     if (!outFile.is_open())
     {
         std::cerr << "Could not write to the output path.\n";
@@ -112,43 +123,53 @@ void GenerateEntryPointSource(const std::vector<std::string> &classes, const std
 // Generated build config (cmake cli)
 // Compile using cmake (cmake cli)
 
-int main(int argc, const char **argv)
+std::vector<std::string> FetchSources()
 {
-    // TESTING HARDCODING.... (REMOVE =3)
-    // TODO: ALSO USE path header to use default paths
-    fs::path assetsSrc = "../../../assets/src/";
-    fs::path dest = "../../../Executable/";
+    // fetch sources from args or list the paths pragmatically
 
     std::vector<std::string> sourceFiles =
         {
             "/workspaces/ALPHA_V1/Executable/include/Modules/HelloWorldModule.hpp",
             "/workspaces/ALPHA_V1/Executable/src/Modules/HelloWorldModule.cpp"
         };
+    
+    return sourceFiles;
+}
 
+
+int main(int argc, const char **argv)
+{
+    // TESTING HARDCODING.... (REMOVE =3)
+    // TODO: ALSO USE path header to use default paths
+    fs::path assetsSrc         = "../../../assets/src/";
+    fs::path tempalteSrc       = "../../Entry/";
+    fs::path mainFilePath      = "../../../Executable/src/EntryPoint.cpp";
+    fs::path dest              = "../../../Executable/";
+    
+    std::vector<std::string> modulesNames;
     std::vector<std::string> compilationArgs = {"-std=c++17"};
+    std::vector<std::string> sourceFiles = FetchSources();
 
     FixedCompilationDatabase Compilations(".", compilationArgs);
+    MatchFinder Matchers;
 
     // Initialize the ClangTool
     ClangTool Tool(Compilations, sourceFiles);
+    ClassFinder Finder(modulesNames);
 
-    std::vector<std::string> classes;
-    ClassFinder Finder(classes);
-
-    MatchFinder Matchers;
     Matchers.addMatcher(cxxRecordDecl(isDefinition()).bind("classDecl"), &Finder);
 
     // Copy game modules source into entry/temp
     CopyDirectory(assetsSrc, dest);
 
+    // Copy "Entry" project to be used as a template after the code was analyzed and generated....
+    CopyDirectory(tempalteSrc, dest);
+
     // Run the tool over the copied files
     Tool.run(newFrontendActionFactory(&Matchers).get());
 
     // Generate the entry point...
-    std::string mainFilePath = "../../Entry/src/EntryPoint.cpp";
-    std::string outputMainFile = "../../../Executable/src/GeneratedEntryPoint.cpp";
-
-    GenerateEntryPointSource(classes, mainFilePath, outputMainFile);
-
+    GenerateEntryPointSource(modulesNames, mainFilePath);
+    
     return 0;
 }

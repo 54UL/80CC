@@ -1,5 +1,5 @@
 // Front-end user code
-// MOST OF THE CODE IS FICTIONAL !!!!!!!!!!!
+// DOES NOT WORK
 
 #ifndef HELLO_WORLD_MODULE_HPP
 #define HELLO_WORLD_MODULE_HPP
@@ -20,13 +20,13 @@ namespace etycc
       // GameModule interface
       bool OnStart(const Engine* engine)
       {
-         engine->LoadScene("default_scene.json");
+         // engine->LoadScene(paths::DEFAULT_SCENE_NAME);
          auto& scene = engine->mainScene_; 
 
          // scene->instanceNode(Assets::LoadTemplate("default-sprite"));
          // auto renderable = dynamic_cast<Sprite*>(scene->findNode("some-node")->addComponent("renderable"));
 
-         playerCamera->Init(engine->inputSytem);
+         // playerCamera->Init(engine->inputSytem);
          
          return true; 
       }

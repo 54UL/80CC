@@ -5,26 +5,29 @@ set(CMAKE_CXX_STANDARD 17)
 
 
 set(ENTRY_HEADERS 
-    include/EntryPoint.hpp
+    include/main.hpp
 )
 
 set(ENTRY_SOURCES 
-    src/EntryPoint.cpp
+    src/main.cpp
 )
 
 # TODO: disable all game related stuff if not compiling game modules
-file(GLOB_RECURSE GAME_SOURCES "temp/**.cpp") 
-file(GLOB_RECURSE GAME_HEADERS "temp/**.hpp") 
+# set(ENTRY_LIB_DIRS "external/lib/lib80CC_CORE.lib")
+file(GLOB_RECURSE GAME_SOURCES "src/Modules/**.cpp") 
+file(GLOB_RECURSE GAME_HEADERS "include/Modules/**.hpp") 
 
 message("GAME MODULES DETECTED SOURCES")
 message("${GAME_SOURCES}")
 
 find_package(spdlog CONFIG REQUIRED)
-
 add_executable(Entry ${ENTRY_HEADERS} ${ENTRY_SOURCES} ${GAME_SOURCES} ${GAME_HEADERS})
 
-target_include_directories(Entry
+target_include_directories (Entry
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+    # PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/include/
+    )
 
-target_link_libraries(Entry PUBLIC 80CC_CORE PRIVATE spdlog::spdlog)
+
+# target_link_libraries(Entry PUBLIC 80CC_CORE PRIVATE)
+target_link_libraries(Entry PUBLIC 80CC_CORE ${ENTRY_LIB_DIRS})
