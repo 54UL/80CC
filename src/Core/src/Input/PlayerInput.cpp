@@ -1,4 +1,5 @@
 #include <Input/PlayerInput.hpp>
+#include <spdlog/spdlog.h>
 
 namespace ettycc
 {
@@ -44,24 +45,23 @@ namespace ettycc
                 break;
             }
             // TODO: Actually insert normal key pressing(might be implemented with an pressedKeys array to test against multiple pressed keys...), the code above is only to convert a set of keys to axis lol
-
             break;
-
         case PlayerInputType::MOUSE_XY:
             // rightAxe = glm::vec2(data[(int)InputDataOffsets::X], data[(int)InputDataOffsets::Y]);
             xpos = (int)data[(int)InputDataOffsets::X] > 0 ? (int)data[(int)InputDataOffsets::X] : 0;
             ypos = (int)data[(int)InputDataOffsets::Y] > 0 ? (int)data[(int)InputDataOffsets::Y] : 0;
-
             break;
         case PlayerInputType::MOUSE_BUTTON_DOWN:
             pressedKeys[0] = (int)data[(int)InputDataOffsets::X];
             break;
-
         case PlayerInputType::MOUSE_BUTTON_UP:
             // if the relased key is in the pressed keys reset the state...
             pressedKeys[0] = (int)data[(int)InputDataOffsets::X] == pressedKeys[0] ? 0 : (int)data[(int)InputDataOffsets::X];
             break;
-
+        case PlayerInputType::MOUSE_WHEEL:
+            wheelY = (int)data[(int)InputDataOffsets::WHEEL_Y];
+            spdlog::info("Mouse wheel Y: {}", wheelY);
+            break;
         default:
             break;
         }
@@ -71,7 +71,6 @@ namespace ettycc
     {
         // NOT THE BEST SOLUTION BUT IT WORKS....
         leftAxe = glm::vec2(0.0f, 0.0f);
-        // pressedKeys[0]  = 0;
     }
 
     glm::vec2 PlayerInput::GetLeftAxis()

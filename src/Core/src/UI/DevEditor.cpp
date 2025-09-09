@@ -70,34 +70,55 @@ namespace ettycc
     {
         ImGui::Begin("Game view");
 
-        // Rendering of the main engine viewport (it's suppossed to have multiple frame buffers for split screen or image effects (todo: composited game view))
-        // Get the framebuffer texture ID
-        // this fucking check needs to be replaced by some error texture...
-        auto frambuffer = GetDependency(Engine)->renderEngine_.GetViewPortFrameBuffer();
+        auto framebuffer = GetDependency(Engine)->renderEngine_.GetViewPortFrameBuffer();
 
-        if (frambuffer)
+        if (framebuffer)
         {
-            GLuint framebufferTextureID = frambuffer->GetTextureId();
-            frambuffer->SetSize(glm::ivec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y));
-            // Display the framebuffer texture in an ImGui image
-            ImVec2 imageSize(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y);
-            ImGui::Image((void *)(intptr_t)framebufferTextureID, imageSize);
+            GLuint framebufferTextureID = framebuffer->GetTextureId();
+
+            // Query the framebuffer’s *native ratio* (you may store or compute it once)
+            glm::ivec2 fbSize = framebuffer->GetSize();
+            float fbAspect = (float)fbSize.x / (float)fbSize.y;
+
+            // Available size inside the ImGui window
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+            float availAspect = avail.x / avail.y;
+
+            ImVec2 displaySize;
+            if (availAspect > fbAspect) {
+                // Window region is wider → match height
+                displaySize.y = avail.y;
+                displaySize.x = displaySize.y * fbAspect;
+            } else {
+                // Window region is taller → match width
+                displaySize.x = avail.x;
+                displaySize.y = displaySize.x / fbAspect;
+            }
+
+            // Resize framebuffer to the chosen display size
+            framebuffer->SetSize(glm::ivec2((int)displaySize.x, (int)displaySize.y));
+
+            // Center the image inside the window
+            ImVec2 cursorPos = ImGui::GetCursorPos();
+            ImGui::SetCursorPos(ImVec2(
+                cursorPos.x + (avail.x - displaySize.x) * 0.5f,
+                cursorPos.y + (avail.y - displaySize.y) * 0.5f
+            ));
+
+            // Draw the framebuffer
+            ImGui::Image((void*)(intptr_t)framebufferTextureID, displaySize, ImVec2(0,1), ImVec2(1,0));
         }
         else
         {
-            // anti-bounce mechanism 
             if (!frameBufferErrorShown)
             {
                 spdlog::error("DevEditor:ShowViewport():GetViewPortFrameBuffer() was nullptr");
                 frameBufferErrorShown = true;
             }
-            
-            
-            // ImVec2 notFoundImageSize (0, 0);
-            // ImGui::Image((void*)(intptr_t)notFoundTextureId, notFoundImageSize);
         }
+
         ImGui::End();
-    }
+    }    
 
     void DevEditor::ShowInspector()
     {

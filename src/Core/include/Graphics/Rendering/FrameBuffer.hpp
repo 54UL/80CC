@@ -31,7 +31,7 @@ namespace ettycc
         GLuint GetTextureId() const;
 
         void SetSize(glm::ivec2 size);
-        glm::ivec2 GetSize(glm::ivec2 size);
+        glm::ivec2 GetSize();
 
         void BeginFrame();
         void EndFrame();

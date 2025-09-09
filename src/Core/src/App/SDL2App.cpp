@@ -261,7 +261,9 @@ namespace ettycc
 
 
             case SDL_MOUSEWHEEL:
-                // handleMouseWheelEvent(event.wheel.x, event.wheel.y);
+                data[0] = event.wheel.x;
+                data[1] = event.wheel.y;
+                currentEngine_->ProcessInput(PlayerInputType::MOUSE_WHEEL, data);
                 break;
             }
         }

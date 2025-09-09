@@ -36,9 +36,9 @@ namespace ettycc {
 
     void Camera::SetOrtho(int ScreenXSz, int ScreenYSz)
     {
-        //	this->ProjectionMatrix = glm::mat4(1.0f);
+        this->ProjectionMatrix = glm::mat4(1.0f);
         ispresp = false;
-        // this->ProjectionMatrix = glm::ortho(1, ScreenXSz, 1, ScreenYSz,1, 20);
+        this->ProjectionMatrix = glm::ortho(1, ScreenXSz, 1, ScreenYSz,1, 20);
     }
 
     void Camera::SetPrespective(int ScreenXSz, int ScreenYSz, float FOV, float Znear)

@@ -138,7 +138,7 @@ namespace ettycc
         }
     }
 
-    glm::ivec2 FrameBuffer::GetSize(glm::ivec2 size)
+    glm::ivec2 FrameBuffer::GetSize()
     {
         return size_;
     }

@@ -11,6 +11,7 @@ namespace ettycc
         MOUSE_XY,
         MOUSE_BUTTON_DOWN,
         MOUSE_BUTTON_UP,
+        MOUSE_WHEEL,
         JOYSTICK,
         TOUCH
     };
@@ -28,7 +29,9 @@ namespace ettycc
         KEY = 0,
         X = 0,
         Y = 1,
-        X_Y = 2
+        X_Y = 2,
+        WHEEL_X = 0,
+        WHEEL_Y = 1
     };
 
     class PlayerInput
@@ -43,6 +46,7 @@ namespace ettycc
         int xpos,ypos;
         char currentKey; 
         bool pressed;
+        int wheelY;
 
         uint32_t pressedKeys[8];
 

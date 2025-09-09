@@ -29,6 +29,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Shading/ShaderPipeline.hpp
     include/Input/PlayerInput.hpp
     include/Input/Controls/GhostCamera.hpp
+    include/Input/Controls/EditorCamera.hpp
     include/Game/GameModule.hpp
     include/UI/DevEditor.hpp
     include/UI/Console.hpp
@@ -59,6 +60,7 @@ set(80CC_CORE_SOURCES
     src/Graphics/Shading/ShaderPipeline.cpp
     src/Input/PlayerInput.cpp
     src/Input/Controls/GhostCamera.cpp
+    src/Input/Controls/EditorCamera.cpp
     src/UI/DevEditor.cpp
     src/Engine.cpp
     # IMGUI LIBRARY SOURCES

@@ -43,7 +43,7 @@ namespace ettycc
         rootSceneNode->AddChild(notFoundSpriteNode);
 
         // default camera
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(600, 800, 90, 0.01f);
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(800, 800, 90, 0.01f);
         auto cameraNode = std::make_shared<SceneNode>("cameraNode");
         mainCamera->mainCamera_ = true;
         cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
@@ -75,6 +75,7 @@ namespace ettycc
         }
         else
         {
+            // FIX THIS (DOES NOT WORK...)
             cereal::JSONInputArchive archive2(ifs);
             archive2(*mainScene_);
         }
