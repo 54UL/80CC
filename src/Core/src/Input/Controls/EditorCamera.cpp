@@ -32,7 +32,7 @@ namespace ettycc
 
     glm::mat4 EditorCamera::ComputeViewMatrix(float deltaTime) const
     {
-        return glm::translate(glm::mat4(1), glm::vec3((-position*deltaTime+1.0f) / zoom, 0.0f));
+        return glm::translate(glm::mat4(1), glm::vec3((-position) / zoom, 0.0f));
     }
 
     glm::mat4 EditorCamera::ComputeProjectionMatrix(float deltaTime) const
@@ -49,7 +49,6 @@ namespace ettycc
         // handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
         if (inputSystem_->GetMouseButton(MouseButton::LEFT)) // Left mouse button is pressed
         {
-            spdlog::info("mouse pos: x[{}] y[{}]", inputSystem_->GetMousePos().x, inputSystem_->GetMousePos().y);
             handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
         }
 
@@ -57,7 +56,6 @@ namespace ettycc
         if (inputSystem_->GetWheelY() != lastWheelY) {
             lastWheelY = inputSystem_->GetWheelY();
             handleZoom( inputSystem_->GetWheelY(), deltaTime);
-            spdlog::info("wheel zoom: [{}]", zoom);
         }
     }
 

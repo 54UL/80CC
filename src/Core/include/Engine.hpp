@@ -29,6 +29,7 @@ namespace ettycc
         std::shared_ptr<App>                        appInstance_;
         std::shared_ptr<Resources>                  engineResources_;
         std::vector<std::shared_ptr<GameModule>>    gameModules_;
+        std::shared_ptr<Camera>                     editorCamera_;
 
         Rendering              renderEngine_;
         PlayerInput            inputSystem_;

@@ -21,7 +21,7 @@ namespace ettycc
         ~EditorCamera();
 
         glm::vec2 position = {0.0f, 0.0f};  // pan/translation
-        float zoom = 100.0f;                        // zoom level
+        float zoom = 1.0f;                        // zoom level
         // camera speecifics
         [[nodiscard]] glm::mat4 ComputeViewMatrix(float deltaTime) const;
         [[nodiscard]] glm::mat4 ComputeProjectionMatrix(float deltaTime) const;

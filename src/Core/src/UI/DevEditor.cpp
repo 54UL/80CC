@@ -1,6 +1,8 @@
 #include <UI/DevEditor.hpp>
 #include <Dependency.hpp>
 
+#include "Input/Controls/EditorCamera.hpp"
+
 namespace ettycc
 {    
     static int viewportNumber = 1;
@@ -422,12 +424,25 @@ namespace ettycc
             // Tab 1
             if (ImGui::BeginTabItem("Stats"))
             {
-
+                // Yeah just put everything you would print
                 auto mousepos = engineInstance->inputSystem_.GetMousePos();
                 ImGui::Text("Delta time: %.4f", engineInstance->appInstance_->GetDeltaTime());
                 ImGui::Text("App time: %.4f", engineInstance->appInstance_->GetCurrentTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]", mousepos.x, mousepos.y);
+
                 ImGui::Text("FPS: %.4f", (1.0f / engineInstance->appInstance_->GetDeltaTime()));
+                if (engineInstance->editorCamera_ != nullptr) {
+                    auto& cam = engineInstance->editorCamera_->editorCameraControl_;
+
+                    // Manual controls for camera position and zoom
+                    ImGui::Separator();
+                    ImGui::Text("Camera Controls");
+                    ImGui::SliderFloat2("Position", &cam->position.x, -10.0f, 10.0f, "%.2f");
+                    ImGui::InputFloat2("Edit Position", &cam->position.x, "%.2f");
+                    ImGui::SliderFloat("Zoom", &cam->zoom, 0.1f, 10.00, "%.2f");
+                    ImGui::InputFloat("Edit Zoom", &cam->zoom, 0.1);
+                }
+
                 // ImVec2 graphSize(200, 200);  // Adjust the size as needed
 
                 plotStep += engineInstance->appInstance_->GetDeltaTime();

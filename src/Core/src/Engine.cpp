@@ -46,10 +46,11 @@ namespace ettycc
         std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(1200,800);
         mainCamera->AttachEditorControl(&inputSystem_);
 
-        auto cameraNode = std::make_shared<SceneNode>("cameraNode");
+        auto cameraNode = std::make_shared<SceneNode>("cameraNode-editor-camera");
         mainCamera->mainCamera_ = true;
-        cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
+        editorCamera_ = mainCamera;
 
+        cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
         rootSceneNode->AddChild(cameraNode);
     }
 
