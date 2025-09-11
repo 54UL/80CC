@@ -20,15 +20,16 @@ namespace ettycc
         EditorCamera(PlayerInput *input, FrameBuffer* frameBuffer);
         ~EditorCamera();
 
-        glm::vec2 position = {0.0f, 0.0f};  // pan/translation
-        float zoom = 1.0f;                        // zoom level
-        // camera speecifics
+        glm::vec2 position = {0.0f, 0.0f};
+        float zoom = 1.0f;
+
         [[nodiscard]] glm::mat4 ComputeViewMatrix(float deltaTime) const;
         [[nodiscard]] glm::mat4 ComputeProjectionMatrix(float deltaTime) const;
 
         // Control api
         void Update(float deltaTime) override;
         void LateUpdate(float deltaTime) override;
+
     private:
         void EditorCamera::handleZoom(float wheelDelta, float dt);
         void EditorCamera::handlePan(glm::vec2 leftAxis, glm::vec2 rightAxis, float dt);

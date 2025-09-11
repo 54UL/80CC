@@ -27,7 +27,7 @@ namespace ettycc
 
         // clamp
         if (zoom < 0.1f) zoom = 0.1f;
-        // if (zoom > 10.0f) zoom = 10.0f;
+        if (zoom > 100.0f) zoom = 100.0f;
     }
 
     glm::mat4 EditorCamera::ComputeViewMatrix(float deltaTime) const
@@ -51,7 +51,7 @@ namespace ettycc
             glm::vec2 mouseDelta = inputSystem_->GetMouseDelta() * deltaTime;
             if (mouseDelta.x != 0.0f || mouseDelta.y != 0.0f)
             {
-                position.x += mouseDelta.x / zoom*.05f;
+                position.x += mouseDelta.x / zoom*.5f;
                 position.y -= mouseDelta.y / zoom*.5f;
             }
             else
