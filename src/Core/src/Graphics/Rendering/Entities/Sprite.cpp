@@ -160,6 +160,9 @@ namespace ettycc
 
     void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
     {
+        static float elapsedTime = 0;
+        elapsedTime += time;
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TEXTURE);
 
@@ -169,7 +172,8 @@ namespace ettycc
         glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
         glUniformMatrix4fv(glGetUniformLocation(underlyingShader.GetProgramId(), "PVM"), 1, GL_FALSE, glm::value_ptr(ProjectionViewMatrix));
 
-        glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "time"), time);
+        glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "deltaTime"), time);
+        glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "time"), elapsedTime);
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

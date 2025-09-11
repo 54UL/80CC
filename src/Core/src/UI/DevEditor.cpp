@@ -108,6 +108,24 @@ namespace ettycc
 
             // Draw the framebuffer
             ImGui::Image((void*)(intptr_t)framebufferTextureID, displaySize, ImVec2(0,1), ImVec2(1,0));
+
+            static bool isViewportFocused = false;
+            static ImVec2 lockedCursorPos;
+
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                    if (!isViewportFocused) {
+                        isViewportFocused = true;
+                        lockedCursorPos = ImGui::GetMousePos();
+                    }
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                    ImGui::GetIO().MousePos = lockedCursorPos;
+                } else {
+                    isViewportFocused = false;
+                }
+            } else {
+                isViewportFocused = false;
+            }
         }
         else
         {
