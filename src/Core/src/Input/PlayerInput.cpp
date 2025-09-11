@@ -1,6 +1,10 @@
 #include <Input/PlayerInput.hpp>
 #include <spdlog/spdlog.h>
 
+// ALL THIS INPUT SYSTEM IS A TRASH AND NEEDS TO BE REWORKED FROM SCRATCH
+// IT IS JUST A PROOF OF CONCEPT TO TEST THE ENGINE SYSTEMS
+// create a multi threaded dispatcher alongside with the thread system (handle threads)
+
 namespace ettycc
 {
     PlayerInput::PlayerInput() : rightAxe(glm::vec2(0.0f)), leftAxe(glm::vec2(0.0f))
@@ -44,24 +48,25 @@ namespace ettycc
                 leftAxe.x = 1.0f;
                 break;
             }
-            // TODO: Actually insert normal key pressing(might be implemented with an pressedKeys array to test against multiple pressed keys...), the code above is only to convert a set of keys to axis lol
             break;
         case PlayerInputType::MOUSE_XY:
-            // rightAxe = glm::vec2(data[(int)InputDataOffsets::X], data[(int)InputDataOffsets::Y]);
             xpos = (int)data[(int)InputDataOffsets::X] > 0 ? (int)data[(int)InputDataOffsets::X] : 0;
             ypos = (int)data[(int)InputDataOffsets::Y] > 0 ? (int)data[(int)InputDataOffsets::Y] : 0;
             break;
-        case PlayerInputType::MOUSE_BUTTON_DOWN:
+        
+            case PlayerInputType::MOUSE_BUTTON_DOWN:
             pressedKeys[0] = (int)data[(int)InputDataOffsets::X];
             break;
+
         case PlayerInputType::MOUSE_BUTTON_UP:
             // if the relased key is in the pressed keys reset the state...
             pressedKeys[0] = (int)data[(int)InputDataOffsets::X] == pressedKeys[0] ? 0 : (int)data[(int)InputDataOffsets::X];
             break;
         case PlayerInputType::MOUSE_WHEEL:
+            wheelX = (int)data[(int)InputDataOffsets::WHEEL_X];
             wheelY = (int)data[(int)InputDataOffsets::WHEEL_Y];
-            spdlog::info("Mouse wheel Y: {}", wheelY);
             break;
+
         default:
             break;
         }
@@ -69,27 +74,39 @@ namespace ettycc
 
     void PlayerInput::ResetState()
     {
-        // NOT THE BEST SOLUTION BUT IT WORKS....
+        // THIS HAPPENDS EVERY TIME AT THE END OF THE FRAME
         leftAxe = glm::vec2(0.0f, 0.0f);
+        rightAxe = glm::vec2(0.0f, 0.0f);
+        wheelX = 0.0f;
+        wheelY = 0.0f;
+
+        // for (uint8_t i = 0; i < MAX_PRESSED_KEYS; i++)
+        // {
+        //     pressedKeys[i] = 0;
+        // }
     }
 
-    glm::vec2 PlayerInput::GetLeftAxis()
-    {
+    glm::vec2 PlayerInput::GetLeftAxis() const {
         return leftAxe;
     }
 
-    glm::vec2 PlayerInput::GetRightAxis()
+    int PlayerInput::GetWheelY() const
+    {
+        return wheelY;
+    }
+
+    glm::vec2 PlayerInput::GetRightAxis() const
     {
         return rightAxe;
     }
 
-    glm::ivec2 PlayerInput::GetMousePos()
+    glm::ivec2 PlayerInput::GetMousePos() const
     {
         return glm::ivec2(xpos, ypos);
     }
 
-    bool PlayerInput::GetMouseButton(int buttonIndex)
+    bool PlayerInput::GetMouseButton(MouseButton button) const
     {
-        return pressedKeys[0] == buttonIndex;
+        return pressedKeys[static_cast<size_t>(InputDataOffsets::MOUSE_BUTTONS)] == static_cast<uint32_t>(button);
     }
 }

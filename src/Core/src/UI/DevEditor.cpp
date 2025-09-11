@@ -86,7 +86,6 @@ namespace ettycc
 
             ImVec2 displaySize;
             if (availAspect > fbAspect) {
-                // Window region is wider → match height
                 displaySize.y = avail.y;
                 displaySize.x = displaySize.y * fbAspect;
             } else {

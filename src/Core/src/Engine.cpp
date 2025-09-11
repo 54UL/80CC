@@ -38,15 +38,18 @@ namespace ettycc
         auto notFoundSpriteComponent = std::make_shared<Sprite>(notFoundTexturePath);
         auto notFoundSpriteNode = std::make_shared<SceneNode>("sprite node 1");
         notFoundSpriteNode->AddComponent(std::make_shared<RenderableNode>(notFoundSpriteComponent));
-        notFoundSpriteComponent->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
+        notFoundSpriteComponent->underylingTransform.setGlobalPosition(glm::vec3(0, 0, 0));
 
         rootSceneNode->AddChild(notFoundSpriteNode);
 
         // default camera
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(800, 800, 90, 0.01f);
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(1200,800);
+        mainCamera->AttachEditorControl(&inputSystem_);
+
         auto cameraNode = std::make_shared<SceneNode>("cameraNode");
         mainCamera->mainCamera_ = true;
         cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
+
         rootSceneNode->AddChild(cameraNode);
     }
 
@@ -62,6 +65,7 @@ namespace ettycc
         renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
     }
 
+    //TODO: INSERT HERE ASSET MANAGEMENT AND NODE BUILDER (TO BUILD TEMPLATES FROM THE ASSET MANAGEMENT)
     void Engine::LoadScene(const std::string &sceneName)
     {
         // TODO: ADD DEFAULT SCENE WITH THE NO TEXTURE FOND AS DEFAULT SCENE...
@@ -176,8 +180,8 @@ namespace ettycc
     {
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::RENDERING);
 
-        renderEngine_.Pass(appInstance_->GetCurrentTime());
-        inputSystem_.ResetState(); // TODO: FIX THIS THRASH WITH INPUT UP AND DOWN EVENTS (INTERNALLY)
+        renderEngine_.Pass(appInstance_->GetDeltaTime()); // this just broke the shader animations lol
+        inputSystem_.ResetState(); // TODO: CHECK IF IS MORE SUITIABLE TO HAVING IT ON THE DEFAULT CASE WHEN PROCESSING INPUT (ALWAYS ENTERS THERE)
     }
 
     void Engine::ProcessInput(PlayerInputType type, uint64_t *data) // UNSAFE!!!! FIX THIS TRASH

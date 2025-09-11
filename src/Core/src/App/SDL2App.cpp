@@ -228,7 +228,7 @@ namespace ettycc
             switch (event.type)
             {
             case SDL_QUIT:
-                SetRunningStatus(0);
+                SetRunningStatus(false);
                 return;
 
             case SDL_KEYDOWN:
@@ -242,8 +242,17 @@ namespace ettycc
                 break;
 
             case SDL_MOUSEMOTION:
-                data[0] = event.motion.x;
-                data[1] = event.motion.y;
+                // another crime here
+                // add a toggle to switch between drag and absolute mouse position...
+                // if (event.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+                //     data[0] = (float)event.motion.xrel;
+                //     data[1] = (float)event.motion.yrel;
+                // }
+
+                // data[0] = event.motion.x;
+                // data[1] = event.motion.y;
+
+
                 currentEngine_->ProcessInput(PlayerInputType::MOUSE_XY, data);
                 break;
 

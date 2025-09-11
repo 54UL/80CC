@@ -31,13 +31,22 @@ namespace ettycc
         Y = 1,
         X_Y = 2,
         WHEEL_X = 0,
-        WHEEL_Y = 1
+        WHEEL_Y = 1,
+        MOUSE_BUTTONS = 0
+    };
+
+    enum class MouseButton : uint64_t
+    {
+        LEFT = 1,
+        RIGHT = 2,
+        MIDDLE = 3
     };
 
     class PlayerInput
     {
     public:
-         const uint8_t DIRECTION_KEY_COUNT = 4;
+         static constexpr uint8_t DIRECTION_KEY_COUNT = 4;
+         static constexpr uint8_t MAX_PRESSED_KEYS    = 8;
 
     private:
         glm::vec2 leftAxe;  // left hand control
@@ -47,8 +56,9 @@ namespace ettycc
         char currentKey; 
         bool pressed;
         int wheelY;
+        int wheelX;
 
-        uint32_t pressedKeys[8];
+        uint32_t pressedKeys[MAX_PRESSED_KEYS]; // this is supposed to hold up to 8 pressed keys or whatever...
 
     public:
         PlayerInput();
@@ -58,17 +68,11 @@ namespace ettycc
         void ResetState();
 
         // INPUT API...
-        glm::vec2 GetLeftAxis(); // WASD OR ARROWS...
-        glm::vec2 GetRightAxis(); 
-        glm::ivec2 GetMousePos(); 
-        bool GetMouseButton(int buttonIndex);
-
-        // glm::vec2 GetMouseAceleration();
-        // uint64_t  GetMouseButtonDown();   
-        // uint64_t  GetMouseButtonUp();
-
-        // char GetKeyDown();
-        // char GetKeyUp();
+        [[nodiscard]] glm::vec2 GetLeftAxis() const;
+        [[nodiscard]] glm::vec2 GetRightAxis() const;
+        [[nodiscard]] glm::ivec2 GetMousePos() const;
+        [[nodiscard]] int GetWheelY() const;
+        [[nodiscard]] bool GetMouseButton(MouseButton button) const;
     };
 } // namespace ettycc
 

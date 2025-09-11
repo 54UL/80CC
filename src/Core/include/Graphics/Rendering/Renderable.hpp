@@ -25,7 +25,7 @@ namespace ettycc
            initialized = false;
         }
 
-        ~Renderable(){
+        virtual ~Renderable(){
 
         }
 
@@ -40,7 +40,7 @@ namespace ettycc
         }
 
         virtual void Init(const std::shared_ptr<Engine>& engineCtx) = 0;
-        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx, float time) = 0;
+        virtual void Pass(const std::shared_ptr<RenderingContext> &ctx, float deltaTime) = 0;
 
         template <class Archive>
         void serialize(Archive &ar)

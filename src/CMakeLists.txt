@@ -16,8 +16,9 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # Set the vcpkg root directory and the tripplet
+# IMPORTANT NOTE: Change the VCPKG_ROOT path to your vcpkg installation path, IF YOU DON DO THIS YOU WONT BE ABLE TO COMPILE ON CLION...
 set(VCPKG_ROOT "/workspaces/vcpkg" CACHE STRING "")
-set(VCPKG_TARGET_TRIPLET "x64-linux" CACHE STRING "")
+#set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "")
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 
 # Include the vcpkg toolchain file
