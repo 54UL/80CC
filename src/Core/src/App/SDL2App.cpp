@@ -219,60 +219,40 @@ namespace ettycc
     void SDL2App::AppInput()
     {
         SDL_Event event;
-        uint64_t data[2];
-
         while (SDL_PollEvent(&event))
         {
             ImGui_ImplSDL2_ProcessEvent(&event);
+            auto input = currentEngine_->GetInputSystem();
+
+            if (input == nullptr)
+            {
+                spdlog::error("SDL2App::AppInput(): input system was nullptr");
+                return;
+            }
 
             switch (event.type)
             {
             case SDL_QUIT:
                 SetRunningStatus(false);
                 return;
-
             case SDL_KEYDOWN:
-                data[0] = event.key.keysym.sym;
-                currentEngine_->ProcessInput(PlayerInputType::KEYBOARD_DOWN, data);
+                input->SetKey(event.key.keysym.sym, true);
                 break;
-                
             case SDL_KEYUP:
-                data[0] = event.key.keysym.sym;
-                currentEngine_->ProcessInput(PlayerInputType::KEYBOARD_UP, data);
+                input->SetKey(event.key.keysym.sym, false);
                 break;
-
             case SDL_MOUSEMOTION:
-                // another crime here
-                // add a toggle to switch between drag and absolute mouse position...
-                // if (event.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
-                //     data[0] = (float)event.motion.xrel;
-                //     data[1] = (float)event.motion.yrel;
-                // }
-
-                // data[0] = event.motion.x;
-                // data[1] = event.motion.y;
-
-
-                currentEngine_->ProcessInput(PlayerInputType::MOUSE_XY, data);
+                input->SetMousePos(event.motion.x, event.motion.y);
+                input->SetMouseDelta(event.motion.xrel, event.motion.yrel);
                 break;
-
-
             case SDL_MOUSEBUTTONDOWN:
-                // Handle Mouse Button Down Event
-                data[0] = event.button.button;
-                currentEngine_->ProcessInput(PlayerInputType::MOUSE_BUTTON_DOWN, data);
+                input->SetMouseButton(event.button.button, true);
                 break;
-
             case SDL_MOUSEBUTTONUP:
-                data[0] = event.button.button;
-                currentEngine_->ProcessInput(PlayerInputType::MOUSE_BUTTON_UP, data);
+                input->SetMouseButton(event.button.button, false);
                 break;
-
-
             case SDL_MOUSEWHEEL:
-                data[0] = event.wheel.x;
-                data[1] = event.wheel.y;
-                currentEngine_->ProcessInput(PlayerInputType::MOUSE_WHEEL, data);
+                input->SetWheel(event.wheel.x, event.wheel.y);
                 break;
             }
         }

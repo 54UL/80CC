@@ -57,8 +57,8 @@ namespace ettycc
         void Update() override;
         void PrepareFrame() override;
         void PresentFrame() override;
-        void ProcessInput(PlayerInputType type, uint64_t *data) override;
-    };   
+        virtual PlayerInput * GetInputSystem() override;
+    };
 } // namespace ettycc
 
 #endif

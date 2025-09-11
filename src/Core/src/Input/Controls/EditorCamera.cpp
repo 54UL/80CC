@@ -46,10 +46,24 @@ namespace ettycc
 
     void EditorCamera::Update(float deltaTime)
     {
-        // handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
-        if (inputSystem_->GetMouseButton(MouseButton::LEFT)) // Left mouse button is pressed
+        if (inputSystem_->GetMouseButton(1))// Left mouse button is pressed
         {
-            handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
+            glm::vec2 mouseDelta = inputSystem_->GetMouseDelta() * deltaTime;
+            if (mouseDelta.x != 0.0f || mouseDelta.y != 0.0f)
+            {
+                position.x += mouseDelta.x / zoom*.05f;
+                position.y -= mouseDelta.y / zoom*.5f;
+            }
+            else
+            {
+                // Fallback to axis-based pan if no mouse delta
+                // handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
+            }
+        }
+        else
+        {
+            // Not dragging — allow axis pan
+            // handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
         }
 
         static int lastWheelY = 0;

@@ -5,108 +5,62 @@
 // IT IS JUST A PROOF OF CONCEPT TO TEST THE ENGINE SYSTEMS
 // create a multi threaded dispatcher alongside with the thread system (handle threads)
 
-namespace ettycc
-{
-    PlayerInput::PlayerInput() : rightAxe(glm::vec2(0.0f)), leftAxe(glm::vec2(0.0f))
-    {
+namespace ettycc {
+    PlayerInput::PlayerInput() {
     }
 
-    PlayerInput::~PlayerInput()
-    {
+    PlayerInput::~PlayerInput() {
     }
 
-    void PlayerInput::ProcessInput(PlayerInputType type, uint64_t *data)
-    {
-        InputDirection currentDir = InputDirection::NONE;
-        const char *WASDKeyCodes = "wsda"; // todo: this gotta be readed from a config...
-
-        switch (type)
-        {
-        case PlayerInputType::KEYBOARD_DOWN:
-
-            for (uint8_t i = 0; i < DIRECTION_KEY_COUNT; i++)
-            {
-                if (WASDKeyCodes[i] == data[(uint64_t)InputDataOffsets::KEY])
-                {
-                    currentDir = static_cast<InputDirection>(i);
-                    break;
-                }
-            }
-
-            switch (currentDir)
-            {
-            case InputDirection::UP:
-                leftAxe.y = 1.0f;
-                break;
-            case InputDirection::DOWN:
-                leftAxe.y = -1.0f;
-                break;
-            case InputDirection::LEFT:
-                leftAxe.x = -1.0f;
-                break;
-            case InputDirection::RIGHT:
-                leftAxe.x = 1.0f;
-                break;
-            }
-            break;
-        case PlayerInputType::MOUSE_XY:
-            xpos = (int)data[(int)InputDataOffsets::X] > 0 ? (int)data[(int)InputDataOffsets::X] : 0;
-            ypos = (int)data[(int)InputDataOffsets::Y] > 0 ? (int)data[(int)InputDataOffsets::Y] : 0;
-            break;
-        
-            case PlayerInputType::MOUSE_BUTTON_DOWN:
-            pressedKeys[0] = (int)data[(int)InputDataOffsets::X];
-            break;
-
-        case PlayerInputType::MOUSE_BUTTON_UP:
-            // if the relased key is in the pressed keys reset the state...
-            pressedKeys[0] = (int)data[(int)InputDataOffsets::X] == pressedKeys[0] ? 0 : (int)data[(int)InputDataOffsets::X];
-            break;
-        case PlayerInputType::MOUSE_WHEEL:
-            wheelX = (int)data[(int)InputDataOffsets::WHEEL_X];
-            wheelY = (int)data[(int)InputDataOffsets::WHEEL_Y];
-            break;
-
-        default:
-            break;
-        }
+    void PlayerInput::SetMousePos(int x, int y) {
+        state_.mousePos = glm::ivec2(x, y);
     }
 
-    void PlayerInput::ResetState()
-    {
-        // THIS HAPPENDS EVERY TIME AT THE END OF THE FRAME
-        leftAxe = glm::vec2(0.0f, 0.0f);
-        rightAxe = glm::vec2(0.0f, 0.0f);
-        wheelX = 0.0f;
-        wheelY = 0.0f;
-
-        // for (uint8_t i = 0; i < MAX_PRESSED_KEYS; i++)
-        // {
-        //     pressedKeys[i] = 0;
-        // }
+    void PlayerInput::SetMouseDelta(int xrel, int yrel) {
+        state_.mouseDelta = glm::vec2(xrel, yrel);
     }
 
-    glm::vec2 PlayerInput::GetLeftAxis() const {
-        return leftAxe;
+    void PlayerInput::SetMouseButton(int button, bool pressed) {
+        if (button >= 1 && button <= 3) state_.mouseButtons[button - 1] = pressed;
     }
 
-    int PlayerInput::GetWheelY() const
-    {
-        return wheelY;
+    void PlayerInput::SetWheel(int x, int y) {
+        state_.wheelX = x;
+        state_.wheelY = y;
     }
 
-    glm::vec2 PlayerInput::GetRightAxis() const
-    {
-        return rightAxe;
+    void PlayerInput::SetKey(int keycode, bool pressed) {
+        state_.keyStates[keycode] = pressed;
     }
 
-    glm::ivec2 PlayerInput::GetMousePos() const
-    {
-        return glm::ivec2(xpos, ypos);
+    void PlayerInput::ResetState() {
+        state_.mouseDelta = glm::vec2(0, 0);
+        state_.wheelX = 0;
+        state_.wheelY = 0;
     }
 
-    bool PlayerInput::GetMouseButton(MouseButton button) const
-    {
-        return pressedKeys[static_cast<size_t>(InputDataOffsets::MOUSE_BUTTONS)] == static_cast<uint32_t>(button);
+    glm::ivec2 PlayerInput::GetMousePos() const {
+        return state_.mousePos;
+    }
+    glm::vec2 PlayerInput::GetMouseDelta() const {
+        return state_.mouseDelta;
+    }
+
+    bool PlayerInput::GetMouseButton(int button) const {
+        if (button >= 1 && button <= 3) return state_.mouseButtons[button - 1];
+        return false;
+    }
+
+    int PlayerInput::GetWheelY() const {
+        return state_.wheelY;
+    }
+
+    int PlayerInput::GetWheelX() const {
+        return state_.wheelX;
+    }
+
+    bool PlayerInput::IsKeyPressed(int keycode) const {
+        auto it = state_.keyStates.find(keycode);
+        return it != state_.keyStates.end() && it->second;
     }
 }

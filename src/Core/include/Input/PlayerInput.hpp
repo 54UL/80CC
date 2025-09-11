@@ -1,9 +1,19 @@
 #ifndef PLAYER_INPUT_HPP
 #define PLAYER_INPUT_HPP
 #include <glm/glm.hpp>
+#include <unordered_map>
 
 namespace ettycc
 {
+    struct InputState {
+        glm::ivec2 mousePos{0, 0};
+        glm::vec2 mouseDelta{0, 0};
+        bool mouseButtons[3]{false, false, false}; // left, right, middle
+        int wheelY{0};
+        int wheelX{0};
+        std::unordered_map<int, bool> keyStates; // keycode -> pressed
+    };
+
     enum class PlayerInputType
     {
         KEYBOARD_DOWN,
@@ -58,21 +68,32 @@ namespace ettycc
         int wheelY;
         int wheelX;
 
-        uint32_t pressedKeys[MAX_PRESSED_KEYS]; // this is supposed to hold up to 8 pressed keys or whatever...
-
     public:
         PlayerInput();
         ~PlayerInput();
 
-        void ProcessInput(PlayerInputType type, uint64_t *data);
+         void SetMousePos(int x, int y);
+
+         void SetMouseDelta(int xrel, int yrel);
+
+         void SetMouseButton(int button, bool pressed);
+
+         void SetWheel(int x, int y);
+
+         void SetKey(int keycode, bool pressed);
+
         void ResetState();
 
-        // INPUT API...
-        [[nodiscard]] glm::vec2 GetLeftAxis() const;
-        [[nodiscard]] glm::vec2 GetRightAxis() const;
-        [[nodiscard]] glm::ivec2 GetMousePos() const;
-        [[nodiscard]] int GetWheelY() const;
-        [[nodiscard]] bool GetMouseButton(MouseButton button) const;
+        // Getters
+        glm::ivec2 GetMousePos() const;
+        glm::vec2 GetMouseDelta() const;
+        bool GetMouseButton(int button) const;
+        int GetWheelY() const;
+        int GetWheelX() const;
+        bool IsKeyPressed(int keycode) const;
+
+    private:
+        InputState state_;
     };
 } // namespace ettycc
 

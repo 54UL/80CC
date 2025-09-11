@@ -185,10 +185,15 @@ namespace ettycc
         inputSystem_.ResetState(); // TODO: CHECK IF IS MORE SUITIABLE TO HAVING IT ON THE DEFAULT CASE WHEN PROCESSING INPUT (ALWAYS ENTERS THERE)
     }
 
-    void Engine::ProcessInput(PlayerInputType type, uint64_t *data) // UNSAFE!!!! FIX THIS TRASH
+    PlayerInput * Engine::GetInputSystem()
     {
-        inputSystem_.ProcessInput(type, data);
+        return &inputSystem_;
     }
+
+    // void Engine::ProcessInput(PlayerInputType type, uint64_t *data) // UNSAFE!!!! FIX THIS TRASH
+    // {
+    //     inputSystem_.ProcessInput(type, data);
+    // }
 
     void Engine::BuildExecutable(const std::string &outputPath)
     {
