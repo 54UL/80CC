@@ -4,11 +4,12 @@
 #include "Input/Controls/EditorCamera.hpp"
 
 namespace ettycc
-{    
+{
+    // move tf out of here...
     static int viewportNumber = 1;
     static bool frameBufferErrorShown = false;
 
-    DevEditor::DevEditor()
+    DevEditor::DevEditor(const std::shared_ptr<Engine>& engine) : engineInstance_(engine), uiConsoleOpen_(false)
     {
     }
 
@@ -80,9 +81,8 @@ namespace ettycc
 
             // Query the framebuffer’s *native ratio* (you may store or compute it once)
             glm::ivec2 fbSize = framebuffer->GetSize();
-            float fbAspect = (float)fbSize.x / (float)fbSize.y;
+            float fbAspect = static_cast<float>(fbSize.x) / static_cast<float>(fbSize.y);
 
-            // Available size inside the ImGui window
             ImVec2 avail = ImGui::GetContentRegionAvail();
             float availAspect = avail.x / avail.y;
 
@@ -91,13 +91,11 @@ namespace ettycc
                 displaySize.y = avail.y;
                 displaySize.x = displaySize.y * fbAspect;
             } else {
-                // Window region is taller → match width
                 displaySize.x = avail.x;
                 displaySize.y = displaySize.x / fbAspect;
             }
 
-            // Resize framebuffer to the chosen display size
-            framebuffer->SetSize(glm::ivec2((int)displaySize.x, (int)displaySize.y));
+            framebuffer->SetSize(glm::ivec2(static_cast<int>(displaySize.x), static_cast<int>(displaySize.y)));
 
             // Center the image inside the window
             ImVec2 cursorPos = ImGui::GetCursorPos();
@@ -107,17 +105,21 @@ namespace ettycc
             ));
 
             // Draw the framebuffer
-            ImGui::Image((void*)(intptr_t)framebufferTextureID, displaySize, ImVec2(0,1), ImVec2(1,0));
+            ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(framebufferTextureID)), displaySize, ImVec2(0,1), ImVec2(1,0));
 
             static bool isViewportFocused = false;
             static ImVec2 lockedCursorPos;
 
-            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
-                if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            // ALL THIS LOGIC SHOULD BE LOCATED ON THE CAMERA CONTROL CLASS (EDITOR CAMERA)
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_None)) {
+                engineInstance_->editorCamera_->editorCameraControl_->enabled = true;
+
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
                     if (!isViewportFocused) {
                         isViewportFocused = true;
                         lockedCursorPos = ImGui::GetMousePos();
                     }
+
                     ImGui::SetMouseCursor(ImGuiMouseCursor_None);
                     ImGui::GetIO().MousePos = lockedCursorPos;
                 } else {
@@ -125,6 +127,7 @@ namespace ettycc
                 }
             } else {
                 isViewportFocused = false;
+                engineInstance_->editorCamera_->editorCameraControl_->enabled = false;
             }
         }
         else

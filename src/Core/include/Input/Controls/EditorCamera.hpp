@@ -20,8 +20,10 @@ namespace ettycc
         EditorCamera(PlayerInput *input, FrameBuffer* frameBuffer);
         ~EditorCamera();
 
+        // just for testing....
         glm::vec2 position = {0.0f, 0.0f};
         float zoom = 1.0f;
+        bool enabled = false;
 
         [[nodiscard]] glm::mat4 ComputeViewMatrix(float deltaTime) const;
         [[nodiscard]] glm::mat4 ComputeProjectionMatrix(float deltaTime) const;

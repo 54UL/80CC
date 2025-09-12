@@ -48,8 +48,8 @@ namespace ettycc
     enum class MouseButton : uint64_t
     {
         LEFT = 1,
-        RIGHT = 2,
-        MIDDLE = 3
+        MIDDLE = 2,
+        RIGHT = 3
     };
 
     class PlayerInput

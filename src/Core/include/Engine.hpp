@@ -42,7 +42,6 @@ namespace ettycc
         // Engine front-end API        
         void LoadDefaultScene();
         // Engine front-end API
-        void SetWorkingResources(const std::shared_ptr<Resources>& instance);
         void LoadLastScene();
         void LoadScene(const std::string& sceneName);
         void StoreScene(const std::string& sceneName);
