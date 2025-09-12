@@ -32,7 +32,6 @@ namespace ettycc
         void ShowDebugger();
         void ShowDockSpace();
         void ShowMenuBar();
-        void ShowSidePanel();
         void ShowViewport();
         void ShowInspector();
         void ShowAssetsView();

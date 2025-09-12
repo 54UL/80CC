@@ -62,15 +62,6 @@ namespace ettycc
         }
     }
 
-    void DevEditor::ShowSidePanel()
-    {
-        // ImGui::Begin("Side Panel", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-
-        // // Add content for the side panel here
-
-        // ImGui::End();
-    }
-
     void DevEditor::ShowViewport()
     {
         ImGui::Begin("Game view");
@@ -81,7 +72,6 @@ namespace ettycc
         {
             GLuint framebufferTextureID = framebuffer->GetTextureId();
 
-            // Query the framebuffer’s *native ratio* (you may store or compute it once)
             glm::ivec2 fbSize = framebuffer->GetSize();
             float fbAspect = static_cast<float>(fbSize.x) / static_cast<float>(fbSize.y);
 
@@ -97,17 +87,16 @@ namespace ettycc
                 displaySize.y = displaySize.x / fbAspect;
             }
 
-            framebuffer->SetSize(glm::ivec2(static_cast<int>(displaySize.x), static_cast<int>(displaySize.y)));
+            framebuffer->SetSize(glm::ivec2(static_cast<int>(avail.x), static_cast<int>(avail.y)));
 
             // Center the image inside the window
             ImVec2 cursorPos = ImGui::GetCursorPos();
             ImGui::SetCursorPos(ImVec2(
-                cursorPos.x + (avail.x - displaySize.x) * 0.5f,
-                cursorPos.y + (avail.y - displaySize.y) * 0.5f
+                cursorPos.x,
+                cursorPos.y
             ));
 
-            // Draw the framebuffer
-            ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(framebufferTextureID)), displaySize, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(framebufferTextureID)), avail, ImVec2(0, 1), ImVec2(1, 0));
 
             static bool isViewportFocused = false;
             static ImVec2 lockedCursorPos;
@@ -303,7 +292,6 @@ namespace ettycc
 
         const int columns = 4; // Number of columns in the grid
         const float iconSize = 50.0f; // Size of the square icons
-        const float padding = 10.0f; // Padding between icons
 
         ImGui::Columns(columns, NULL, false);
 
