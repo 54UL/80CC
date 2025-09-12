@@ -2,6 +2,8 @@
 #include <Dependency.hpp>
 
 #include "Input/Controls/EditorCamera.hpp"
+#include <unordered_map>
+#include <cstring>
 
 namespace ettycc
 {
@@ -146,20 +148,129 @@ namespace ettycc
     {
         ImGui::Begin("Inspector");
 
-        std::string name;
-        float position[3] = {0.0f, 0.0f, 0.0f};
-        float scale[3] = {1.0f, 1.0f, 1.0f};
-        float rotation[3] = {0.0f, 0.0f, 0.0f};
+        if (selectedNodes_.empty())
+        {
+            ImGui::TextDisabled("No selection");
+            ImGui::Separator();
+            ImGui::TextWrapped("Select a node in the Scene Hierarchy to inspect and edit its properties.");
+            ImGui::End();
+            return;
+        }
 
-        // Add other properties as needed
-        // ImGui::SameLine();
-        ImGui::Text("Position");
-        ImGui::SliderFloat3("##Pos", position, -10.0f, 10.0f);
-        ImGui::InputFloat3("##PosEdit", position, "%.2f");
-        ImGui::Text("Rotation");
-        ImGui::SliderFloat3("##Rot", position, -10.0f, 10.0f);
-        ImGui::InputFloat3("##PosEdit", position, "%.2f");
-        // Add more properties as needed
+        if (selectedNodes_.size() > 1)
+        {
+            ImGui::Text("Multiple Selection (%zu)", selectedNodes_.size());
+            ImGui::Separator();
+            ImGui::TextWrapped("Editing multiple objects at once is supported in the future. Use single selection for now.");
+            ImGui::End();
+            return;
+        }
+
+        auto selectedNode = selectedNodes_.back();
+
+        struct TransformUI
+        {
+            float pos[3];
+            float rot[3];
+            float scale[3];
+            bool initialized = false;
+        };
+
+        static std::unordered_map<const void*, TransformUI> transformCache;
+        const void* key = static_cast<const void*>(selectedNode.get());
+        TransformUI &uiTransform = transformCache[key];
+
+        if (!uiTransform.initialized)
+        {
+            uiTransform.pos[0] = uiTransform.pos[1] = uiTransform.pos[2] = 1.0f;
+            uiTransform.rot[0] = uiTransform.rot[1] = uiTransform.rot[2] = 1.0f;
+            uiTransform.scale[0] = uiTransform.scale[1] = uiTransform.scale[2] = 1.0f;
+            uiTransform.initialized = true;
+        }
+
+        bool isActive = true;
+        ImGui::Checkbox("##isActive", &isActive);
+        ImGui::SameLine();
+        char nameBuf[128] = "";
+        {
+            std::string name = selectedNode->GetName();
+            if (name.size() == 0)
+                strncpy(nameBuf, "UNNAMED", sizeof(nameBuf) - 1);
+            else
+                strncpy(nameBuf, name.c_str(), sizeof(nameBuf) - 1);
+        }
+        if (ImGui::InputText("Name", nameBuf, IM_ARRAYSIZE(nameBuf)))
+        {
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::BeginTable("##transform_table", 1, ImGuiTableFlags_SizingStretchSame))
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Position");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::DragFloat3("##position", uiTransform.pos, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
+                {
+                }
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Rotation");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::DragFloat3("##rotation", uiTransform.rot, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
+                {
+                }
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Scale");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::DragFloat3("##scale", uiTransform.scale, 0.1f, 0.0f, FLT_MAX, "%.3f"))
+                {
+                }
+
+                ImGui::EndTable();
+            }
+
+            ImGui::Separator();
+            if (ImGui::Button("Reset"))
+            {
+                uiTransform.pos[0] = uiTransform.pos[1] = uiTransform.pos[2] = 0.0f;
+                uiTransform.rot[0] = uiTransform.rot[1] = uiTransform.rot[2] = 0.0f;
+                uiTransform.scale[0] = uiTransform.scale[1] = uiTransform.scale[2] = 1.0f;
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("Reset Position / Rotation / Scale");
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::Button("Add Component"))
+                ImGui::OpenPopup("add_component_popup");
+
+            if (ImGui::BeginPopup("add_component_popup"))
+            {
+                if (ImGui::MenuItem("Camera"))
+                {
+                    AddComponentFromTemplate(selectedNode, "Camera");
+                }
+                if (ImGui::MenuItem("Sprite"))
+                {
+                    AddComponentFromTemplate(selectedNode, "Sprite");
+                }
+                ImGui::EndPopup();
+            }
+
+            ImGui::Spacing();
+
+            ImGui::TextWrapped("Component introspection is not enabled in this UI build. Use Add Component to attach mock components (Sprite/Camera).\n\nTo show real component fields, implement a simple reflection or expose accessors on SceneNode and components.");
+        }
 
         ImGui::End();
     }
@@ -521,7 +632,7 @@ namespace ettycc
 
         ShowViewport();
 
-        // ShowInspector();
+        ShowInspector();
 
         ShowSceneHierarchy();
 
