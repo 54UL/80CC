@@ -107,7 +107,7 @@ namespace ettycc
             ));
 
             // Draw the framebuffer
-            ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(framebufferTextureID)), displaySize, ImVec2(0,1), ImVec2(1,0));
+            ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(framebufferTextureID)), displaySize, ImVec2(0, 1), ImVec2(1, 0));
 
             static bool isViewportFocused = false;
             static ImVec2 lockedCursorPos;
@@ -130,6 +130,11 @@ namespace ettycc
             } else {
                 isViewportFocused = false;
                 engineInstance_->editorCamera_->editorCameraControl_->enabled = false;
+            }
+            // does not work....
+            if (ImGui::BeginPopupContextWindow("SceneContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
+                ShowSceneContextMenu(GetDependency(Engine)->mainScene_->root_node_);
+                ImGui::EndPopup();
             }
         }
         else
@@ -289,7 +294,37 @@ namespace ettycc
     {
         ImGui::Begin("Assets");
 
-        // Add content for the scene hierarchy here
+        // Search bar for assets
+        static char searchQuery[128] = "";
+        ImGui::InputText("Search", searchQuery, IM_ARRAYSIZE(searchQuery));
+
+        static const char* assetNames[] = { "Asset 1", "Asset 2", "Asset 3", "Asset 4", "Asset 5" };
+        static const int assetCount = sizeof(assetNames) / sizeof(assetNames[0]);
+
+        const int columns = 4; // Number of columns in the grid
+        const float iconSize = 50.0f; // Size of the square icons
+        const float padding = 10.0f; // Padding between icons
+
+        ImGui::Columns(columns, NULL, false);
+
+        for (int i = 0; i < assetCount; ++i)
+        {
+            // Filter assets based on search query
+            if (strlen(searchQuery) > 0 && strstr(assetNames[i], searchQuery) == NULL)
+            {
+                continue;
+            }
+
+            ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + iconSize), IM_COL32(100, 100, 255, 255));
+
+            ImGui::Dummy(ImVec2(iconSize, iconSize)); // Reserve space for the icon
+            ImGui::TextWrapped("%s", assetNames[i]);
+
+            ImGui::NextColumn();
+        }
+
+        ImGui::Columns(1); // Reset columns
 
         ImGui::End();
     }
@@ -368,7 +403,7 @@ namespace ettycc
             ImGui::EndPopup();
         }
 
-        AddNode(node);
+        // AddNode(node);
     }
 
     void DevEditor::AddNode(const std::shared_ptr<SceneNode> &selectedNode)
@@ -482,10 +517,6 @@ namespace ettycc
 
     void DevEditor::RenderSceneTree()
     {
-        if (ImGui::ArrowButton("##Collapse", ImGuiDir_Down))
-        {
-        }
-
         ImGui::SameLine();
         static char search[32] = "Object name...";
         ImGui::InputText("##Search", search, IM_ARRAYSIZE(search));
@@ -636,7 +667,7 @@ namespace ettycc
 
         ShowSceneHierarchy();
 
-        // ShowAssetsView();
+        ShowAssetsView();
     }
 
     void DevEditor::Init()
