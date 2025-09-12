@@ -24,7 +24,18 @@ namespace ettycc
             spdlog::error("can't auto save engine configuration!!!");
         }
     }
-    
+
+    // TODO: THIS SHOULD BE SOMEWHERE IN A ASSET BULDER IN ORDDER TO CREATE STUFF LIKE THIS FROM TEMPLATES
+    void Engine::createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos) {
+        auto spriteComponent = std::make_shared<Sprite>(spriteTexturePath);
+        static int index = 0;
+        auto spriteNode = std::make_shared<SceneNode>(std::string("sprite primitive #").append(std::to_string(index++)));
+
+        spriteNode->AddComponent(std::make_shared<RenderableNode>(spriteComponent));
+        spriteComponent->underylingTransform.setGlobalPosition(pos);
+        rootSceneNode->AddChild(spriteNode);
+    }
+
     void Engine::LoadDefaultScene()
     {
         // default scene construction (basic sprite with not found texture...)
@@ -35,12 +46,8 @@ namespace ettycc
         // not found sprite
         std::string notFoundTexturePath = engineResources_->Get("sprites", "not-found");
         
-        auto notFoundSpriteComponent = std::make_shared<Sprite>(notFoundTexturePath);
-        auto notFoundSpriteNode = std::make_shared<SceneNode>("sprite node 1");
-        notFoundSpriteNode->AddComponent(std::make_shared<RenderableNode>(notFoundSpriteComponent));
-        notFoundSpriteComponent->underylingTransform.setGlobalPosition(glm::vec3(0, 0, 0));
-
-        rootSceneNode->AddChild(notFoundSpriteNode);
+        createSprite(rootSceneNode, notFoundTexturePath,glm::vec3(-1, 0, 0));
+        createSprite(rootSceneNode, notFoundTexturePath,glm::vec3(2, 0, 0));
 
         // default camera
         std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(1200,800);

@@ -39,6 +39,8 @@ namespace ettycc
         Engine(std::shared_ptr<App> appInstance);
         ~Engine() override;
 
+        static void createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos);
+
         // Engine front-end API        
         void LoadDefaultScene();
         // Engine front-end API
