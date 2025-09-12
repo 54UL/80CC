@@ -1,9 +1,19 @@
 #ifndef PLAYER_INPUT_HPP
 #define PLAYER_INPUT_HPP
 #include <glm/glm.hpp>
+#include <unordered_map>
 
 namespace ettycc
 {
+    struct InputState {
+        glm::ivec2 mousePos{0, 0};
+        glm::vec2 mouseDelta{0, 0};
+        bool mouseButtons[3]{false, false, false}; // left, right, middle
+        int wheelY{0};
+        int wheelX{0};
+        std::unordered_map<int, bool> keyStates; // keycode -> pressed
+    };
+
     enum class PlayerInputType
     {
         KEYBOARD_DOWN,
@@ -31,13 +41,22 @@ namespace ettycc
         Y = 1,
         X_Y = 2,
         WHEEL_X = 0,
-        WHEEL_Y = 1
+        WHEEL_Y = 1,
+        MOUSE_BUTTONS = 0
+    };
+
+    enum class MouseButton : uint64_t
+    {
+        LEFT = 1,
+        MIDDLE = 2,
+        RIGHT = 3
     };
 
     class PlayerInput
     {
     public:
-         const uint8_t DIRECTION_KEY_COUNT = 4;
+         static constexpr uint8_t DIRECTION_KEY_COUNT = 4;
+         static constexpr uint8_t MAX_PRESSED_KEYS    = 8;
 
     private:
         glm::vec2 leftAxe;  // left hand control
@@ -47,28 +66,34 @@ namespace ettycc
         char currentKey; 
         bool pressed;
         int wheelY;
-
-        uint32_t pressedKeys[8];
+        int wheelX;
 
     public:
         PlayerInput();
         ~PlayerInput();
 
-        void ProcessInput(PlayerInputType type, uint64_t *data);
+         void SetMousePos(int x, int y);
+
+         void SetMouseDelta(int xrel, int yrel);
+
+         void SetMouseButton(int button, bool pressed);
+
+         void SetWheel(int x, int y);
+
+         void SetKey(int keycode, bool pressed);
+
         void ResetState();
 
-        // INPUT API...
-        glm::vec2 GetLeftAxis(); // WASD OR ARROWS...
-        glm::vec2 GetRightAxis(); 
-        glm::ivec2 GetMousePos(); 
-        bool GetMouseButton(int buttonIndex);
+        // Getters
+        glm::ivec2 GetMousePos() const;
+        glm::vec2 GetMouseDelta() const;
+        bool GetMouseButton(int button) const;
+        int GetWheelY() const;
+        int GetWheelX() const;
+        bool IsKeyPressed(int keycode) const;
 
-        // glm::vec2 GetMouseAceleration();
-        // uint64_t  GetMouseButtonDown();   
-        // uint64_t  GetMouseButtonUp();
-
-        // char GetKeyDown();
-        // char GetKeyUp();
+    private:
+        InputState state_;
     };
 } // namespace ettycc
 

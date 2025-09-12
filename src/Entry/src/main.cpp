@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
     std::shared_ptr<Resources> resourcesInstance = std::make_shared<Resources>();
 
 #ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
-    auto developmentEditor = std::make_shared<DevEditor>();
+    auto developmentEditor = std::make_shared<DevEditor>(engineInstance);
     app->AddExecutionPipeline(developmentEditor);
 #endif
 

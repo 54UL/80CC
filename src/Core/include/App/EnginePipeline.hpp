@@ -10,11 +10,11 @@ namespace ettycc
         EnginePipeline() = default;
         virtual ~EnginePipeline() = default;
 
-        virtual void Init() = 0;
-        virtual void Update() = 0;
-        virtual void PrepareFrame() = 0;
-        virtual void PresentFrame() = 0;
-        virtual void ProcessInput(PlayerInputType type, uint64_t *data) = 0; // TODO: UNSAFE CODE, SET FIXED LENGTHS
+        virtual void          Init() = 0;
+        virtual void          Update() = 0;
+        virtual void          PrepareFrame() = 0;
+        virtual void          PresentFrame() = 0;
+        virtual PlayerInput * GetInputSystem() = 0;
     };
 } // namespace ettycc
 

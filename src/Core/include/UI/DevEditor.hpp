@@ -18,7 +18,7 @@ namespace ettycc
     class DevEditor : public ExecutionPipeline
     {
     public:
-        DevEditor();
+        DevEditor(const std::shared_ptr<Engine>& engine);
         ~DevEditor();
         // Editor execution pipeline
         void Init() override;
@@ -32,7 +32,6 @@ namespace ettycc
         void ShowDebugger();
         void ShowDockSpace();
         void ShowMenuBar();
-        void ShowSidePanel();
         void ShowViewport();
         void ShowInspector();
         void ShowAssetsView();
@@ -42,11 +41,12 @@ namespace ettycc
 
         // SCENE NODE VIEW COMPONENT ################################################
         // PROPERTIES
+        std::shared_ptr<Engine> engineInstance_;
         std::vector<std::shared_ptr<SceneNode>> selectedNodes_;
         std::string searchFilter_;
         DebugConsole uiConsole;
         bool uiConsoleOpen_;
-        
+
         // METHODS
         void RenderSceneTree();
         void RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth);

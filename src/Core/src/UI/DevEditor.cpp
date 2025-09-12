@@ -1,12 +1,17 @@
 #include <UI/DevEditor.hpp>
 #include <Dependency.hpp>
 
+#include "Input/Controls/EditorCamera.hpp"
+#include <unordered_map>
+#include <cstring>
+
 namespace ettycc
-{    
+{
+    // move tf out of here...
     static int viewportNumber = 1;
     static bool frameBufferErrorShown = false;
 
-    DevEditor::DevEditor()
+    DevEditor::DevEditor(const std::shared_ptr<Engine>& engine) : engineInstance_(engine), uiConsoleOpen_(false)
     {
     }
 
@@ -57,15 +62,6 @@ namespace ettycc
         }
     }
 
-    void DevEditor::ShowSidePanel()
-    {
-        // ImGui::Begin("Side Panel", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-
-        // // Add content for the side panel here
-
-        // ImGui::End();
-    }
-
     void DevEditor::ShowViewport()
     {
         ImGui::Begin("Game view");
@@ -76,37 +72,59 @@ namespace ettycc
         {
             GLuint framebufferTextureID = framebuffer->GetTextureId();
 
-            // Query the framebuffer’s *native ratio* (you may store or compute it once)
             glm::ivec2 fbSize = framebuffer->GetSize();
-            float fbAspect = (float)fbSize.x / (float)fbSize.y;
+            float fbAspect = static_cast<float>(fbSize.x) / static_cast<float>(fbSize.y);
 
-            // Available size inside the ImGui window
             ImVec2 avail = ImGui::GetContentRegionAvail();
             float availAspect = avail.x / avail.y;
 
             ImVec2 displaySize;
             if (availAspect > fbAspect) {
-                // Window region is wider → match height
                 displaySize.y = avail.y;
                 displaySize.x = displaySize.y * fbAspect;
             } else {
-                // Window region is taller → match width
                 displaySize.x = avail.x;
                 displaySize.y = displaySize.x / fbAspect;
             }
 
-            // Resize framebuffer to the chosen display size
-            framebuffer->SetSize(glm::ivec2((int)displaySize.x, (int)displaySize.y));
+            framebuffer->SetSize(glm::ivec2(static_cast<int>(avail.x), static_cast<int>(avail.y)));
 
             // Center the image inside the window
             ImVec2 cursorPos = ImGui::GetCursorPos();
             ImGui::SetCursorPos(ImVec2(
-                cursorPos.x + (avail.x - displaySize.x) * 0.5f,
-                cursorPos.y + (avail.y - displaySize.y) * 0.5f
+                cursorPos.x,
+                cursorPos.y
             ));
 
-            // Draw the framebuffer
-            ImGui::Image((void*)(intptr_t)framebufferTextureID, displaySize, ImVec2(0,1), ImVec2(1,0));
+            ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(framebufferTextureID)), avail, ImVec2(0, 1), ImVec2(1, 0));
+
+            static bool isViewportFocused = false;
+            static ImVec2 lockedCursorPos;
+
+            // ALL THIS LOGIC SHOULD BE LOCATED ON THE CAMERA CONTROL CLASS (EDITOR CAMERA)
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_None)) {
+                engineInstance_->editorCamera_->editorCameraControl_->enabled = true;
+
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+                    if (!isViewportFocused) {
+                        isViewportFocused = true;
+                        lockedCursorPos = ImGui::GetMousePos();
+                    }
+
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                    ImGui::GetIO().MousePos = lockedCursorPos;
+                } else {
+                    isViewportFocused = false;
+                }
+            } else {
+                isViewportFocused = false;
+                engineInstance_->editorCamera_->editorCameraControl_->enabled = false;
+            }
+            // does not work....
+            if (ImGui::BeginPopupContextWindow("SceneContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
+                ShowSceneContextMenu(GetDependency(Engine)->mainScene_->root_node_);
+                ImGui::EndPopup();
+            }
         }
         else
         {
@@ -124,20 +142,129 @@ namespace ettycc
     {
         ImGui::Begin("Inspector");
 
-        std::string name;
-        float position[3] = {0.0f, 0.0f, 0.0f};
-        float scale[3] = {1.0f, 1.0f, 1.0f};
-        float rotation[3] = {0.0f, 0.0f, 0.0f};
+        if (selectedNodes_.empty())
+        {
+            ImGui::TextDisabled("No selection");
+            ImGui::Separator();
+            ImGui::TextWrapped("Select a node in the Scene Hierarchy to inspect and edit its properties.");
+            ImGui::End();
+            return;
+        }
 
-        // Add other properties as needed
-        // ImGui::SameLine();
-        ImGui::Text("Position");
-        ImGui::SliderFloat3("##Pos", position, -10.0f, 10.0f);
-        ImGui::InputFloat3("##PosEdit", position, "%.2f");
-        ImGui::Text("Rotation");
-        ImGui::SliderFloat3("##Rot", position, -10.0f, 10.0f);
-        ImGui::InputFloat3("##PosEdit", position, "%.2f");
-        // Add more properties as needed
+        if (selectedNodes_.size() > 1)
+        {
+            ImGui::Text("Multiple Selection (%zu)", selectedNodes_.size());
+            ImGui::Separator();
+            ImGui::TextWrapped("Editing multiple objects at once is supported in the future. Use single selection for now.");
+            ImGui::End();
+            return;
+        }
+
+        auto selectedNode = selectedNodes_.back();
+
+        struct TransformUI
+        {
+            float pos[3];
+            float rot[3];
+            float scale[3];
+            bool initialized = false;
+        };
+
+        static std::unordered_map<const void*, TransformUI> transformCache;
+        const void* key = static_cast<const void*>(selectedNode.get());
+        TransformUI &uiTransform = transformCache[key];
+
+        if (!uiTransform.initialized)
+        {
+            uiTransform.pos[0] = uiTransform.pos[1] = uiTransform.pos[2] = 1.0f;
+            uiTransform.rot[0] = uiTransform.rot[1] = uiTransform.rot[2] = 1.0f;
+            uiTransform.scale[0] = uiTransform.scale[1] = uiTransform.scale[2] = 1.0f;
+            uiTransform.initialized = true;
+        }
+
+        bool isActive = true;
+        ImGui::Checkbox("##isActive", &isActive);
+        ImGui::SameLine();
+        char nameBuf[128] = "";
+        {
+            std::string name = selectedNode->GetName();
+            if (name.size() == 0)
+                strncpy(nameBuf, "UNNAMED", sizeof(nameBuf) - 1);
+            else
+                strncpy(nameBuf, name.c_str(), sizeof(nameBuf) - 1);
+        }
+        if (ImGui::InputText("Name", nameBuf, IM_ARRAYSIZE(nameBuf)))
+        {
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::BeginTable("##transform_table", 1, ImGuiTableFlags_SizingStretchSame))
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Position");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::DragFloat3("##position", uiTransform.pos, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
+                {
+                }
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Rotation");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::DragFloat3("##rotation", uiTransform.rot, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
+                {
+                }
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Scale");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::DragFloat3("##scale", uiTransform.scale, 0.1f, 0.0f, FLT_MAX, "%.3f"))
+                {
+                }
+
+                ImGui::EndTable();
+            }
+
+            ImGui::Separator();
+            if (ImGui::Button("Reset"))
+            {
+                uiTransform.pos[0] = uiTransform.pos[1] = uiTransform.pos[2] = 0.0f;
+                uiTransform.rot[0] = uiTransform.rot[1] = uiTransform.rot[2] = 0.0f;
+                uiTransform.scale[0] = uiTransform.scale[1] = uiTransform.scale[2] = 1.0f;
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("Reset Position / Rotation / Scale");
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::Button("Add Component"))
+                ImGui::OpenPopup("add_component_popup");
+
+            if (ImGui::BeginPopup("add_component_popup"))
+            {
+                if (ImGui::MenuItem("Camera"))
+                {
+                    AddComponentFromTemplate(selectedNode, "Camera");
+                }
+                if (ImGui::MenuItem("Sprite"))
+                {
+                    AddComponentFromTemplate(selectedNode, "Sprite");
+                }
+                ImGui::EndPopup();
+            }
+
+            ImGui::Spacing();
+
+            ImGui::TextWrapped("Component introspection is not enabled in this UI build. Use Add Component to attach mock components (Sprite/Camera).\n\nTo show real component fields, implement a simple reflection or expose accessors on SceneNode and components.");
+        }
 
         ImGui::End();
     }
@@ -156,7 +283,36 @@ namespace ettycc
     {
         ImGui::Begin("Assets");
 
-        // Add content for the scene hierarchy here
+        // Search bar for assets
+        static char searchQuery[128] = "";
+        ImGui::InputText("Search", searchQuery, IM_ARRAYSIZE(searchQuery));
+
+        static const char* assetNames[] = { "Asset 1", "Asset 2", "Asset 3", "Asset 4", "Asset 5" };
+        static const int assetCount = sizeof(assetNames) / sizeof(assetNames[0]);
+
+        const int columns = 4; // Number of columns in the grid
+        const float iconSize = 50.0f; // Size of the square icons
+
+        ImGui::Columns(columns, NULL, false);
+
+        for (int i = 0; i < assetCount; ++i)
+        {
+            // Filter assets based on search query
+            if (strlen(searchQuery) > 0 && strstr(assetNames[i], searchQuery) == NULL)
+            {
+                continue;
+            }
+
+            ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddRectFilled(cursorPos, ImVec2(cursorPos.x + iconSize, cursorPos.y + iconSize), IM_COL32(100, 100, 255, 255));
+
+            ImGui::Dummy(ImVec2(iconSize, iconSize)); // Reserve space for the icon
+            ImGui::TextWrapped("%s", assetNames[i]);
+
+            ImGui::NextColumn();
+        }
+
+        ImGui::Columns(1); // Reset columns
 
         ImGui::End();
     }
@@ -235,7 +391,7 @@ namespace ettycc
             ImGui::EndPopup();
         }
 
-        AddNode(node);
+        // AddNode(node);
     }
 
     void DevEditor::AddNode(const std::shared_ptr<SceneNode> &selectedNode)
@@ -349,10 +505,6 @@ namespace ettycc
 
     void DevEditor::RenderSceneTree()
     {
-        if (ImGui::ArrowButton("##Collapse", ImGuiDir_Down))
-        {
-        }
-
         ImGui::SameLine();
         static char search[32] = "Object name...";
         ImGui::InputText("##Search", search, IM_ARRAYSIZE(search));
@@ -423,12 +575,25 @@ namespace ettycc
             // Tab 1
             if (ImGui::BeginTabItem("Stats"))
             {
-
+                // Yeah just put everything you would print
                 auto mousepos = engineInstance->inputSystem_.GetMousePos();
                 ImGui::Text("Delta time: %.4f", engineInstance->appInstance_->GetDeltaTime());
                 ImGui::Text("App time: %.4f", engineInstance->appInstance_->GetCurrentTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]", mousepos.x, mousepos.y);
+
                 ImGui::Text("FPS: %.4f", (1.0f / engineInstance->appInstance_->GetDeltaTime()));
+                if (engineInstance->editorCamera_ != nullptr) {
+                    auto& cam = engineInstance->editorCamera_->editorCameraControl_;
+
+                    // Manual controls for camera position and zoom
+                    ImGui::Separator();
+                    ImGui::Text("Camera Controls");
+                    ImGui::SliderFloat2("Position", &cam->position.x, -10.0f, 10.0f, "%.2f");
+                    ImGui::InputFloat2("Edit Position", &cam->position.x, "%.2f");
+                    ImGui::SliderFloat("Zoom", &cam->zoom, 0.1f, 10.00, "%.2f");
+                    ImGui::InputFloat("Edit Zoom", &cam->zoom, 0.1);
+                }
+
                 // ImVec2 graphSize(200, 200);  // Adjust the size as needed
 
                 plotStep += engineInstance->appInstance_->GetDeltaTime();
@@ -486,11 +651,11 @@ namespace ettycc
 
         ShowViewport();
 
-        // ShowInspector();
+        ShowInspector();
 
         ShowSceneHierarchy();
 
-        // ShowAssetsView();
+        ShowAssetsView();
     }
 
     void DevEditor::Init()

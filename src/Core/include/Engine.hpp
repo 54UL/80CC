@@ -29,6 +29,7 @@ namespace ettycc
         std::shared_ptr<App>                        appInstance_;
         std::shared_ptr<Resources>                  engineResources_;
         std::vector<std::shared_ptr<GameModule>>    gameModules_;
+        std::shared_ptr<Camera>                     editorCamera_;
 
         Rendering              renderEngine_;
         PlayerInput            inputSystem_;
@@ -38,10 +39,11 @@ namespace ettycc
         Engine(std::shared_ptr<App> appInstance);
         ~Engine() override;
 
+        static void createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos);
+
         // Engine front-end API        
         void LoadDefaultScene();
         // Engine front-end API
-        void SetWorkingResources(const std::shared_ptr<Resources>& instance);
         void LoadLastScene();
         void LoadScene(const std::string& sceneName);
         void StoreScene(const std::string& sceneName);
@@ -56,8 +58,8 @@ namespace ettycc
         void Update() override;
         void PrepareFrame() override;
         void PresentFrame() override;
-        void ProcessInput(PlayerInputType type, uint64_t *data) override;
-    };   
+        virtual PlayerInput * GetInputSystem() override;
+    };
 } // namespace ettycc
 
 #endif

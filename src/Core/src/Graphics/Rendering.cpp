@@ -36,7 +36,8 @@ namespace ettycc
 
     void Rendering::Pass(float deltaTime)
     {
-        // renderingTime += deltaTime;
+        static float accumulatedTime = 0;
+        accumulatedTime += deltaTime;
         if (!sceneFrameBuffer_) return;
         
         // Frame buffer Single camera  implementation 

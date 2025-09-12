@@ -22,10 +22,10 @@ namespace ettycc
         mouseDelta =  mouseCurrent - lastAxisPosition;
         lastAxisPosition = mouseCurrent;
 
-        if (inputSystem_->GetMouseButton(3)) {
-            positionAxis += glm::vec3(inputSystem_->GetLeftAxis().x ,inputSystem_->GetLeftAxis().y, 0.0f) * movementSensitivity * deltaTime;
-            // lookAxis += glm::vec3(-mouseDelta.y, mouseDelta.x, 0) * lookSensitivity * deltaTime;
-        }
+        // if (inputSystem_->GetMouseButton(MouseButton::RIGHT)) {
+        //     positionAxis += glm::vec3(inputSystem_->GetLeftAxis().x ,inputSystem_->GetLeftAxis().y, 0.0f) * movementSensitivity * deltaTime;
+        //     // lookAxis += glm::vec3(-mouseDelta.y, mouseDelta.x, 0) * lookSensitivity * deltaTime;
+        // }
 
         camera_->underylingTransform.setGlobalPosition(positionAxis);
         // camera_->underylingTransform.setGlobalRotation(lookAxis);

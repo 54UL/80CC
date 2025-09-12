@@ -24,7 +24,18 @@ namespace ettycc
             spdlog::error("can't auto save engine configuration!!!");
         }
     }
-    
+
+    // TODO: THIS SHOULD BE SOMEWHERE IN A ASSET BULDER IN ORDDER TO CREATE STUFF LIKE THIS FROM TEMPLATES
+    void Engine::createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos) {
+        auto spriteComponent = std::make_shared<Sprite>(spriteTexturePath);
+        static int index = 0;
+        auto spriteNode = std::make_shared<SceneNode>(std::string("sprite primitive #").append(std::to_string(index++)));
+
+        spriteNode->AddComponent(std::make_shared<RenderableNode>(spriteComponent));
+        spriteComponent->underylingTransform.setGlobalPosition(pos);
+        rootSceneNode->AddChild(spriteNode);
+    }
+
     void Engine::LoadDefaultScene()
     {
         // default scene construction (basic sprite with not found texture...)
@@ -35,17 +46,17 @@ namespace ettycc
         // not found sprite
         std::string notFoundTexturePath = engineResources_->Get("sprites", "not-found");
         
-        auto notFoundSpriteComponent = std::make_shared<Sprite>(notFoundTexturePath);
-        auto notFoundSpriteNode = std::make_shared<SceneNode>("sprite node 1");
-        notFoundSpriteNode->AddComponent(std::make_shared<RenderableNode>(notFoundSpriteComponent));
-        notFoundSpriteComponent->underylingTransform.setGlobalPosition(glm::vec3(0, 0, -2));
-
-        rootSceneNode->AddChild(notFoundSpriteNode);
+        createSprite(rootSceneNode, notFoundTexturePath,glm::vec3(-1, 0, 0));
+        createSprite(rootSceneNode, notFoundTexturePath,glm::vec3(2, 0, 0));
 
         // default camera
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(800, 800, 90, 0.01f);
-        auto cameraNode = std::make_shared<SceneNode>("cameraNode");
+        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(1200,800);
+        mainCamera->AttachEditorControl(&inputSystem_);
+
+        auto cameraNode = std::make_shared<SceneNode>("cameraNode-editor-camera");
         mainCamera->mainCamera_ = true;
+        editorCamera_ = mainCamera;
+
         cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
         rootSceneNode->AddChild(cameraNode);
     }
@@ -62,6 +73,7 @@ namespace ettycc
         renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
     }
 
+    //TODO: INSERT HERE ASSET MANAGEMENT AND NODE BUILDER (TO BUILD TEMPLATES FROM THE ASSET MANAGEMENT)
     void Engine::LoadScene(const std::string &sceneName)
     {
         // TODO: ADD DEFAULT SCENE WITH THE NO TEXTURE FOND AS DEFAULT SCENE...
@@ -176,14 +188,19 @@ namespace ettycc
     {
         mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::RENDERING);
 
-        renderEngine_.Pass(appInstance_->GetCurrentTime());
-        inputSystem_.ResetState(); // TODO: FIX THIS THRASH WITH INPUT UP AND DOWN EVENTS (INTERNALLY)
+        renderEngine_.Pass(appInstance_->GetDeltaTime()); // this just broke the shader animations lol
+        inputSystem_.ResetState(); // TODO: CHECK IF IS MORE SUITIABLE TO HAVING IT ON THE DEFAULT CASE WHEN PROCESSING INPUT (ALWAYS ENTERS THERE)
     }
 
-    void Engine::ProcessInput(PlayerInputType type, uint64_t *data) // UNSAFE!!!! FIX THIS TRASH
+    PlayerInput * Engine::GetInputSystem()
     {
-        inputSystem_.ProcessInput(type, data);
+        return &inputSystem_;
     }
+
+    // void Engine::ProcessInput(PlayerInputType type, uint64_t *data) // UNSAFE!!!! FIX THIS TRASH
+    // {
+    //     inputSystem_.ProcessInput(type, data);
+    // }
 
     void Engine::BuildExecutable(const std::string &outputPath)
     {
