@@ -17,7 +17,7 @@ namespace ettycc
 
     public:
         ShaderPipeline();
-        ShaderPipeline(const std::vector<Shader>& shaders);
+        explicit ShaderPipeline(const std::vector<Shader>& shaders);
         ~ShaderPipeline();
         
         // SHADER PIPELINE API 

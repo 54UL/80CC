@@ -20,14 +20,12 @@ namespace ettycc
         bool initializable_;
 
     public:
-        Renderable() {
-           enabled = true;
-           initialized = false;
+        Renderable() : initializable_(true) {
+            enabled = true;
+            initialized = false;
         }
 
-        virtual ~Renderable(){
-
-        }
+        virtual ~Renderable()= default;
 
         virtual void SetTransform(const Transform &trans)
         {

@@ -42,6 +42,8 @@ namespace ettycc
         
         // Frame buffer Single camera  implementation 
         // TODO: (Get all the cameras instead and then do the framebuffer pass then pass the propper camera model and view matrixes to each viewport...)
+
+        // TODO: ADD HERE EDITOR FBO AND PBO  BINDING
         sceneFrameBuffer_->BeginFrame();
 
         for (auto renderable : renderables_)

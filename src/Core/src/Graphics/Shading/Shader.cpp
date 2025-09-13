@@ -1,8 +1,7 @@
 // rendering.cpp
 #include <Graphics/Shading/Shader.hpp>
-#include <fstream>
 #include <vector>
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 // TODO ADD TEXTURE HANDLING...
 namespace ettycc
@@ -40,8 +39,7 @@ namespace ettycc
             glGetShaderiv(shaderId_, GL_INFO_LOG_LENGTH, &logLength);
             std::vector<GLchar> log(logLength);
             glGetShaderInfoLog(shaderId_, logLength, nullptr, log.data());
-            std::cerr << "Shader compilation error:\n"
-                      << log.data() << std::endl;
+            spdlog::critical("Shader compilation error: {}", log.data());
             glDeleteShader(shaderId_);
             shaderId_ = 0; // Mark shader as invalid
         }

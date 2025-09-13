@@ -19,7 +19,7 @@ namespace ettycc
         Shader(const std::string& sourceCode, GLenum type);
         ~Shader();
         // SHADER API
-        GLuint GetShaderId() const;
+        [[nodiscard]] GLuint GetShaderId() const;
     private:
         void Compile();
     };

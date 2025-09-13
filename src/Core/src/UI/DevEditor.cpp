@@ -62,9 +62,8 @@ namespace ettycc
         }
     }
 
-    void DevEditor::ShowViewport()
-    {
-        ImGui::Begin("Game view");
+    void DevEditor::ShowEditorViewPort() const {
+        ImGui::Begin("Editor view");
 
         auto framebuffer = GetDependency(Engine)->renderEngine_.GetViewPortFrameBuffer();
 
@@ -125,7 +124,7 @@ namespace ettycc
         {
             if (!frameBufferErrorShown)
             {
-                spdlog::error("DevEditor:ShowViewport():GetViewPortFrameBuffer() was nullptr");
+                spdlog::error("DevEditor:ShowEditorViewPort():GetViewPortFrameBuffer() was nullptr");
                 frameBufferErrorShown = true;
             }
         }
@@ -674,7 +673,7 @@ namespace ettycc
 
         ShowDebugger();
 
-        ShowViewport();
+        ShowEditorViewPort();
 
         ShowInspector();
 
