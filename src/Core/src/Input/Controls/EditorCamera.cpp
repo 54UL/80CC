@@ -48,7 +48,7 @@ namespace ettycc
     {
         if (!enabled) return;
 
-        if (inputSystem_->GetMouseButton(static_cast<int>(MouseButton::MIDDLE)))// Left mouse button is pressed
+        if (inputSystem_->GetMouseButton(static_cast<int>(MouseButton::RIGHT)))// Left mouse button is pressed
         {
             glm::vec2 mouseDelta = inputSystem_->GetMouseDelta() * deltaTime;
             if (mouseDelta.x != 0.0f || mouseDelta.y != 0.0f)

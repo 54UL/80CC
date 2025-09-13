@@ -105,7 +105,7 @@ namespace ettycc
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_None)) {
                 engineInstance_->editorCamera_->editorCameraControl_->enabled = true;
 
-                if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
                     if (!isViewportFocused) {
                         isViewportFocused = true;
                         lockedCursorPos = ImGui::GetMousePos();
@@ -119,11 +119,6 @@ namespace ettycc
             } else {
                 isViewportFocused = false;
                 engineInstance_->editorCamera_->editorCameraControl_->enabled = false;
-            }
-            // does not work....
-            if (ImGui::BeginPopupContextWindow("SceneContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
-                ShowSceneContextMenu(GetDependency(Engine)->mainScene_->root_node_);
-                ImGui::EndPopup();
             }
         }
         else
