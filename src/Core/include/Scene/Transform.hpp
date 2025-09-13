@@ -29,16 +29,22 @@ namespace ettycc
         Transform();
         ~Transform();
 
+        // Basic transform operations
         void setGlobalPosition(glm::vec3 position);
         void setGlobalRotation(glm::vec3 Euler);
-        void translate(glm::vec3 RelativeDirection);
+        void setGlobalScale(glm::vec3 scale);
 
-        glm::vec3 getGlobalPosition();
-        glm::vec3 getEulerGlobalRotaion();
+        glm::vec3 getGlobalPosition() const;
         glm::quat getGlobalRotation() const;
+        glm::vec3 getGlobalScale() const;
 
-        void SetMatrix(glm::mat4 matrix);
-        glm::mat4 GetMatrix();
+
+        void translate(glm::vec3 RelativeDirection);
+        // Complex transform operations
+        glm::vec3 getEulerGlobalRotation() const;
+
+        void SetMatrix(const glm::mat4 &matrix);
+        glm::mat4 GetMatrix() const;
 
     // Serialization
     public:

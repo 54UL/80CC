@@ -186,7 +186,7 @@ namespace ettycc
         // Brute force search for now... (OPTIMIZE LATER)
         for (const auto& kvp : components_) {
             for (const auto& component : kvp.second) {
-                if (component && component->GetComponentInfo().name == name) {
+                if (component->GetComponentInfo().name == name) {
                     return component;
                 }
             }

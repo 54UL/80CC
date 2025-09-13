@@ -149,17 +149,17 @@ namespace ettycc
         };
 
         void SetTransformUIFromNode(const std::shared_ptr<SceneNode>& node, TransformUI& uiTransform) {
-            auto spriteComponent = node->GetComponentByName("Sprite");
+            auto spriteComponent = node->GetComponentByName(RenderableNode::componentType);
             if (spriteComponent) {
                 auto renderableNode = std::dynamic_pointer_cast<RenderableNode>(spriteComponent);
                 if (renderableNode && renderableNode->renderable_) {
                     Transform t = renderableNode->renderable_->GetTransform();
-                    glm::vec3 pos = t.getGlobalPosition();
-                    // glm::vec4 rot = t.getGlobalRotation();
-                    // glm::vec3 scale = t.getGlobalScale();
+                    const auto pos = t.getGlobalPosition();
+                    const auto rot = t.getGlobalRotation();
+                    const auto scale = t.getGlobalScale();
                     uiTransform.pos[0] = pos.x; uiTransform.pos[1] = pos.y; uiTransform.pos[2] = pos.z;
-                    // uiTransform.rot[0] = rot.x; uiTransform.rot[1] = rot.y; uiTransform.rot[2] = rot.z;
-                    // uiTransform.scale[0] = glm::scale.x; uiTransform.scale[1] = scale.y; uiTransform.scale[2] = scale.z;
+                    uiTransform.rot[0] = rot.x; uiTransform.rot[1] = rot.y; uiTransform.rot[2] = rot.z;
+                    uiTransform.scale[0] = scale.x; uiTransform.scale[1] = scale.y; uiTransform.scale[2] = scale.z;
                 }
             }
         }
@@ -217,7 +217,7 @@ namespace ettycc
             uiTransform.initialized = true;
         }
 
-        bool updated = false;
+        static bool updated = false;
         if (ImGui::BeginTable("##transform_table", 1, ImGuiTableFlags_SizingStretchSame))
         {
             ImGui::TableNextRow();
@@ -252,7 +252,7 @@ namespace ettycc
 
         if (updated)
         {
-            auto spriteComponent = selectedNode->GetComponentByName("Sprite");
+            auto spriteComponent = selectedNode->GetComponentByName(RenderableNode::componentType);
             if (spriteComponent)
             {
                 auto renderableNode = std::dynamic_pointer_cast<RenderableNode>(spriteComponent);
@@ -261,8 +261,9 @@ namespace ettycc
                     Transform newTransform;
                     newTransform.setGlobalPosition(glm::vec3(uiTransform.pos[0], uiTransform.pos[1], uiTransform.pos[2]));
                     newTransform.setGlobalRotation(glm::vec3(uiTransform.rot[0], uiTransform.rot[1], uiTransform.rot[2]));
-                    // newTransform.setGlobalScale(glm::vec3(uiTransform.scale[0], uiTransform.scale[1], uiTransform.scale[2]));
+                    newTransform.setGlobalScale(glm::vec3(uiTransform.scale[0], uiTransform.scale[1], uiTransform.scale[2]));
                     renderableNode->renderable_->SetTransform(newTransform);
+                    updated = false;
                 }
             }
         }

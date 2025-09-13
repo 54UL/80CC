@@ -20,6 +20,7 @@ namespace ettycc
         virtual NodeComponentInfo GetComponentInfo() = 0;
         virtual void OnStart(std::shared_ptr<Engine> engineInstance) = 0;
         virtual void OnUpdate(float deltaTime) = 0;
+        virtual ~NodeComponent() = default;
     };
 }
 

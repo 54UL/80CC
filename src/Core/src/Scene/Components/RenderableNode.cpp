@@ -20,7 +20,8 @@ namespace ettycc
 
     NodeComponentInfo RenderableNode::GetComponentInfo()
     {
-        return NodeComponentInfo {0, COLLOQUIAL_NAME, true, ProcessingChannel::RENDERING};
+        //TODO: INSERT ID GENERATION
+        return NodeComponentInfo {0, componentType, true, ProcessingChannel::RENDERING};
     }
 
     void RenderableNode::OnStart(std::shared_ptr<Engine> engineInstance)

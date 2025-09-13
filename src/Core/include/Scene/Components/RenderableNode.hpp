@@ -17,10 +17,11 @@ namespace ettycc
 
     class RenderableNode : public NodeComponent
     {
-        const char * COLLOQUIAL_NAME = "Renderable";
 
     // REMAINDER THAT ALL PUBLIC MEMBERS ARE EXPERIMENTAL AND JUST BECAUSE THEY ARE SUITIABLE
     public:
+        // make this a template....
+        static constexpr const char *componentType = "Renderable";
         std::shared_ptr<Renderable> renderable_;
 
     public:
