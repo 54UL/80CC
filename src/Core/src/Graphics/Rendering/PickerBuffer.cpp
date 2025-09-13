@@ -3,10 +3,10 @@
 
 namespace ettycc
 {
-    PickerBuffer::PickerBuffer(const FrameBuffer& buffer) : size_(buffer.size_), position_(buffer.position_),
-                                                            initialized_(false), fb_(buffer), pickingFBO(0),
-                                                            pickingTextureId(0),
-                                                            pbos{} {
+    PickerBuffer::PickerBuffer(const FrameBuffer& buffer) : fb_(buffer), pickingFBO(0),
+                                                            pickingTextureId(0), pbos{}, size_(buffer.size_),
+                                                            position_(buffer.position_),
+                                                            initialized_(false) {
         spdlog::warn("Picker buffer constructed [size: {}, {}] [position: {}, {}] ", size_.x, size_.y, position_.x,
                      position_.y);
     }
