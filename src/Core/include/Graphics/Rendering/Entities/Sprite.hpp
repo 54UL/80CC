@@ -3,22 +3,14 @@
 
 #include "../../Shading/ShaderPipeline.hpp"
 #include "../Renderable.hpp"
-
 #include <Dependency.hpp>
 #include <Dependencies/Resources.hpp>
 
 #include <memory>
 #include <string>
-#include <fstream>
-#include <sstream>
-
 #include <GL/glew.h>
 #include <GL/gl.h>
-
-#include <glm/gtc/type_ptr.hpp>
-
 #include <spdlog/spdlog.h>
-
 #include <cereal/archives/json.hpp>
 
 namespace ettycc

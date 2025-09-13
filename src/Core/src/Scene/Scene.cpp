@@ -31,7 +31,15 @@ namespace ettycc
 
     auto Scene::GetNodesByName(const std::string &name) -> std::vector<std::shared_ptr<SceneNode>>
     {
-        return std::vector<std::shared_ptr<SceneNode>>(); // TODO: STD ALGORITHMS
+        std::vector<std::shared_ptr<SceneNode>> result;
+        for (const auto& node : nodes_flat_)
+        {
+            if (node && node->GetName() == name)
+            {
+                result.push_back(node);
+            }
+        }
+        return result;
     }
 
     auto Scene::GetAllNodes() -> std::vector<std::shared_ptr<SceneNode>>

@@ -14,8 +14,9 @@ namespace ettycc
     }
 
     SceneNode::SceneNode(const std::vector<std::shared_ptr<SceneNode>> &children)
+        : id_(0), sceneId_(0), name_("unnamed"), enabled_(true), initialized(false), isSelected_(false), parent_(nullptr), children_(children)
     {
-        // TODO: DO THIS CASE...
+        // check if needs to generate an sepecific id here...
     }
 
     SceneNode::~SceneNode()
@@ -25,7 +26,6 @@ namespace ettycc
 
     auto SceneNode::InitNode() -> void
     {
-
         id_ = 0;
         sceneId_ = 0;
         enabled_ = true;
@@ -107,14 +107,34 @@ namespace ettycc
 
     auto SceneNode::RemoveNode(uint64_t id) -> void
     {
+        auto it = std::remove_if(children_.begin(), children_.end(), [id](const std::shared_ptr<SceneNode>& child) {
+            return child && child->GetId() == id;
+        });
 
+        if (it != children_.end()) {
+            for (auto iter = it; iter != children_.end(); ++iter) {
+                if (*iter) {
+                    (*iter)->parent_ = nullptr;
+
+                    // GetDependency is an overhead here, optimize later...
+                    auto engine = GetDependency(Engine);
+                    if (engine && engine->mainScene_) {
+                        auto& flatNodes = engine->mainScene_->nodes_flat_;
+                        // TODO: ADD DESTROY CALLBACK FOR A NODE...
+                        // TODO: SCENE SHOULD HANDLE THIS, NOT THE NODE ITSELF...
+                        flatNodes.erase(std::remove(flatNodes.begin(), flatNodes.end(), *iter), flatNodes.end());
+                    }
+                }
+            }
+
+            children_.erase(it, children_.end());
+        }
     }
 
     auto SceneNode::AddNodes(const std::vector<std::shared_ptr<SceneNode>> &nodes) -> std::vector<uint64_t>
     {
         std::vector<uint64_t> ids;
 
-        // todo: not the best solution, use a better algo
         for (auto &node : nodes)
         {
             auto id = AddNode(node);
@@ -150,16 +170,31 @@ namespace ettycc
 
     auto SceneNode::GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>
     {
-        // return components_.at(componentId);
+        // Brute force search for now...
+        for (const auto& kvp : components_) {
+            for (const auto& component : kvp.second) {
+                if (component && component->GetComponentInfo().id == componentId) {
+                    return component;
+                }
+            }
+        }
         return std::shared_ptr<NodeComponent>();
     }
 
     auto SceneNode::GetComponentByName(const std::string &name) -> std::shared_ptr<NodeComponent>
     {
+        // Brute force search for now... (OPTIMIZE LATER)
+        for (const auto& kvp : components_) {
+            for (const auto& component : kvp.second) {
+                if (component && component->GetComponentInfo().name == name) {
+                    return component;
+                }
+            }
+        }
         return std::shared_ptr<NodeComponent>();
     }
 
-    auto ettycc::SceneNode::ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void
+    auto SceneNode::ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void
     {
         auto componentsToProcess = components_[processingChannel];
 
@@ -167,6 +202,6 @@ namespace ettycc
         for (auto &component : componentsToProcess)
         {
             component->OnUpdate(deltaTime);
-        } 
+        }
     }
 }

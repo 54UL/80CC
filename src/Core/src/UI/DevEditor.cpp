@@ -162,6 +162,7 @@ namespace ettycc
 
         auto selectedNode = selectedNodes_.back();
 
+        // create folders for this kind of shit
         struct TransformUI
         {
             float pos[3];
@@ -171,7 +172,7 @@ namespace ettycc
         };
 
         static std::unordered_map<const void*, TransformUI> transformCache;
-        const void* key = static_cast<const void*>(selectedNode.get());
+        const void* key = selectedNode.get();
         TransformUI &uiTransform = transformCache[key];
 
         if (!uiTransform.initialized)
