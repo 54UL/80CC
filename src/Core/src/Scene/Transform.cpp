@@ -67,8 +67,7 @@ namespace ettycc
                         glm::round(glm::degrees(glm::roll(tmpRot))));
     }
 
-    glm::quat Transform::getGlobalRotation()
-    {
+    glm::quat Transform::getGlobalRotation() const {
         return glm::quat(modelMatrix);
     }
 

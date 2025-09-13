@@ -35,7 +35,7 @@ namespace ettycc
 
         glm::vec3 getGlobalPosition();
         glm::vec3 getEulerGlobalRotaion();
-        glm::quat getGlobalRotation();
+        glm::quat getGlobalRotation() const;
 
         void SetMatrix(glm::mat4 matrix);
         glm::mat4 GetMatrix();

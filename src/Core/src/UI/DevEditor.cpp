@@ -138,6 +138,33 @@ namespace ettycc
         ImGui::End();
     }    
 
+    // TODO:  we should never have shit like this but yeah forgive me
+    namespace {
+        struct TransformUI
+        {
+            float pos[3];
+            float rot[3];
+            float scale[3];
+            bool initialized = false;
+        };
+
+        void SetTransformUIFromNode(const std::shared_ptr<SceneNode>& node, TransformUI& uiTransform) {
+            auto spriteComponent = node->GetComponentByName("Sprite");
+            if (spriteComponent) {
+                auto renderableNode = std::dynamic_pointer_cast<RenderableNode>(spriteComponent);
+                if (renderableNode && renderableNode->renderable_) {
+                    Transform t = renderableNode->renderable_->GetTransform();
+                    glm::vec3 pos = t.getGlobalPosition();
+                    // glm::vec4 rot = t.getGlobalRotation();
+                    // glm::vec3 scale = t.getGlobalScale();
+                    uiTransform.pos[0] = pos.x; uiTransform.pos[1] = pos.y; uiTransform.pos[2] = pos.z;
+                    // uiTransform.rot[0] = rot.x; uiTransform.rot[1] = rot.y; uiTransform.rot[2] = rot.z;
+                    // uiTransform.scale[0] = glm::scale.x; uiTransform.scale[1] = scale.y; uiTransform.scale[2] = scale.z;
+                }
+            }
+        }
+    };
+
     void DevEditor::ShowInspector()
     {
         ImGui::Begin("Inspector");
@@ -162,27 +189,6 @@ namespace ettycc
 
         auto selectedNode = selectedNodes_.back();
 
-        // create folders for this kind of shit
-        struct TransformUI
-        {
-            float pos[3];
-            float rot[3];
-            float scale[3];
-            bool initialized = false;
-        };
-
-        static std::unordered_map<const void*, TransformUI> transformCache;
-        const void* key = selectedNode.get();
-        TransformUI &uiTransform = transformCache[key];
-
-        if (!uiTransform.initialized)
-        {
-            uiTransform.pos[0] = uiTransform.pos[1] = uiTransform.pos[2] = 1.0f;
-            uiTransform.rot[0] = uiTransform.rot[1] = uiTransform.rot[2] = 1.0f;
-            uiTransform.scale[0] = uiTransform.scale[1] = uiTransform.scale[2] = 1.0f;
-            uiTransform.initialized = true;
-        }
-
         bool isActive = true;
         ImGui::Checkbox("##isActive", &isActive);
         ImGui::SameLine();
@@ -196,51 +202,73 @@ namespace ettycc
         }
         if (ImGui::InputText("Name", nameBuf, IM_ARRAYSIZE(nameBuf)))
         {
+            // there should be a submitt button this changes the name always loool
+            selectedNode->SetName(nameBuf);
         }
-
         ImGui::Separator();
 
-        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        static std::unordered_map<const void*, TransformUI> transformCache;
+        const void* key = selectedNode.get();
+        TransformUI &uiTransform = transformCache[key];
+
+        if (!uiTransform.initialized)
         {
-            if (ImGui::BeginTable("##transform_table", 1, ImGuiTableFlags_SizingStretchSame))
-            {
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Position");
-                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                if (ImGui::DragFloat3("##position", uiTransform.pos, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
-                {
-                }
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Rotation");
-                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                if (ImGui::DragFloat3("##rotation", uiTransform.rot, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
-                {
-                }
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Scale");
-                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                if (ImGui::DragFloat3("##scale", uiTransform.scale, 0.1f, 0.0f, FLT_MAX, "%.3f"))
-                {
-                }
-
-                ImGui::EndTable();
-            }
-
-            ImGui::Separator();
-            if (ImGui::Button("Reset"))
-            {
-                uiTransform.pos[0] = uiTransform.pos[1] = uiTransform.pos[2] = 0.0f;
-                uiTransform.rot[0] = uiTransform.rot[1] = uiTransform.rot[2] = 0.0f;
-                uiTransform.scale[0] = uiTransform.scale[1] = uiTransform.scale[2] = 1.0f;
-            }
-            ImGui::SameLine();
-            ImGui::TextDisabled("Reset Position / Rotation / Scale");
+            SetTransformUIFromNode(selectedNode, uiTransform);
+            uiTransform.initialized = true;
         }
+
+        bool updated = false;
+        if (ImGui::BeginTable("##transform_table", 1, ImGuiTableFlags_SizingStretchSame))
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Position");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::DragFloat3("##position", uiTransform.pos, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
+            {
+                updated = true;
+            }
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Rotation");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::DragFloat3("##rotation", uiTransform.rot, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
+            {
+                updated = true;
+            }
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Scale");
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::DragFloat3("##scale", uiTransform.scale, 0.1f, 0.0f, FLT_MAX, "%.3f"))
+            {
+                updated = true;
+            }
+
+            ImGui::EndTable();
+        }
+
+        if (updated)
+        {
+            auto spriteComponent = selectedNode->GetComponentByName("Sprite");
+            if (spriteComponent)
+            {
+                auto renderableNode = std::dynamic_pointer_cast<RenderableNode>(spriteComponent);
+                if (renderableNode && renderableNode->renderable_)
+                {
+                    Transform newTransform;
+                    newTransform.setGlobalPosition(glm::vec3(uiTransform.pos[0], uiTransform.pos[1], uiTransform.pos[2]));
+                    newTransform.setGlobalRotation(glm::vec3(uiTransform.rot[0], uiTransform.rot[1], uiTransform.rot[2]));
+                    // newTransform.setGlobalScale(glm::vec3(uiTransform.scale[0], uiTransform.scale[1], uiTransform.scale[2]));
+                    renderableNode->renderable_->SetTransform(newTransform);
+                }
+            }
+        }
+
+            ImGui::TextDisabled("Reset Position / Rotation / Scale");
+
 
         ImGui::Separator();
 

@@ -19,7 +19,8 @@ namespace ettycc
     {
         const char * COLLOQUIAL_NAME = "Renderable";
 
-    private:
+    // REMAINDER THAT ALL PUBLIC MEMBERS ARE EXPERIMENTAL AND JUST BECAUSE THEY ARE SUITIABLE
+    public:
         std::shared_ptr<Renderable> renderable_;
 
     public:
