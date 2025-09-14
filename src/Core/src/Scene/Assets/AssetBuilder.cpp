@@ -10,18 +10,16 @@ namespace ettycc {
         : assetLoader_(assetLoader) {
         // Register Sprite creator
         RegisterCreator("Sprite", [this](const nlohmann::json& obj) -> std::shared_ptr<SceneNode> {
-            // Extract all required fields from JSON
             std::string name = obj.value("name", "sprite");
             std::string spriteFilePath = obj.value("spriteFilePath", "");
             bool initialize = obj.value("initialize", true);
             std::size_t assetId = obj.value("assetId", 0);
-            // Optionally, extract more fields as needed
-            // Get asset data if needed
+
             const Asset* asset = nullptr;
             if (assetId != 0) asset = assetLoader_->GetAssetById(assetId);
+
             // Create Sprite
             auto sprite = std::make_shared<Sprite>(spriteFilePath, initialize);
-            // Optionally, set up more fields on sprite
             auto node = std::make_shared<SceneNode>(name);
             node->AddComponent(std::make_shared<RenderableNode>(sprite));
             return node;
@@ -52,7 +50,10 @@ namespace ettycc {
             auto it = creators_.find(type);
             if (it != creators_.end()) {
                 auto node = it->second(obj);
-                if (node) nodes.push_back(node);
+                if (node) {
+                    spdlog::info("Node of type {} created with name {}", type, node->GetName());
+                    nodes.push_back(node);
+                }
             } else {
                 spdlog::warn("No creator registered for type: {}", type);
             }
