@@ -19,6 +19,8 @@ set(80CC_CORE_HEADERS
     include/Scene/Scene.hpp
     include/Scene/SceneNode.hpp
     include/Scene/Components/RenderableNode.hpp
+    include/Scene/Assets/AssetLoader.hpp
+    include/Scene/Assets/AssetBuilder.hpp
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
     include/Graphics/Rendering/Renderable.hpp
@@ -52,6 +54,8 @@ set(80CC_CORE_SOURCES
     src/Scene/Transform.cpp
     src/Scene/Scene.cpp
     src/Scene/SceneNode.cpp
+    src/Scene/Assets/AssetLoader.cpp
+    src/Scene/Assets/AssetBuilder.cpp
     src/Scene/Components/RenderableNode.cpp
     src/Graphics/Rendering.cpp
     src/Graphics/Rendering/FrameBuffer.cpp

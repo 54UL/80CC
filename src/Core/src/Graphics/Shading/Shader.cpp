@@ -4,26 +4,21 @@
 #include <spdlog/spdlog.h>
 
 // TODO ADD TEXTURE HANDLING...
-namespace ettycc
-{
-    Shader::Shader(const std::string &sourceCode, GLenum type) : sourceCode_(sourceCode), type_(type)
-    {
+namespace ettycc {
+    Shader::Shader(const std::string &sourceCode, GLenum type) : sourceCode_(sourceCode), type_(type) {
         Compile();
     }
 
-    Shader::~Shader()
-    {
+    Shader::~Shader() {
         if (shaderId_ != 0)
             glDeleteShader(shaderId_);
     }
 
-    GLuint Shader::GetShaderId() const
-    {
+    GLuint Shader::GetShaderId() const {
         return shaderId_;
     }
 
-    void Shader::Compile()
-    {
+    void Shader::Compile() {
         shaderId_ = glCreateShader(type_);
         const char *source = sourceCode_.c_str();
         glShaderSource(shaderId_, 1, &source, nullptr);
@@ -32,8 +27,7 @@ namespace ettycc
         // Check compilation status
         GLint compileStatus;
         glGetShaderiv(shaderId_, GL_COMPILE_STATUS, &compileStatus);
-        if (compileStatus != GL_TRUE)
-        {
+        if (compileStatus != GL_TRUE) {
             // Handle compilation error (print log, throw exception, etc.)
             GLint logLength;
             glGetShaderiv(shaderId_, GL_INFO_LOG_LENGTH, &logLength);
