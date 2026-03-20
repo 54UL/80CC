@@ -49,7 +49,7 @@ TEST_F(ResourcesTest, engine_resource_file_generation)
     resources.Set("shaders", "sprite_shader", "shaders\\main");
     resources.Set("state", "last_scene", "default_scene.json");
 
-    resources.Store(configFileName);
+    resources.Store(paths::RESOURCES_DEFAULT);
 }
 
 TEST_F(ResourcesTest, engine_load_resource)
@@ -58,7 +58,7 @@ TEST_F(ResourcesTest, engine_load_resource)
     Resources newResources;
     
     newResources.SetWorkingFolder(paths::CONFIG_DEFAULT);
-    newResources.Load(configFileName);
+    newResources.Load(paths::RESOURCES_DEFAULT);
 
     EXPECT_TRUE(newResources.Get("sprites", "loona").compare("images\\loona.jpg") == 0);
 }

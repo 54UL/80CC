@@ -46,7 +46,7 @@ namespace ettycc
         // Engine front-end API
         void LoadLastScene();
         void LoadScene(const std::string& sceneName);
-        void StoreScene(const std::string& sceneName);
+        void StoreScene(const std::string& sceneName) const;
 
 
         void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);

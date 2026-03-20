@@ -38,6 +38,8 @@ namespace ettycc
 
     void Engine::LoadDefaultScene()
     {
+        spdlog::warn("loading fall-back scene....");
+
         // default scene construction (basic sprite with not found texture...)
         mainScene_ = std::make_shared<Scene>("default-scene");
 
@@ -76,20 +78,25 @@ namespace ettycc
     //TODO: INSERT HERE ASSET MANAGEMENT AND NODE BUILDER (TO BUILD TEMPLATES FROM THE ASSET MANAGEMENT)
     void Engine::LoadScene(const std::string &sceneName)
     {
-        // TODO: ADD DEFAULT SCENE WITH THE NO TEXTURE FOND AS DEFAULT SCENE...
         std::ifstream ifs(engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName);
 
         if (!ifs.is_open())
         {
-            // if not open loads default scene
-            spdlog::error("Cannot open file scene [{}]; loading fall-back scene [default]", sceneName);
+            spdlog::error("Can't open file scene [{}]", sceneName);
+
             LoadDefaultScene();
         }
         else
         {
             // FIX THIS (DOES NOT WORK...)
             cereal::JSONInputArchive archive2(ifs);
-            archive2(*mainScene_);
+            try {
+                archive2(*mainScene_);
+                spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
+            } catch (const std::exception& e) {
+                spdlog::error("Can't deserialize scene reason: [{}]", e.what());
+                LoadDefaultScene();
+            }
         }
 
         if (mainScene_)
@@ -101,11 +108,11 @@ namespace ettycc
         }
         else
         {
-            spdlog::error("Cannot initialize scene {}", sceneName);
+            spdlog::error("Errors occurred when processing scene...");
         }
     }
 
-    void Engine::StoreScene(const std::string &sceneName)
+    void Engine::StoreScene(const std::string &sceneName) const
     {
         std::ofstream ofs(engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName);
 
