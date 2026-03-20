@@ -46,7 +46,8 @@ set(80CC_CORE_HEADERS
     external/imgui/imconfig.h
     external/imgui/backends/imgui_impl_sdl2.h
     external/imgui/backends/imgui_impl_opengl3.h
-    )
+    # Portable file dialogs
+    external/portable-file-dialogs/portable-file-dialogs.h)
 
 set(80CC_CORE_SOURCES
     src/80CC.cpp
@@ -76,8 +77,7 @@ set(80CC_CORE_SOURCES
     external/imgui/imgui_tables.cpp
     external/imgui/imgui_widgets.cpp
     external/imgui/backends/imgui_impl_sdl2.cpp
-    external/imgui/backends/imgui_impl_opengl3.cpp
-    )
+    external/imgui/backends/imgui_impl_opengl3.cpp)
 
 # PACKAGES...
 find_package(spdlog CONFIG REQUIRED)
@@ -102,6 +102,7 @@ target_include_directories(80CC_CORE
     PUBLIC ${SDL2_INCLUDE_DIRS}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/portable-file-dialogs
     PUBLIC ${Stb_INCLUDE_DIR}
     PUBLIC ${GLM_INCLUDE_DIRS})
 

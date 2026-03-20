@@ -10,7 +10,6 @@
 #include <stb_image.h>
 #include <stack>
 #include <memory>
-
 #include <Scene/Components/RenderableNode.hpp>
 
 namespace ettycc

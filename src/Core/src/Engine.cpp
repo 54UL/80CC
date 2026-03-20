@@ -76,9 +76,16 @@ namespace ettycc
     }
 
     //TODO: INSERT HERE ASSET MANAGEMENT AND NODE BUILDER (TO BUILD TEMPLATES FROM THE ASSET MANAGEMENT)
-    void Engine::LoadScene(const std::string &sceneName)
+    void Engine::LoadScene(const std::string &sceneName, const bool defaultPath)
     {
-        std::ifstream ifs(engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName);
+        std::string_view path = sceneName;
+
+        if (defaultPath)
+        {
+            path= engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName;
+        }
+
+        std::ifstream ifs(path.data());
 
         if (!ifs.is_open())
         {
@@ -91,8 +98,10 @@ namespace ettycc
             // FIX THIS (DOES NOT WORK...)
             cereal::JSONInputArchive archive2(ifs);
             try {
-                archive2(*mainScene_);
-                spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
+                    {
+                        archive2(*mainScene_);
+                        spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
+                    }
             } catch (const std::exception& e) {
                 spdlog::error("Can't deserialize scene reason: [{}]", e.what());
                 LoadDefaultScene();
@@ -112,18 +121,30 @@ namespace ettycc
         }
     }
 
-    void Engine::StoreScene(const std::string &sceneName) const
+    void Engine::StoreScene(const std::string &sceneName, const bool defaultPath) const
     {
-        std::ofstream ofs(engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName);
+        std::string_view path = sceneName;
 
-        if (!ofs.is_open())
+        if (defaultPath)
         {
+            path= engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName;
+        }
+
+        std::ofstream ofs(path.data());
+
+        if (!ofs.is_open()) {
             spdlog::error("Cannot store scene {}", sceneName);
             return;
         }
 
-        cereal::JSONOutputArchive archive(ofs);
-        archive(*mainScene_);
+        spdlog::info("Storing scene {}", sceneName);
+
+        {
+            cereal::JSONOutputArchive archive(ofs);
+            archive(*mainScene_);
+        }
+
+        spdlog::info("Scene stored successfully {}", sceneName);
     }
 
     void Engine::RegisterModules(const std::vector<std::shared_ptr<GameModule>> &modules)

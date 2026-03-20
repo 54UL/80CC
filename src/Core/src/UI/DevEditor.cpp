@@ -1,9 +1,8 @@
 #include <UI/DevEditor.hpp>
 #include <Dependency.hpp>
-
-#include "Input/Controls/EditorCamera.hpp"
+#include <Input/Controls/EditorCamera.hpp>
 #include <unordered_map>
-#include <cstring>
+#include <portable-file-dialogs.h>
 
 namespace ettycc
 {
@@ -25,14 +24,35 @@ namespace ettycc
         ImGui::DockSpaceOverViewport(NULL, dockspace_flags);
     }
 
+    // This is the main application menu bar...
     void DevEditor::ShowMenuBar()
     {
         if (ImGui::BeginMainMenuBar())
         {
             if (ImGui::BeginMenu("File"))
             {
-                ImGui::MenuItem("Open", NULL);
-                ImGui::MenuItem("Save", NULL);
+                if (ImGui::MenuItem("Open", NULL))
+                {
+                    auto f = pfd::open_file("Choose an scene",
+                       engineInstance_->engineResources_->GetWorkingFolder(),
+                       { "Json files", "*.json", "All Files", "*" },
+                       pfd::opt::force_overwrite);
+
+                    spdlog::info("Opening file from dev editor...");
+                    engineInstance_->LoadScene(f.result().at(0), false);
+                }
+
+                if (ImGui::MenuItem("Save", NULL))
+                {
+                    auto f = pfd::save_file("Select an path",
+                        engineInstance_->engineResources_->GetWorkingFolder(),
+                        { "Json files", "*.json", "All Files", "*" },
+                        pfd::opt::none);
+
+                    spdlog::info("Opening file from dev editor: " + f.result());
+                    engineInstance_->StoreScene(f.result(), false);
+                }
+
                 ImGui::EndMenu();
             }
 
@@ -602,7 +622,7 @@ namespace ettycc
                 // Yeah just put everything you would print
                 auto mousepos = engineInstance->inputSystem_.GetMousePos();
                 ImGui::Text("Delta time: %.4f", engineInstance->appInstance_->GetDeltaTime());
-                ImGui::Text("App time: %.4f", engineInstance->appInstance_->GetCurrentTime());
+                // ImGui::Text("App time: %.4f", engineInstance->appInstance_->GetCurrentTime());
                 ImGui::Text("Mouse x: [%i] Mouse y:[%i]", mousepos.x, mousepos.y);
 
                 ImGui::Text("FPS: %.4f", (1.0f / engineInstance->appInstance_->GetDeltaTime()));
