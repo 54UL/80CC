@@ -78,14 +78,14 @@ namespace ettycc
     //TODO: INSERT HERE ASSET MANAGEMENT AND NODE BUILDER (TO BUILD TEMPLATES FROM THE ASSET MANAGEMENT)
     void Engine::LoadScene(const std::string &sceneName, const bool defaultPath)
     {
-        std::string_view path = sceneName;
+        auto path = sceneName;
 
         if (defaultPath)
         {
             path= engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName;
         }
 
-        std::ifstream ifs(path.data());
+        std::ifstream ifs(path);
 
         if (!ifs.is_open())
         {
@@ -95,13 +95,14 @@ namespace ettycc
         }
         else
         {
-            // FIX THIS (DOES NOT WORK...)
             cereal::JSONInputArchive archive2(ifs);
-            try {
-                    {
-                        archive2(*mainScene_);
-                        spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
-                    }
+            try
+            {
+                {
+                    mainScene_ = std::make_shared<Scene>("");
+                    archive2(*mainScene_);
+                    spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
+                }
             } catch (const std::exception& e) {
                 spdlog::error("Can't deserialize scene reason: [{}]", e.what());
                 LoadDefaultScene();
@@ -111,7 +112,6 @@ namespace ettycc
         if (mainScene_)
         {
             engineResources_->Set("state", "last_scene", mainScene_->sceneName_);
-            // mainScene_->Init();
 
             spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
         }
