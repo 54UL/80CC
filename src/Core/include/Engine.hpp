@@ -12,6 +12,7 @@
 #include <Scene/Scene.hpp>
 #include <Dependencies/Resources.hpp>
 #include <Game/GameModule.hpp>
+#include <Physics/PhysicsWorld.hpp>
 
 #include <memory>
 #include <vector>
@@ -32,6 +33,7 @@ namespace ettycc
         std::shared_ptr<Camera>                     editorCamera_;
 
         Rendering              renderEngine_;
+        PhysicsWorld           physicsWorld_;
         PlayerInput            inputSystem_;
         std::shared_ptr<Scene> mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
         
@@ -40,10 +42,14 @@ namespace ettycc
         ~Engine() override;
 
         static void createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos);
+        void createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
+                              float mass, glm::vec3 halfExtents, glm::vec3 pos);
 
-        // Engine front-end API        
+
+        // Engine front-end API
         void InitEditorCamera();
         void LoadDefaultScene();
+        void LoadPhysicsScene();
         // Engine front-end API
         void LoadLastScene();
         void LoadScene(const std::string& sceneName, const bool defaultPath = true);

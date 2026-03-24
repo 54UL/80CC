@@ -10,6 +10,7 @@
       "stb",
       "nlohmann-json",
       "cereal",
-      "enet"
+      "enet",
+      "bullet3"
     ]
   }

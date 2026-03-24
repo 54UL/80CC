@@ -19,6 +19,8 @@ set(80CC_CORE_HEADERS
     include/Scene/Scene.hpp
     include/Scene/SceneNode.hpp
     include/Scene/Components/RenderableNode.hpp
+    include/Scene/Components/RigidBodyComponent.hpp
+    include/Physics/PhysicsWorld.hpp
     include/Scene/Assets/AssetLoader.hpp
     include/Scene/Assets/AssetBuilder.hpp
     include/Graphics/Rendering.hpp
@@ -59,6 +61,8 @@ set(80CC_CORE_SOURCES
     src/Scene/Assets/AssetLoader.cpp
     src/Scene/Assets/AssetBuilder.cpp
     src/Scene/Components/RenderableNode.cpp
+    src/Scene/Components/RigidBodyComponent.cpp
+    src/Physics/PhysicsWorld.cpp
     src/Graphics/Rendering.cpp
     src/Graphics/Rendering/FrameBuffer.cpp
     src/Graphics/Rendering/PickerBuffer.cpp
@@ -90,6 +94,7 @@ find_package(Stb REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(cereal CONFIG REQUIRED)
 find_package(unofficial-enet CONFIG REQUIRED)
+find_package(Bullet CONFIG REQUIRED)
 
 # DIR INCLUDES (avoid this...)
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -101,6 +106,7 @@ add_library(80CC_CORE STATIC ${80CC_CORE_SOURCES} ${80CC_CORE_HEADERS})
 # TARGET INCLUDES
 target_include_directories(80CC_CORE
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PUBLIC ${BULLET_INCLUDE_DIRS}
     PUBLIC ${SDL2_INCLUDE_DIRS}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
@@ -114,4 +120,5 @@ target_link_libraries(80CC_CORE
     PUBLIC glm::glm
     PUBLIC spdlog::spdlog
     PUBLIC cereal::cereal
-    PUBLIC unofficial::enet::enet)
+    PUBLIC unofficial::enet::enet
+    PUBLIC ${BULLET_LIBRARIES})

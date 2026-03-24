@@ -10,13 +10,16 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace ettycc 
-{   
-    class Engine; // forward declaration because engine has included NodeComponent somewhere...
+namespace ettycc
+{
+    class Engine;    // forward — Engine includes NodeComponent transitively
+    class SceneNode; // forward — avoids circular include with SceneNode.hpp
 
     class NodeComponent
     {
         public:
+        SceneNode* ownerNode_ = nullptr; // set by SceneNode::AddComponent
+
         virtual NodeComponentInfo GetComponentInfo() = 0;
         virtual void OnStart(std::shared_ptr<Engine> engineInstance) = 0;
         virtual void OnUpdate(float deltaTime) = 0;

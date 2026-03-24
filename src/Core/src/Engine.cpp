@@ -3,6 +3,7 @@
 
 // TEST INCLUDE
 #include <Scene/Components/RenderableNode.hpp>
+#include <Scene/Components/RigidBodyComponent.hpp>
 #include <Dependencies/Resources.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
 
@@ -37,6 +38,42 @@ namespace ettycc
         rootSceneNode->AddChild(spriteNode);
     }
 
+    void Engine::createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
+                                   float mass, glm::vec3 halfExtents, glm::vec3 pos)
+    {
+        auto sprite = std::make_shared<Sprite>(texPath);
+        sprite->underylingTransform.setGlobalPosition(pos);
+        sprite->underylingTransform.setGlobalScale(glm::vec3(halfExtents.x * 2.0f, halfExtents.y * 2.0f, 1.0f));
+
+        static int index = 0;
+        auto node = std::make_shared<SceneNode>("physics-box-" + std::to_string(index++));
+        // RenderableNode must be added first — RigidBodyComponent finds it via ownerNode_ in OnStart
+        node->AddComponent(std::make_shared<RenderableNode>(sprite));
+        node->AddComponent(std::make_shared<RigidBodyComponent>(mass, halfExtents, pos));
+        rootSceneNode->AddChild(node);
+    }
+
+    void Engine::LoadPhysicsScene()
+    {
+        spdlog::info("[Engine] building physics scene...");
+
+        renderEngine_.ClearRenderables();
+        mainScene_ = std::make_shared<Scene>("physics-scene");
+
+        const std::string tex = engineResources_->Get("sprites", "not-found");
+        auto root = mainScene_->root_node_;
+
+        // Static ground platform
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(5.0f, 0.25f, 0.5f), glm::vec3(0.0f, -3.0f, 0.0f));
+
+        // Five dynamic boxes stacked above
+        for (int i = 0; i < 5; ++i)
+        {
+            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
+                             glm::vec3((i - 2) * 1.2f, 2.0f + i * 1.5f, 0.0f));
+        }
+    }
+
     void Engine::InitEditorCamera()
     {
         editorCamera_ = std::make_shared<Camera>(1200, 800);
@@ -60,10 +97,17 @@ namespace ettycc
         renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("default-scene");
 
-        auto rootSceneNode = mainScene_->root_node_;
-        std::string notFoundTexturePath = engineResources_->Get("sprites", "not-found");
-        createSprite(rootSceneNode, notFoundTexturePath, glm::vec3(-1, 0, 0));
-        createSprite(rootSceneNode, notFoundTexturePath, glm::vec3(2, 0, 0));
+        auto root = mainScene_->root_node_;
+        const std::string tex = engineResources_->Get("sprites", "not-found");
+
+        // Ground — static body (mass 0), wide flat box
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(1000.0f, 0.25f, 0.5f), glm::vec3(0.0f, -3.0f, 0.0f));
+
+        for (int i = 0; i < 200; ++i)
+        {
+            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
+                             glm::vec3((i * 1.2f, 2.0f + i * 10.5f, 0.0f)));
+        }
     }
 
     void Engine::LoadLastScene()
@@ -173,6 +217,7 @@ namespace ettycc
     void Engine::Init()
     {
         ConfigResource();
+        physicsWorld_.Init();
 
         // If game modules present then they have to load the scene from there, otherwise it will load the last loaded scene (thus due to editor logic)
         // TODO: This condition is wrong, it needs to know if is an editor or game executable
@@ -199,9 +244,9 @@ namespace ettycc
 
     void Engine::Update()
     {
-        // Engine logic goes here
         auto deltaTime = appInstance_->GetDeltaTime();
-        mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::MAIN);
+        physicsWorld_.Step(deltaTime);
+        mainScene_->Process(deltaTime, ProcessingChannel::MAIN);
 
         // Update game modules state...
         if (gameModules_.size() > 0)

@@ -146,9 +146,10 @@ namespace ettycc
 
     auto SceneNode::AddComponent(std::shared_ptr<NodeComponent> component) -> uint64_t
     {
-        NodeComponentInfo info = component->GetComponentInfo(); 
+        component->ownerNode_ = this;
+        NodeComponentInfo info = component->GetComponentInfo();
         components_[info.processingChannel].emplace_back(component);
-        return  info.id;
+        return info.id;
     }
 
     auto SceneNode::AddChild(std::shared_ptr<SceneNode> childrenNode) -> void
