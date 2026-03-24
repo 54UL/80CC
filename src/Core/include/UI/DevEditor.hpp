@@ -5,6 +5,7 @@
 #include <App/ExecutionPipeline.hpp>
 #include <UI/Console.hpp>
 #include <Scene/Assets/AssetBuilder.hpp>
+#include <Graphics/Rendering/PickerBuffer.hpp>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -70,8 +71,10 @@ namespace ettycc
 
         enum class InspectorSource { None, SceneNode, Asset };
 
-        std::shared_ptr<AssetLoader>  assetLoader_;
-        std::shared_ptr<AssetBuilder> assetBuilder_;
+        std::shared_ptr<AssetLoader>   assetLoader_;
+        std::shared_ptr<AssetBuilder>  assetBuilder_;
+        std::shared_ptr<PickerBuffer>  pickerBuffer_;
+        uint32_t                       lastPickedId_ = 0;
         std::vector<AssetEntry>       assetEntries_;
         bool                          assetsScanned_ = false;
         std::string                   currentFolder_;

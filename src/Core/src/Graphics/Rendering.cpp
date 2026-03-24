@@ -55,6 +55,16 @@ namespace ettycc
         sceneFrameBuffer_->EndFrame();
     }
 
+    const std::vector<std::shared_ptr<Renderable>>& Rendering::GetRenderables() const
+    {
+        return renderables_;
+    }
+
+    std::shared_ptr<RenderingContext> Rendering::GetRenderingContext() const
+    {
+        return renderingCtx_;
+    }
+
     auto Rendering::AddRenderable(std::shared_ptr<Renderable> renderable) -> void
     {
         renderables_.emplace_back(renderable);

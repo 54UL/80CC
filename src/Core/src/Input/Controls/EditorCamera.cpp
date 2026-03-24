@@ -1,6 +1,7 @@
 #include <Input/Controls/EditorCamera.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <SDL2/SDL.h>
 
 namespace ettycc
 {
@@ -37,9 +38,8 @@ namespace ettycc
     {
         if (!enabled) return;
 
-        // --- PAN (right-mouse drag) -------------------------------------------
-        // mouseDelta is already a per-frame pixel displacement; no deltaTime needed.
-        if (inputSystem_->GetMouseButton(static_cast<int>(MouseButton::RIGHT)))
+
+        if (inputSystem_->GetMouseButton(static_cast<int>(MouseButton::LEFT)))
         {
             const glm::vec2 pixelDelta = inputSystem_->GetMouseDelta();
             if (pixelDelta.x != 0.0f || pixelDelta.y != 0.0f)

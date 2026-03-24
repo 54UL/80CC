@@ -1,5 +1,6 @@
 #include <UI/DevEditor.hpp>
 #include <Dependency.hpp>
+#include <Dependencies/Resources.hpp>
 #include <Input/Controls/EditorCamera.hpp>
 #include <unordered_map>
 #include <algorithm>
@@ -200,7 +201,7 @@ namespace ettycc
                             ImVec2(iconPos.x + iconSize, iconPos.y + iconSize),
                             IM_COL32(255, 255, 255, 190), 6.f, 0, 2.f);
 
-            // LEFT-CLICK → select in inspector
+            // LEFT-CLICK
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
                 selectedAsset_.path     = entry.path;
@@ -748,7 +749,7 @@ namespace ettycc
     static int positionIndex = 2;
     void DevEditor::AddComponentFromTemplate(const std::shared_ptr<SceneNode>& selectedNode, const char* templateName)
     {
-        const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";
+        const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";//NOOOOO
 
         if (strcmp("Camera", templateName) == 0)
             spdlog::info("Camera spawning not yet implemented");
@@ -923,6 +924,28 @@ namespace ettycc
                     ImGui::Text("Texture ID: %u", fb->GetTextureId());
                 }
 
+                ImGui::SeparatorText("Object Picker (color ID buffer)");
+                if (pickerBuffer_ && pickerBuffer_->initialized_)
+                {
+                    ImGui::Text("Last picked ID: %u", lastPickedId_);
+                    ImVec2 previewSize(ImGui::GetContentRegionAvail().x, 140.0f);
+                    ImGui::Image(
+                        reinterpret_cast<void*>(static_cast<intptr_t>(pickerBuffer_->GetTextureId())),
+                        previewSize, ImVec2(0, 1), ImVec2(1, 0));
+
+                    // Click on the preview to read the ID at that position
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                    {
+                        ImVec2 mousePos  = ImGui::GetMousePos();
+                        ImVec2 itemPos   = ImGui::GetItemRectMin();
+                        ImVec2 itemSize  = ImGui::GetItemRectSize();
+                        auto   pbSize    = pickerBuffer_->size_;
+                        int px = static_cast<int>((mousePos.x - itemPos.x) / itemSize.x * pbSize.x);
+                        int py = static_cast<int>((mousePos.y - itemPos.y) / itemSize.y * pbSize.y);
+                        lastPickedId_ = pickerBuffer_->ReadPixel(px, py);
+                    }
+                }
+
                 ImGui::EndTabItem();
             }
 
@@ -950,6 +973,14 @@ namespace ettycc
 
     void DevEditor::DrawEditor()
     {
+        // Run picker pass every frame (separate FBO, separate shader)
+        if (pickerBuffer_)
+        {
+            auto& re = engineInstance_->renderEngine_;
+            pickerBuffer_->SetSize(engineInstance_->editorCamera_->offScreenFrameBuffer->GetSize());
+            pickerBuffer_->RenderPass(re.GetRenderingContext(), re.GetRenderables());
+        }
+
         bool open = true;
         ShowMenuBar();
         ShowDockSpace();
@@ -970,6 +1001,13 @@ namespace ettycc
 
         assetLoader_  = std::make_shared<AssetLoader>();
         assetBuilder_ = std::make_shared<AssetBuilder>(assetLoader_);
+
+        pickerBuffer_ = std::make_shared<PickerBuffer>(glm::ivec2(1200, 800));
+        pickerBuffer_->Init();
+
+        auto resources   = GetDependency(Resources);
+        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get("paths", "shaders");
+        pickerBuffer_->InitShader(shadersPath);
     }
 
     void DevEditor::UpdateUI() { DrawEditor(); }

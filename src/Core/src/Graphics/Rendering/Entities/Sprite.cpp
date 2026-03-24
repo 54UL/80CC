@@ -182,6 +182,21 @@ namespace ettycc
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
+    void Sprite::DrawForPicker(const std::shared_ptr<RenderingContext>& ctx,
+                               GLuint program, uint32_t id)
+    {
+        if (!initialized) return;
+
+        glm::mat4 PVM = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
+        glUniformMatrix4fv(glGetUniformLocation(program, "PVM"), 1, GL_FALSE,
+                           glm::value_ptr(PVM));
+
+        // idColor is already set by RenderPass (golden-ratio hue)
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+    }
+
     std::string Sprite::LoadShaderFile(const std::string &shaderPath)
     {
         std::ifstream file(shaderPath);
