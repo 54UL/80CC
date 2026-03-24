@@ -129,8 +129,7 @@ namespace ettycc
         }
         else
         {
-            // Handle error loading the image
-            std::cerr << "Error loading image: " << stbi_failure_reason() << std::endl;
+            spdlog::error("Error loading image: {}", stbi_failure_reason());
         }
 
         // Bind the shader program
@@ -146,16 +145,16 @@ namespace ettycc
     // Renderable
     void Sprite::Init(const std::shared_ptr<Engine>& engineCtx)
     {
-        if (!spriteFilePath_.empty() && initializable_)
-        {
-            auto engineResources = GetDependency(Resources);
-            const auto spriteFilePath = engineResources->GetWorkingFolder() + "\\" + spriteFilePath_;
+        if (initialized || !initializable_ || spriteFilePath_.empty())
+            return;
 
-            spdlog::info("Initializing loaded sprite [{}]", spriteFilePath);
-            spriteFilePath_.insert(0, "\\" + engineResources->GetWorkingFolder());
+        auto engineResources = GetDependency(Resources);
+        const auto fullPath = engineResources->GetWorkingFolder() + "\\" + spriteFilePath_;
 
-            InitBackend(spriteFilePath);
-        }
+        spdlog::info("Initializing sprite [{}]", fullPath);
+        InitBackend(fullPath);
+
+        initialized = true;
     }
 
     void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)

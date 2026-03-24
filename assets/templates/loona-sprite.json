@@ -1,11 +1,10 @@
 {
+  "prefab_name": "loona prefab",
   "template-object": [
     {
-      "assetId": 1,
       "type": "Sprite",
-      "name": "exampleSprite",
+      "name": "basic_sprite",
       "spriteFilePath": "images/loona.jpg",
-      "underlyingShader": "sprite_shader",
       "transform": {
         "position_x": 0.0,
         "position_y": 0.0,
@@ -20,4 +19,3 @@
     }
   ]
 }
-

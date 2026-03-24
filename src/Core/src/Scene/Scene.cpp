@@ -1,4 +1,5 @@
 #include <Scene/Scene.hpp>
+#include <Dependency.hpp>
 
 namespace ettycc
 {
@@ -15,12 +16,18 @@ namespace ettycc
 
     auto Scene::Init() -> void
     {
-        // root_node_ = std::make_shared<SceneNode>("SCENE-ROOT");
-
-        // if node_flat populated means it was loaded
-        for (const auto &node : nodes_flat_)
+        auto enginePtr = GetDependency(Engine);
+        for (const auto& node : nodes_flat_)
         {
-            node->InitNode();
+            if (!node) continue;
+            for (const auto& kvp : node->components_)
+            {
+                for (const auto& component : kvp.second)
+                {
+                    if (component)
+                        component->OnStart(enginePtr);
+                }
+            }
         }
     }
 

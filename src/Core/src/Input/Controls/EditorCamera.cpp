@@ -1,83 +1,108 @@
 #include <Input/Controls/EditorCamera.hpp>
 #include <glm/glm.hpp>
-
-#include "spdlog/spdlog.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace ettycc
 {
-    EditorCamera::EditorCamera(PlayerInput *input, FrameBuffer* frame_buffer)  :inputSystem_(input), frame_buffer_(frame_buffer)
+    EditorCamera::EditorCamera(PlayerInput* input, FrameBuffer* frame_buffer)
+        : inputSystem_(input), frame_buffer_(frame_buffer)
     {
-        
     }
 
     EditorCamera::~EditorCamera() = default;
 
-    void EditorCamera::handlePan(glm::vec2 leftAxis, glm::vec2 rightAxis, float dt) 
-    {
-        float panSpeed = 500.0f * dt / zoom;
+    // -------------------------------------------------------------------------
 
-        position += leftAxis * panSpeed;
-        position -= rightAxis * panSpeed; // opposite direction
+    glm::mat4 EditorCamera::ComputeViewMatrix(float /*deltaTime*/) const
+    {
+        // Pure translation — zoom lives only in the projection
+        return glm::translate(glm::mat4(1.0f), glm::vec3(-position, 0.0f));
     }
 
-    void EditorCamera::handleZoom(float wheelDelta, float dt) 
+    glm::mat4 EditorCamera::ComputeProjectionMatrix(float /*deltaTime*/) const
     {
-        constexpr float zoomSpeed = 10.0f;
-        zoom *= (1.0f + wheelDelta * zoomSpeed * dt);
+        const float w = static_cast<float>(frame_buffer_->size_.x);
+        const float h = static_cast<float>(frame_buffer_->size_.y);
+        const float aspect = (h > 0.0f) ? w / h : 1.0f;
 
-        // clamp
-        if (zoom < 0.1f) zoom = 0.1f;
-        if (zoom > 100.0f) zoom = 100.0f;
+        const float halfH = baseSize_ / zoom;
+        const float halfW = halfH * aspect;
+
+        return glm::ortho(-halfW, halfW, -halfH, halfH, -100.0f, 100.0f);
     }
 
-    glm::mat4 EditorCamera::ComputeViewMatrix(float deltaTime) const
-    {
-        return glm::translate(glm::mat4(1), glm::vec3((-position) / zoom, 0.0f));
-    }
+    // -------------------------------------------------------------------------
 
-    glm::mat4 EditorCamera::ComputeProjectionMatrix(float deltaTime) const
-    {
-        const float screenWidth = frame_buffer_->size_.x;
-        const float screenHeight = frame_buffer_->size_.y;
-
-        const auto ortho = glm::ortho(-1.0f/zoom, 1.0f / zoom, -1.0f/zoom, 1.0f / zoom, -1.0f, 1.0f);
-        return ortho;
-    }
-
-    void EditorCamera::Update(float deltaTime)
+    void EditorCamera::Update(float /*deltaTime*/)
     {
         if (!enabled) return;
 
-        if (inputSystem_->GetMouseButton(static_cast<int>(MouseButton::RIGHT)))// Left mouse button is pressed
+        // --- PAN (right-mouse drag) -------------------------------------------
+        // mouseDelta is already a per-frame pixel displacement; no deltaTime needed.
+        if (inputSystem_->GetMouseButton(static_cast<int>(MouseButton::RIGHT)))
         {
-            glm::vec2 mouseDelta = inputSystem_->GetMouseDelta() * deltaTime;
-            if (mouseDelta.x != 0.0f || mouseDelta.y != 0.0f)
+            const glm::vec2 pixelDelta = inputSystem_->GetMouseDelta();
+            if (pixelDelta.x != 0.0f || pixelDelta.y != 0.0f)
             {
-                position.x += mouseDelta.x / zoom*.5f;
-                position.y -= mouseDelta.y / zoom*.5f;
+                const float h = static_cast<float>(frame_buffer_->size_.y);
+                if (h > 0.0f)
+                {
+                    // 1 pixel = (2 * halfH) / screenHeight world units
+                    const float worldPerPixel = (2.0f * baseSize_ / zoom) / h;
+                    position.x -= pixelDelta.x * worldPerPixel;
+                    position.y += pixelDelta.y * worldPerPixel;
+                }
+            }
+        }
+
+        // --- ZOOM (scroll wheel) -----------------------------------------------
+        // GetWheelY() is reset every frame, so it's the delta for this frame only.
+        const int wheel = inputSystem_->GetWheelY();
+        if (wheel != 0)
+        {
+            // Fixed multiplicative step per tick — no deltaTime, no overshoot
+            constexpr float zoomStep = 1.12f;
+            const float factor = (wheel > 0) ? zoomStep : (1.0f / zoomStep);
+
+            // Zoom toward the cursor: keep the world point under the cursor fixed.
+            const float w = static_cast<float>(frame_buffer_->size_.x);
+            const float h = static_cast<float>(frame_buffer_->size_.y);
+            if (w > 0.0f && h > 0.0f)
+            {
+                const glm::vec2 mousePos = glm::vec2(inputSystem_->GetMousePos());
+                // Cursor in NDC [-1, 1] relative to viewport centre
+                const glm::vec2 cursorNDC = (mousePos - glm::vec2(w, h) * 0.5f)
+                                          / (glm::vec2(w, h) * 0.5f);
+
+                const float aspect  = w / h;
+                const float halfH   = baseSize_ / zoom;
+                const float halfW   = halfH * aspect;
+                // World position currently under the cursor
+                const glm::vec2 worldCursor = position
+                    + glm::vec2(cursorNDC.x * halfW, -cursorNDC.y * halfH);
+
+                zoom *= factor;
+                zoom  = glm::clamp(zoom, 0.05f, 500.0f);
+
+                // Recompute half-extents after zoom and shift position so the
+                // same world point stays under the cursor
+                const float newHalfH = baseSize_ / zoom;
+                const float newHalfW = newHalfH * aspect;
+                position = worldCursor
+                    - glm::vec2(cursorNDC.x * newHalfW, -cursorNDC.y * newHalfH);
             }
             else
             {
-                // Fallback to axis-based pan if no mouse delta
-                // handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
+                zoom *= factor;
+                zoom  = glm::clamp(zoom, 0.05f, 500.0f);
             }
         }
-        else
-        {
-            // Not dragging — allow axis pan
-            // handlePan(inputSystem_->GetLeftAxis(), inputSystem_->GetRightAxis(), deltaTime);
-        }
-
-        static int lastWheelY = 0;
-        if (inputSystem_->GetWheelY() != lastWheelY) {
-            lastWheelY = inputSystem_->GetWheelY();
-            handleZoom( inputSystem_->GetWheelY(), deltaTime);
-        }
     }
 
-    void EditorCamera::LateUpdate(float deltaTime)
-    {
+    void EditorCamera::LateUpdate(float /*deltaTime*/) {}
 
-    }
+    // handlePan / handleZoom kept but no longer called from Update
+    void EditorCamera::handleZoom(float /*wheelDelta*/, float /*dt*/) {}
+    void EditorCamera::handlePan(glm::vec2 /*left*/, glm::vec2 /*right*/, float /*dt*/) {}
 
 } // namespace ettycc

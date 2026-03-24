@@ -65,6 +65,12 @@ namespace ettycc
             spdlog::warn("Frame buffer already initialized id: [{}]", id_);
             return;
         }
+
+        if (size_.x <= 0 || size_.y <= 0)
+        {
+            spdlog::warn("Frame buffer skipping init, invalid size [{}, {}]", size_.x, size_.y);
+            return;
+        }
         
         glGenFramebuffers(1, &id_);
         glBindFramebuffer(GL_FRAMEBUFFER, id_);
@@ -130,6 +136,9 @@ namespace ettycc
 
     void FrameBuffer::SetSize(glm::ivec2 size)
     {
+        if (size.x <= 0 || size.y <= 0)
+            return;
+
         if (size_ != size)
         {
             size_ = size;

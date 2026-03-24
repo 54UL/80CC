@@ -4,6 +4,7 @@
 // TEST INCLUDE
 #include <Scene/Components/RenderableNode.hpp>
 #include <Dependencies/Resources.hpp>
+#include <Graphics/Rendering/Entities/Grid.hpp>
 
 namespace ettycc
 {
@@ -36,31 +37,32 @@ namespace ettycc
         rootSceneNode->AddChild(spriteNode);
     }
 
+    void Engine::InitEditorCamera()
+    {
+        editorCamera_ = std::make_shared<Camera>(1200, 800);
+        editorCamera_->AttachEditorControl(&inputSystem_);
+        editorCamera_->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
+        editorCamera_->Init(GetDependency(Engine));
+        renderEngine_.SetViewPortFrameBuffer(editorCamera_->offScreenFrameBuffer);
+        renderEngine_.AddRenderable(editorCamera_);
+
+        auto grid = std::make_shared<Grid>();
+        grid->Init(GetDependency(Engine));
+        renderEngine_.AddRenderable(grid);
+
+        spdlog::info("Editor camera initialized [1200x800]");
+    }
+
     void Engine::LoadDefaultScene()
     {
         spdlog::warn("loading fall-back scene....");
 
-        // default scene construction (basic sprite with not found texture...)
         mainScene_ = std::make_shared<Scene>("default-scene");
 
         auto rootSceneNode = mainScene_->root_node_;
-        
-        // not found sprite
         std::string notFoundTexturePath = engineResources_->Get("sprites", "not-found");
-        
-        createSprite(rootSceneNode, notFoundTexturePath,glm::vec3(-1, 0, 0));
-        createSprite(rootSceneNode, notFoundTexturePath,glm::vec3(2, 0, 0));
-
-        // default camera
-        std::shared_ptr<Camera> mainCamera = std::make_shared<Camera>(1200,800);
-        mainCamera->AttachEditorControl(&inputSystem_);
-
-        auto cameraNode = std::make_shared<SceneNode>("cameraNode-editor-camera");
-        mainCamera->mainCamera_ = true;
-        editorCamera_ = mainCamera;
-
-        cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
-        rootSceneNode->AddChild(cameraNode);
+        createSprite(rootSceneNode, notFoundTexturePath, glm::vec3(-1, 0, 0));
+        createSprite(rootSceneNode, notFoundTexturePath, glm::vec3(2, 0, 0));
     }
 
     void Engine::LoadLastScene()
@@ -101,6 +103,7 @@ namespace ettycc
                 {
                     mainScene_ = std::make_shared<Scene>("");
                     archive2(*mainScene_);
+                    mainScene_->Init();
                     spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
                 }
             } catch (const std::exception& e) {

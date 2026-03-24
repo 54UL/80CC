@@ -42,6 +42,7 @@ namespace ettycc
         static void createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos);
 
         // Engine front-end API        
+        void InitEditorCamera();
         void LoadDefaultScene();
         // Engine front-end API
         void LoadLastScene();

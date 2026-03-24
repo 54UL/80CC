@@ -9,7 +9,6 @@ namespace ettycc
 {
     Camera::Camera()
     {
-        this->mainCamera_ = false;
     }
 
     Camera::Camera(int h, int w)
@@ -29,7 +28,6 @@ namespace ettycc
     void Camera::Init(int w, int h)
     {
         this->offScreenFrameBuffer = std::make_shared<FrameBuffer>(glm::ivec2(0, 0), glm::ivec2(w, h), false);
-        this->mainCamera_ = false;
     }
 
     glm::mat4 Camera::GetProjectionMatrix() const
@@ -66,23 +64,10 @@ namespace ettycc
         // Init frame buffer backend (if deserialized then there's already populated data so might run???)
         if (offScreenFrameBuffer && initializable_)
         {
-            spdlog::info("Initializing seeded camera");
+            spdlog::info("Initializing scene camera");
             offScreenFrameBuffer->Init();
-
-            // convention just to make this camera the current editor viewport
-            if (mainCamera_)
-            {
-                //TODO: move SetViewPortFrameBuffer above....
-                spdlog::info("Setting as view port camera...");
-                engineCtx->renderEngine_.SetViewPortFrameBuffer(offScreenFrameBuffer);
-            }
-
             initializable_ = false;
             initialized = true;
-        }
-        else
-        {
-            spdlog::info("Empty camera init");
         }
     }
 

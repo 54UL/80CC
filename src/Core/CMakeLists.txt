@@ -28,6 +28,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Rendering/PickerBuffer.hpp
     include/Graphics/Rendering/Entities/Camera.hpp
     include/Graphics/Rendering/Entities/Sprite.hpp
+    include/Graphics/Rendering/Entities/Grid.hpp
     include/Graphics/Shading/Shader.hpp
     include/Graphics/Shading/ShaderPipeline.hpp
     include/Input/PlayerInput.hpp
@@ -63,6 +64,7 @@ set(80CC_CORE_SOURCES
     src/Graphics/Rendering/PickerBuffer.cpp
     src/Graphics/Rendering/Entities/Camera.cpp
     src/Graphics/Rendering/Entities/Sprite.cpp
+    src/Graphics/Rendering/Entities/Grid.cpp
     src/Graphics/Shading/Shader.cpp
     src/Graphics/Shading/ShaderPipeline.cpp
     src/Input/PlayerInput.cpp
