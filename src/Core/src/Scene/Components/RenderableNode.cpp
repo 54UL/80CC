@@ -11,6 +11,7 @@ namespace ettycc
     RenderableNode::RenderableNode(const std::shared_ptr<Renderable>& renderable)
     {
         renderable_= renderable;
+        renderableId_ = Utils::GetNextIncrementalId();
     }
 
     RenderableNode::~RenderableNode()
@@ -20,8 +21,7 @@ namespace ettycc
 
     NodeComponentInfo RenderableNode::GetComponentInfo()
     {
-        //TODO: INSERT ID GENERATION
-        return NodeComponentInfo {0, componentType, true, ProcessingChannel::RENDERING};
+        return NodeComponentInfo {renderableId_, componentType, true, ProcessingChannel::RENDERING};
     }
 
     void RenderableNode::OnStart(std::shared_ptr<Engine> engineInstance)

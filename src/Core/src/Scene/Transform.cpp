@@ -80,5 +80,22 @@ namespace ettycc
 
         return glm::degrees(eulerAngles);
     }
+
+    void Transform::SetFromTRS(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scale)
+    {
+        position_  = pos;
+        scale_     = scale;
+        rotation_  = glm::degrees(glm::eulerAngles(rot));
+
+        rotationMatrix  = glm::mat4_cast(rot);
+
+        // Build canonical T * R * S — rotation is about the object's local origin,
+        // then the result is translated to world position.  This avoids the
+        // order-dependency bugs in the individual setters.
+        modelMatrix     = glm::translate(glm::mat4(1.f), pos)
+                        * rotationMatrix
+                        * glm::scale(glm::mat4(1.f), scale);
+        transformMatrix = modelMatrix;
+    }
 } // namespace ettycc
 

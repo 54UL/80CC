@@ -8,7 +8,9 @@ namespace ettycc
 {
     RigidBodyComponent::RigidBodyComponent(float mass, glm::vec3 halfExtents, glm::vec3 initialPosition)
         : mass_(mass), halfExtents_(halfExtents), initialPosition_(initialPosition)
-    {}
+    {
+        rigidBodyId_ = Utils::GetNextIncrementalId();
+    }
 
     RigidBodyComponent::~RigidBodyComponent()
     {
@@ -22,7 +24,7 @@ namespace ettycc
 
     NodeComponentInfo RigidBodyComponent::GetComponentInfo()
     {
-        return { 0, componentType, true, ProcessingChannel::MAIN };
+        return { rigidBodyId_, componentType, true, ProcessingChannel::MAIN };
     }
 
     void RigidBodyComponent::OnStart(std::shared_ptr<Engine> engineInstance)
@@ -73,6 +75,16 @@ namespace ettycc
         motionState_ = new btDefaultMotionState(startTransform);
         btRigidBody::btRigidBodyConstructionInfo ci(mass_, motionState_, shape_, localInertia);
         body_ = new btRigidBody(ci);
+
+        // ── 2-D constraint: lock Z translation and X/Y rotation ──────────────
+        // This keeps the simulation fully planar (XY plane) even though Bullet
+        // is a 3-D engine, avoiding drift into/out of the screen.
+        if (mass_ > 0.0f)
+        {
+            body_->setLinearFactor (btVector3(1.f, 1.f, 0.f)); // allow X,Y  — lock Z
+            body_->setAngularFactor(btVector3(0.f, 0.f, 1.f)); // allow Z rot — lock X,Y
+        }
+
         physWorld_->addRigidBody(body_);
 
         spdlog::info("[RigidBodyComponent] body created — mass={:.1f}  pos=({:.2f},{:.2f},{:.2f})",
@@ -81,12 +93,71 @@ namespace ettycc
 
     void RigidBodyComponent::OnUpdate(float /*deltaTime*/)
     {
-        if (!body_ || !syncTransform_ || mass_ == 0.0f)
+        // Skip physics→visual sync while the editor gizmo is manipulating this body
+        if (!body_ || !syncTransform_ || mass_ == 0.0f || isManipulated_)
             return;
 
         btTransform trans;
         body_->getMotionState()->getWorldTransform(trans);
-        const btVector3& pos = trans.getOrigin();
-        syncTransform_->setGlobalPosition({ pos.getX(), pos.getY(), pos.getZ() });
+
+        const btVector3&    btPos = trans.getOrigin();
+        const btQuaternion& btQ   = trans.getRotation();
+
+        glm::vec3 pos  (btPos.getX(), btPos.getY(), btPos.getZ());
+        glm::quat rot  (btQ.getW(),   btQ.getX(),   btQ.getY(),   btQ.getZ());
+        glm::vec3 scale = syncTransform_->getGlobalScale();
+
+        // SetFromTRS builds a correct T*R*S matrix — avoids the broken
+        // order-dependency in the individual setter chain.
+        syncTransform_->SetFromTRS(pos, rot, scale);
+    }
+
+    // -------------------------------------------------------------------------
+
+    void RigidBodyComponent::BeginManipulation()
+    {
+        if (!body_) return;
+        isManipulated_ = true;
+
+        // Switch to kinematic: Bullet no longer drives this body; we push transforms to it
+        body_->setCollisionFlags(body_->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+        body_->setActivationState(DISABLE_DEACTIVATION);
+        body_->setLinearVelocity(btVector3(0.f, 0.f, 0.f));
+        body_->setAngularVelocity(btVector3(0.f, 0.f, 0.f));
+    }
+
+    void RigidBodyComponent::EndManipulation()
+    {
+        if (!body_) return;
+
+        // Push final transform one last time before handing control back to physics
+        SyncFromRenderable();
+
+        // Restore dynamic mode — clear kinematic flag and wake the body
+        body_->setCollisionFlags(body_->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
+        body_->setLinearVelocity(btVector3(0.f, 0.f, 0.f));
+        body_->setAngularVelocity(btVector3(0.f, 0.f, 0.f));
+        body_->setActivationState(ACTIVE_TAG);
+        body_->activate(true);
+
+        isManipulated_ = false;
+    }
+
+    void RigidBodyComponent::SyncFromRenderable()
+    {
+        if (!body_ || !syncTransform_) return;
+
+        const glm::vec3 pos      = syncTransform_->getGlobalPosition();
+        const glm::vec3 eulerDeg = syncTransform_->getStoredRotation();
+        const glm::quat q        = glm::quat(glm::radians(eulerDeg));
+
+        btTransform t;
+        t.setOrigin  (btVector3(pos.x, pos.y, pos.z));
+        t.setRotation(btQuaternion(q.x, q.y, q.z, q.w));
+
+        // For kinematic bodies Bullet polls the motion state each sub-step;
+        // also set it directly on the body so it takes effect immediately.
+        motionState_->setWorldTransform(t);
+        body_->setWorldTransform(t);
     }
 }

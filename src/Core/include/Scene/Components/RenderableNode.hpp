@@ -23,6 +23,7 @@ namespace ettycc
         // make this a template....
         static constexpr const char *componentType = "Renderable";
         std::shared_ptr<Renderable> renderable_;
+        uint64_t renderableId_;
 
     public:
         RenderableNode();

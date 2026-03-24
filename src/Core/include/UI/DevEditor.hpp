@@ -34,7 +34,7 @@ namespace ettycc
         void ShowDebugger();
         void ShowDockSpace();
         void ShowMenuBar();
-        void ShowEditorViewPort() const;
+        void ShowEditorViewPort();
         void ShowGameView() const;
         void ShowInspector();
         void ShowAssetsView();
@@ -89,6 +89,11 @@ namespace ettycc
         ImVec4      GetAssetColor(AssetType t) const;
         const char* GetAssetLabel(AssetType t) const;
         const char* GetAssetTypeName(AssetType t) const;
+
+        // VIEWPORT HELPERS
+        std::shared_ptr<SceneNode> FindNodeByRenderable(
+            const std::shared_ptr<SceneNode>& node,
+            const std::shared_ptr<Renderable>& renderable) const;
 
         // MISC
         GLuint LoadTextureFromFile(const char* filePath);

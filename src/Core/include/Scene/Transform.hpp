@@ -42,6 +42,12 @@ namespace ettycc
         void translate(glm::vec3 RelativeDirection);
         // Complex transform operations
         glm::vec3 getEulerGlobalRotation() const;
+        glm::vec3 getStoredRotation()     const { return rotation_; } // degrees, as stored by setGlobalRotation
+
+        // Builds a proper T*R*S matrix and stores it without the composition
+        // bugs of chaining setGlobalPosition/Rotation/Scale.
+        // rot is a unit quaternion; pos and scale are in world units.
+        void SetFromTRS(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scale);
 
         void SetMatrix(const glm::mat4 &matrix);
         glm::mat4 GetMatrix() const;

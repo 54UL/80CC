@@ -42,8 +42,10 @@ namespace ettycc
                                    float mass, glm::vec3 halfExtents, glm::vec3 pos)
     {
         auto sprite = std::make_shared<Sprite>(texPath);
+        // The sprite quad has local vertices at ±1, so scale = halfExtents gives
+        // a world-space box of ±halfExtents — matching the Bullet btBoxShape exactly.
         sprite->underylingTransform.setGlobalPosition(pos);
-        sprite->underylingTransform.setGlobalScale(glm::vec3(halfExtents.x * 2.0f, halfExtents.y * 2.0f, 1.0f));
+        sprite->underylingTransform.setGlobalScale(glm::vec3(halfExtents.x, halfExtents.y, 1.0f));
 
         static int index = 0;
         auto node = std::make_shared<SceneNode>("physics-box-" + std::to_string(index++));
@@ -63,14 +65,23 @@ namespace ettycc
         const std::string tex = engineResources_->Get("sprites", "not-found");
         auto root = mainScene_->root_node_;
 
-        // Static ground platform
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(5.0f, 0.25f, 0.5f), glm::vec3(0.0f, -3.0f, 0.0f));
+        // ── Static boundaries ─────────────────────────────────────────────────
+        // Ground
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f),  glm::vec3( 0.0f, -5.0f, 0.0f));
+        // Left wall
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f),  glm::vec3(-9.3f,  0.0f, 0.0f));
+        // Right wall
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f),  glm::vec3( 9.3f,  0.0f, 0.0f));
 
-        // Five dynamic boxes stacked above
+        // ── Dynamic boxes: two columns, staggered ──────────────────────────────
         for (int i = 0; i < 5; ++i)
         {
+            // Left column
             createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
-                             glm::vec3((i - 2) * 1.2f, 2.0f + i * 1.5f, 0.0f));
+                             glm::vec3(-1.1f, -3.8f + i * 1.15f, 0.0f));
+            // Right column — offset slightly so they topple on each other
+            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
+                             glm::vec3( 1.1f, -3.8f + i * 1.15f + 0.55f, 0.0f));
         }
     }
 
@@ -92,7 +103,7 @@ namespace ettycc
 
     void Engine::LoadDefaultScene()
     {
-        spdlog::warn("loading fall-back scene....");
+        spdlog::warn("[Engine] loading fallback physics scene...");
 
         renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("default-scene");
@@ -100,13 +111,28 @@ namespace ettycc
         auto root = mainScene_->root_node_;
         const std::string tex = engineResources_->Get("sprites", "not-found");
 
-        // Ground — static body (mass 0), wide flat box
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(1000.0f, 0.25f, 0.5f), glm::vec3(0.0f, -3.0f, 0.0f));
+        // Static ground platform — wide and thin
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -4.5f, 0.0f));
 
-        for (int i = 0; i < 200; ++i)
+        // Dynamic boxes arranged in a small pyramid
+        //  row 0 (bottom): 4 boxes
+        //  row 1         : 3 boxes
+        //  row 2 (top)   : 2 boxes
+        const float BOX_H  = 0.5f;  // half-height
+        const float BOX_W  = 0.5f;  // half-width
+        const float STEP   = BOX_W * 2.1f; // slight gap so they don't start intersecting
+
+        struct { int count; float y; } rows[] = {
+            { 4, -4.5f + 0.3f + BOX_H            },
+            { 3, -4.5f + 0.3f + BOX_H * 3.f      },
+            { 2, -4.5f + 0.3f + BOX_H * 5.f      },
+        };
+        for (auto& row : rows)
         {
-            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
-                             glm::vec3((i * 1.2f, 2.0f + i * 10.5f, 0.0f)));
+            float startX = -(row.count - 1) * STEP * 0.5f;
+            for (int j = 0; j < row.count; ++j)
+                createPhysicsBox(root, tex, 1.0f, glm::vec3(BOX_W, BOX_H, 0.5f),
+                                 glm::vec3(startX + j * STEP, row.y, 0.0f));
         }
     }
 

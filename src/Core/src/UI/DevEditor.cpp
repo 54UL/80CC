@@ -1,4 +1,5 @@
 #include <UI/DevEditor.hpp>
+#include <Scene/Components/RigidBodyComponent.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Resources.hpp>
 #include <Input/Controls/EditorCamera.hpp>
@@ -311,7 +312,7 @@ namespace ettycc
     // VIEWPORT
     // -------------------------------------------------------------------------
 
-    void DevEditor::ShowEditorViewPort() const
+    void DevEditor::ShowEditorViewPort()
     {
         ImGui::Begin("Editor view");
 
@@ -324,74 +325,374 @@ namespace ettycc
 
         if (const auto framebuffer = GetDependency(Engine)->renderEngine_.GetViewPortFrameBuffer())
         {
-            GLuint framebufferTextureID = framebuffer->GetTextureId();
-            glm::ivec2 fbSize = framebuffer->GetSize();
-            float fbAspect = static_cast<float>(fbSize.x) / static_cast<float>(fbSize.y);
-
             ImVec2 avail = ImGui::GetContentRegionAvail();
-            float availAspect = avail.x / avail.y;
-
-            ImVec2 displaySize;
-            if (availAspect > fbAspect) {
-                displaySize.y = avail.y;
-                displaySize.x = displaySize.y * fbAspect;
-            } else {
-                displaySize.x = avail.x;
-                displaySize.y = displaySize.x / fbAspect;
-            }
-
             framebuffer->SetSize(glm::ivec2(static_cast<int>(avail.x), static_cast<int>(avail.y)));
+            ImGui::SetCursorPos(ImGui::GetCursorPos());
 
-            ImVec2 cursorPos = ImGui::GetCursorPos();
-            ImGui::SetCursorPos(ImVec2(cursorPos.x, cursorPos.y));
+            ImGui::Image(reinterpret_cast<void*>(
+                static_cast<intptr_t>(framebuffer->GetTextureId())),
+                avail, ImVec2(0, 1), ImVec2(1, 0));
 
-            ImGui::Image(reinterpret_cast<void*>(static_cast<intptr_t>(framebufferTextureID)),
-                         avail, ImVec2(0, 1), ImVec2(1, 0));
+            // Screen-space top-left of the rendered image (= content area origin)
+            const ImVec2 imgMin = ImGui::GetItemRectMin();
+            const ImVec2 imgMax = { imgMin.x + avail.x, imgMin.y + avail.y };
+            const ImVec2 mp     = ImGui::GetMousePos();
 
-            // Accept prefab template drops → spawn under scene root
+            // ─── Prefab drag-drop (unchanged) ────────────────────────────────
             if (ImGui::BeginDragDropTarget())
             {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_ENTRY"))
                 {
                     std::string path(static_cast<const char*>(payload->Data), payload->DataSize - 1);
                     AssetType dropType = GetAssetType(std::filesystem::path(path));
-
                     if (dropType == AssetType::Template)
                     {
-                        auto nodes = assetBuilder_->BuildFromTemplate(path);
-                        for (auto& node : nodes)
+                        for (auto& node : assetBuilder_->BuildFromTemplate(path))
                         {
-                            // AddChild → AddNode → GetDependency(Engine) → OnStart (Init + AddRenderable)
                             engineInstance_->mainScene_->root_node_->AddChild(node);
                             spdlog::info("[DevEditor] Spawned '{}' from prefab '{}'",
                                          node->GetName(), path);
                         }
                     }
                     else
-                    {
                         spdlog::warn("[DevEditor] Drop type '{}' not handled yet",
                                      GetAssetTypeName(dropType));
-                    }
                 }
                 ImGui::EndDragDropTarget();
             }
 
-            static bool isViewportFocused = false;
-            static ImVec2 lockedCursorPos;
+            // ─── Gizmo persistent state ───────────────────────────────────────
+            static int gizmoMode = 0; // 0=Translate  1=Rotate  2=Scale
 
-            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_None)) {
-                engineInstance_->editorCamera_->editorCameraControl_->enabled = true;
-                if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+            enum GizmoAxis : int {
+                AXIS_NONE = -1, AXIS_XY = 0, AXIS_X = 1, AXIS_Y = 2,
+                AXIS_ROTATE = 3, AXIS_SX = 4, AXIS_SY = 5, AXIS_SXY = 6
+            };
+            static GizmoAxis hovered  = AXIS_NONE;
+            static GizmoAxis dragging = AXIS_NONE;
+            static ImVec2    dragStartMouse = {};
+            static glm::vec3 dragStartPos   = {};
+            static glm::vec3 dragStartRot   = {}; // stored degrees
+            static glm::vec3 dragStartScale = {};
+            static float     dragStartAngle = 0.f;
+
+            // ─── Resolve selected RenderableNode ──────────────────────────────
+            std::shared_ptr<RenderableNode> selRN;
+            if (!selectedNodes_.empty() && inspectorSource_ == InspectorSource::SceneNode)
+            {
+                auto comp = selectedNodes_.back()->GetComponentByName(RenderableNode::componentType);
+                selRN = std::dynamic_pointer_cast<RenderableNode>(comp);
+            }
+
+            // ─── Gizmo hover detection (runs before click tests) ──────────────
+            // Must run every frame so click-to-select knows if a handle is under
+            // the cursor before registering a select.
+            auto distSeg = [](ImVec2 p, ImVec2 a, ImVec2 b) -> float {
+                float dx = b.x - a.x, dy = b.y - a.y;
+                float len2 = dx*dx + dy*dy;
+                if (len2 < 1e-6f) return sqrtf((p.x-a.x)*(p.x-a.x)+(p.y-a.y)*(p.y-a.y));
+                float t  = glm::clamp(((p.x-a.x)*dx + (p.y-a.y)*dy) / len2, 0.f, 1.f);
+                float cx = a.x + t*dx, cy = a.y + t*dy;
+                return sqrtf((p.x-cx)*(p.x-cx)+(p.y-cy)*(p.y-cy));
+            };
+
+            ImVec2 gizmoOrigin = {};
+            ImVec2 gizmoXTip   = {};
+            ImVec2 gizmoYTip   = {};
+            float  worldPerPixel = 1.f;
+            bool   mouseInVP  = ImGui::IsMouseHoveringRect(imgMin, imgMax);
+
+            constexpr float HANDLE_LEN = 60.f;
+            constexpr float HIT_R      = 10.f;
+            constexpr float RING_R     = 52.f;
+            constexpr float SQ_HALF    = 6.f;
+
+            if (selRN && selRN->renderable_)
+            {
+                auto& cam = engineInstance_->editorCamera_->editorCameraControl_;
+                glm::mat4 view = cam->ComputeViewMatrix(0.f);
+                glm::mat4 proj = cam->ComputeProjectionMatrix(0.f);
+                worldPerPixel  = (2.f * EditorCamera::baseSize_) / (cam->zoom * avail.y);
+
+                auto toScreen = [&](glm::vec3 wp) -> ImVec2 {
+                    glm::vec4 c = proj * view * glm::vec4(wp, 1.f);
+                    glm::vec3 n = glm::vec3(c) / c.w;
+                    return { imgMin.x + (n.x * 0.5f + 0.5f) * avail.x,
+                             imgMin.y + (1.f - (n.y * 0.5f + 0.5f)) * avail.y };
+                };
+
+                glm::vec3 wPos = selRN->renderable_->GetTransform().getGlobalPosition();
+                gizmoOrigin = toScreen(wPos);
+                gizmoXTip   = { gizmoOrigin.x + HANDLE_LEN, gizmoOrigin.y };
+                gizmoYTip   = { gizmoOrigin.x, gizmoOrigin.y - HANDLE_LEN };
+
+                float distO = sqrtf((mp.x-gizmoOrigin.x)*(mp.x-gizmoOrigin.x) +
+                                    (mp.y-gizmoOrigin.y)*(mp.y-gizmoOrigin.y));
+
+                if (dragging == AXIS_NONE && mouseInVP)
+                {
+                    hovered = AXIS_NONE;
+                    if (gizmoMode == 0) // Translate
+                    {
+                        if (distO < HIT_R)                                   hovered = AXIS_XY;
+                        else if (distSeg(mp, gizmoOrigin, gizmoXTip) < HIT_R) hovered = AXIS_X;
+                        else if (distSeg(mp, gizmoOrigin, gizmoYTip) < HIT_R) hovered = AXIS_Y;
+                    }
+                    else if (gizmoMode == 1) // Rotate
+                    {
+                        if (fabsf(distO - RING_R) < 9.f)                     hovered = AXIS_ROTATE;
+                    }
+                    else // Scale
+                    {
+                        if (distO < HIT_R)
+                            hovered = AXIS_SXY;
+                        else if (fabsf(mp.x - gizmoXTip.x) < SQ_HALF + 3.f &&
+                                 fabsf(mp.y - gizmoXTip.y) < SQ_HALF + 3.f)
+                            hovered = AXIS_SX;
+                        else if (fabsf(mp.x - gizmoYTip.x) < SQ_HALF + 3.f &&
+                                 fabsf(mp.y - gizmoYTip.y) < SQ_HALF + 3.f)
+                            hovered = AXIS_SY;
+                        else if (distSeg(mp, gizmoOrigin, gizmoXTip) < HIT_R) hovered = AXIS_SX;
+                        else if (distSeg(mp, gizmoOrigin, gizmoYTip) < HIT_R) hovered = AXIS_SY;
+                    }
+                }
+                else if (!mouseInVP && dragging == AXIS_NONE)
+                    hovered = AXIS_NONE;
+            }
+            else
+            {
+                hovered  = AXIS_NONE;
+                dragging = AXIS_NONE;
+            }
+
+            // ─── Gizmo mode toolbar (T/R/S) ───────────────────────────────────
+            bool toolbarConsumedClick = false;
+            {
+                ImDrawList* dl = ImGui::GetWindowDrawList();
+                const float btnSz = 22.f, pad = 6.f, gap = 3.f;
+                const char* labels[] = { "T", "R", "S" };
+                for (int i = 0; i < 3; ++i)
+                {
+                    ImVec2 bMin = { imgMin.x + pad + i * (btnSz + gap), imgMin.y + pad };
+                    ImVec2 bMax = { bMin.x + btnSz, bMin.y + btnSz };
+                    bool active = (gizmoMode == i);
+                    bool btnHov = ImGui::IsMouseHoveringRect(bMin, bMax);
+                    ImU32 bgCol = active ? IM_COL32( 80, 140, 255, 220) :
+                                  btnHov ? IM_COL32( 80,  80,  80, 200) :
+                                           IM_COL32( 40,  40,  40, 180);
+                    dl->AddRectFilled(bMin, bMax, bgCol, 3.f);
+                    dl->AddRect(bMin, bMax, IM_COL32(120, 120, 120, 180), 3.f);
+                    ImVec2 tsz = ImGui::CalcTextSize(labels[i]);
+                    dl->AddText({ bMin.x + (btnSz - tsz.x) * 0.5f,
+                                  bMin.y + (btnSz - tsz.y) * 0.5f },
+                                IM_COL32(230, 230, 230, 255), labels[i]);
+                    if (btnHov && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                    {
+                        gizmoMode           = i;
+                        toolbarConsumedClick = true;
+                    }
+                    if (btnHov)
+                        toolbarConsumedClick = true; // also block picker on hover
+                }
+            }
+
+            // ─── Click-to-select via picker ────────────────────────────────────
+            // Only fires when no gizmo handle is under the cursor and no toolbar
+            // button has consumed the click.
+            if (!toolbarConsumedClick &&
+                dragging == AXIS_NONE &&
+                hovered  == AXIS_NONE &&
+                mouseInVP && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            {
+                auto pbSz = pickerBuffer_->size_;
+                int px = glm::clamp((int)(mp.x - imgMin.x), 0, pbSz.x - 1);
+                int py = glm::clamp((int)(mp.y - imgMin.y), 0, pbSz.y - 1);
+
+                uint32_t pickedId = pickerBuffer_->ReadPixel(px, py);
+                lastPickedId_     = pickedId;
+
+                if (pickedId > 0)
+                {
+                    const auto& renderables = engineInstance_->renderEngine_.GetRenderables();
+                    if (pickedId - 1 < renderables.size())
+                    {
+                        auto node = FindNodeByRenderable(
+                            engineInstance_->mainScene_->root_node_,
+                            renderables[pickedId - 1]);
+                        if (node)
+                        {
+                            selectedNodes_.clear();
+                            selectedNodes_.push_back(node);
+                            inspectorSource_      = InspectorSource::SceneNode;
+                            selectedAsset_.active = false;
+                        }
+                    }
+                }
+                else
+                {
+                    selectedNodes_.clear();
+                    selectedAsset_.active = false;
+                    inspectorSource_      = InspectorSource::None;
+                }
+            }
+
+            // ─── Helper: get RigidBodyComponent on the selected node (may be null) ──
+            auto getSelRB = [&]() -> std::shared_ptr<RigidBodyComponent> {
+                if (selectedNodes_.empty()) return nullptr;
+                auto comp = selectedNodes_.back()->GetComponentByName(RigidBodyComponent::componentType);
+                return std::dynamic_pointer_cast<RigidBodyComponent>(comp);
+            };
+
+            // ─── Gizmo drag start ─────────────────────────────────────────────
+            if (hovered != AXIS_NONE && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && selRN)
+            {
+                dragging       = hovered;
+                dragStartMouse = mp;
+                Transform t    = selRN->renderable_->GetTransform();
+                dragStartPos   = t.getGlobalPosition();
+                dragStartRot   = t.getStoredRotation();   // degrees
+                dragStartScale = t.getGlobalScale();
+                dragStartAngle = atan2f(mp.y - gizmoOrigin.y, mp.x - gizmoOrigin.x);
+
+                // If the node has a rigid body, switch it to kinematic so the
+                // physics simulation no longer fights the gizmo.
+                if (auto rb = getSelRB()) rb->BeginManipulation();
+            }
+
+            // ─── Gizmo drag apply ─────────────────────────────────────────────
+            if (dragging != AXIS_NONE && ImGui::IsMouseDown(ImGuiMouseButton_Left) && selRN)
+            {
+                float dxPx = mp.x - dragStartMouse.x;
+                float dyPx = mp.y - dragStartMouse.y;
+
+                // All three branches resolve to (pos, rot, scale) and then call
+                // SetFromTRS which builds a correct T*R*S matrix, avoiding the
+                // composition bugs in the individual setter chain.
+                glm::vec3 pos   = dragStartPos;
+                glm::quat rot   = glm::quat(glm::radians(dragStartRot));
+                glm::vec3 scale = dragStartScale;
+
+                if (dragging == AXIS_X || dragging == AXIS_Y || dragging == AXIS_XY)
+                {
+                    if (dragging != AXIS_Y) pos.x += dxPx * worldPerPixel;
+                    if (dragging != AXIS_X) pos.y -= dyPx * worldPerPixel; // screen-Y is flipped
+                }
+                else if (dragging == AXIS_ROTATE)
+                {
+                    float curAngle = atan2f(mp.y - gizmoOrigin.y, mp.x - gizmoOrigin.x);
+                    float deltaDeg = glm::degrees(curAngle - dragStartAngle);
+                    glm::vec3 newEuler = dragStartRot;
+                    newEuler.z -= deltaDeg;
+                    rot = glm::quat(glm::radians(newEuler));
+                }
+                else // Scale
+                {
+                    constexpr float SENS = 0.012f;
+                    if (dragging == AXIS_SX  || dragging == AXIS_SXY)
+                        scale.x = glm::max(0.001f, scale.x + dxPx * SENS);
+                    if (dragging == AXIS_SY  || dragging == AXIS_SXY)
+                        scale.y = glm::max(0.001f, scale.y - dyPx * SENS);
+                }
+
+                Transform newT;
+                newT.SetFromTRS(pos, rot, scale);
+                selRN->renderable_->SetTransform(newT);
+
+                // Keep the bullet body in sync with the visual while in kinematic mode
+                if (auto rb = getSelRB()) rb->SyncFromRenderable();
+            }
+
+            // ─── Gizmo drag release ───────────────────────────────────────────
+            if (dragging != AXIS_NONE && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                // Restore dynamic physics before clearing the drag state
+                if (auto rb = getSelRB()) rb->EndManipulation();
+                dragging = AXIS_NONE;
+            }
+
+            // ─── Draw gizmo handles ───────────────────────────────────────────
+            if (selRN && selRN->renderable_)
+            {
+                ImDrawList* dl = ImGui::GetWindowDrawList();
+
+                auto isActive = [&](GizmoAxis a) {
+                    return hovered == a || dragging == a;
+                };
+                constexpr ImU32 HIGHLIGHT = IM_COL32(255, 230, 60, 255);
+
+                if (gizmoMode == 0) // TRANSLATE
+                {
+                    ImU32 cX = isActive(AXIS_X) || isActive(AXIS_XY) ? HIGHLIGHT : IM_COL32(220, 50, 50, 255);
+                    ImU32 cY = isActive(AXIS_Y) || isActive(AXIS_XY) ? HIGHLIGHT : IM_COL32( 50,200, 50, 255);
+
+                    dl->AddLine(gizmoOrigin, gizmoXTip, cX, 2.f);
+                    dl->AddLine(gizmoOrigin, gizmoYTip, cY, 2.f);
+                    dl->AddTriangleFilled({ gizmoXTip.x+7.f, gizmoXTip.y },
+                                         { gizmoXTip.x-3.f, gizmoXTip.y-4.f },
+                                         { gizmoXTip.x-3.f, gizmoXTip.y+4.f }, cX);
+                    dl->AddTriangleFilled({ gizmoYTip.x,     gizmoYTip.y-7.f },
+                                         { gizmoYTip.x-4.f, gizmoYTip.y+3.f },
+                                         { gizmoYTip.x+4.f, gizmoYTip.y+3.f }, cY);
+                    dl->AddText({ gizmoXTip.x + 9.f, gizmoXTip.y - 6.f }, cX, "X");
+                    dl->AddText({ gizmoYTip.x + 4.f, gizmoYTip.y - 14.f }, cY, "Y");
+
+                    ImU32 cC = isActive(AXIS_XY) ? HIGHLIGHT : IM_COL32(220, 220, 220, 255);
+                    dl->AddCircleFilled(gizmoOrigin, 6.f, cC);
+                    dl->AddCircle(gizmoOrigin, 6.f, IM_COL32(60, 60, 60, 200));
+                }
+                else if (gizmoMode == 1) // ROTATE
+                {
+                    bool active = isActive(AXIS_ROTATE);
+                    ImU32 cR = active ? HIGHLIGHT : IM_COL32(220, 130, 50, 220);
+                    dl->AddCircle(gizmoOrigin, RING_R, cR, 64, active ? 3.f : 2.f);
+                    dl->AddCircleFilled(gizmoOrigin, 4.f, IM_COL32(220, 220, 220, 255));
+                }
+                else // SCALE
+                {
+                    ImU32 cX = isActive(AXIS_SX)  ? HIGHLIGHT : IM_COL32(220,  50,  50, 255);
+                    ImU32 cY = isActive(AXIS_SY)  ? HIGHLIGHT : IM_COL32( 50, 200,  50, 255);
+                    ImU32 cC = isActive(AXIS_SXY) ? HIGHLIGHT : IM_COL32(220, 220, 220, 255);
+
+                    dl->AddLine(gizmoOrigin, gizmoXTip, cX, 2.f);
+                    dl->AddLine(gizmoOrigin, gizmoYTip, cY, 2.f);
+                    dl->AddRectFilled({ gizmoXTip.x-SQ_HALF, gizmoXTip.y-SQ_HALF },
+                                     { gizmoXTip.x+SQ_HALF, gizmoXTip.y+SQ_HALF }, cX);
+                    dl->AddRectFilled({ gizmoYTip.x-SQ_HALF, gizmoYTip.y-SQ_HALF },
+                                     { gizmoYTip.x+SQ_HALF, gizmoYTip.y+SQ_HALF }, cY);
+                    dl->AddText({ gizmoXTip.x + 9.f, gizmoXTip.y - 6.f }, cX, "X");
+                    dl->AddText({ gizmoYTip.x + 4.f, gizmoYTip.y - 14.f }, cY, "Y");
+                    // Center diamond = uniform scale
+                    dl->AddQuadFilled({ gizmoOrigin.x,       gizmoOrigin.y - 7.f },
+                                     { gizmoOrigin.x + 7.f, gizmoOrigin.y       },
+                                     { gizmoOrigin.x,       gizmoOrigin.y + 7.f },
+                                     { gizmoOrigin.x - 7.f, gizmoOrigin.y       }, cC);
+                }
+            }
+
+            // ─── Camera pan / focus ───────────────────────────────────────────
+            static bool    isViewportFocused = false;
+            static ImVec2  lockedCursorPos;
+
+            bool gizmoOccupied = (dragging != AXIS_NONE) || (hovered != AXIS_NONE);
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_None))
+            {
+                // Disable camera pan while a gizmo handle is active
+                engineInstance_->editorCamera_->editorCameraControl_->enabled = !gizmoOccupied;
+
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
+                {
                     if (!isViewportFocused) {
                         isViewportFocused = true;
-                        lockedCursorPos = ImGui::GetMousePos();
+                        lockedCursorPos   = ImGui::GetMousePos();
                     }
                     ImGui::SetMouseCursor(ImGuiMouseCursor_None);
                     ImGui::GetIO().MousePos = lockedCursorPos;
-                } else {
-                    isViewportFocused = false;
                 }
-            } else {
+                else
+                    isViewportFocused = false;
+            }
+            else
+            {
                 isViewportFocused = false;
                 engineInstance_->editorCamera_->editorCameraControl_->enabled = false;
             }
@@ -402,6 +703,29 @@ namespace ettycc
         }
 
         ImGui::End();
+    }
+
+    // -------------------------------------------------------------------------
+    // FIND NODE BY RENDERABLE
+    // -------------------------------------------------------------------------
+
+    std::shared_ptr<SceneNode> DevEditor::FindNodeByRenderable(
+        const std::shared_ptr<SceneNode>& node,
+        const std::shared_ptr<Renderable>& renderable) const
+    {
+        auto comp = node->GetComponentByName(RenderableNode::componentType);
+        if (comp)
+        {
+            auto rn = std::dynamic_pointer_cast<RenderableNode>(comp);
+            if (rn && rn->renderable_ == renderable)
+                return node;
+        }
+        for (const auto& child : node->children_)
+        {
+            auto found = FindNodeByRenderable(child, renderable);
+            if (found) return found;
+        }
+        return nullptr;
     }
 
     // -------------------------------------------------------------------------
@@ -1002,7 +1326,7 @@ namespace ettycc
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
         engineInstance_->InitEditorCamera();
-
+        //TODO: MOVE EVERYTHING BELOW TO THE ENGINE...
         assetLoader_  = std::make_shared<AssetLoader>();
         assetBuilder_ = std::make_shared<AssetBuilder>(assetLoader_);
 
