@@ -57,6 +57,7 @@ namespace ettycc
     {
         spdlog::warn("loading fall-back scene....");
 
+        renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("default-scene");
 
         auto rootSceneNode = mainScene_->root_node_;
@@ -97,6 +98,7 @@ namespace ettycc
         }
         else
         {
+            renderEngine_.ClearRenderables();
             cereal::JSONInputArchive archive2(ifs);
             try
             {

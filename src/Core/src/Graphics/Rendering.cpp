@@ -74,4 +74,9 @@ namespace ettycc
     {
         renderables_.insert(renderables_.end(), renderables.begin(), renderables.end());
     }
+
+    void Rendering::ClearRenderables()
+    {
+        renderables_.clear();
+    }
 }

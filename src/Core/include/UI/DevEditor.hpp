@@ -4,6 +4,7 @@
 #include <Engine.hpp>
 #include <App/ExecutionPipeline.hpp>
 #include <UI/Console.hpp>
+#include <UI/ImGuiConsoleSink.hpp>
 #include <Scene/Assets/AssetBuilder.hpp>
 #include <Graphics/Rendering/PickerBuffer.hpp>
 

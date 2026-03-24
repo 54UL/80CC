@@ -22,6 +22,10 @@ namespace ettycc
     DevEditor::DevEditor(const std::shared_ptr<Engine>& engine)
         : engineInstance_(engine), uiConsoleOpen_(false)
     {
+        // Register early so logs emitted during Engine::Init() are captured.
+        // DebugConsole::AddLog only uses malloc/ImVector — no ImGui context needed.
+        auto consoleSink = std::make_shared<ImGuiConsoleSink_mt>(&uiConsole);
+        spdlog::default_logger()->sinks().push_back(consoleSink);
     }
 
     DevEditor::~DevEditor() {}

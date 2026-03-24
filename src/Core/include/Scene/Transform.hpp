@@ -49,7 +49,7 @@ namespace ettycc
     // Serialization
     public:
         template <class Archive>
-        void serialize(Archive &ar)
+        void save(Archive &ar) const
         {
             ar(
                 cereal::make_nvp("position_x", position_.x),
@@ -63,6 +63,29 @@ namespace ettycc
                 cereal::make_nvp("scale_x", scale_.x),
                 cereal::make_nvp("scale_y", scale_.y),
                 cereal::make_nvp("scale_z", scale_.z));
+        }
+
+        template <class Archive>
+        void load(Archive &ar)
+        {
+            ar(
+                cereal::make_nvp("position_x", position_.x),
+                cereal::make_nvp("position_y", position_.y),
+                cereal::make_nvp("position_z", position_.z),
+
+                cereal::make_nvp("rotation_x", rotation_.x),
+                cereal::make_nvp("rotation_y", rotation_.y),
+                cereal::make_nvp("rotation_z", rotation_.z),
+
+                cereal::make_nvp("scale_x", scale_.x),
+                cereal::make_nvp("scale_y", scale_.y),
+                cereal::make_nvp("scale_z", scale_.z));
+
+            // Rebuild matrices from the loaded vectors.
+            // Order matters: position resets modelMatrix, scale builds on it, rotation applies last.
+            setGlobalPosition(position_);
+            setGlobalScale(scale_);
+            setGlobalRotation(rotation_);
         }
     };
 }
