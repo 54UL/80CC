@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 4.0.2)
+cmake_minimum_required(VERSION 3.20)
 
 project(80CC_CORE CXX)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(80CC_CORE_HEADERS
     include/80CC.hpp
@@ -20,7 +22,9 @@ set(80CC_CORE_HEADERS
     include/Scene/SceneNode.hpp
     include/Scene/Components/RenderableNode.hpp
     include/Scene/Components/RigidBodyComponent.hpp
+    include/Scene/Components/SoftBodyComponent.hpp
     include/Physics/PhysicsWorld.hpp
+    include/Graphics/Rendering/Entities/SoftBodyRenderable.hpp
     include/Scene/Assets/AssetLoader.hpp
     include/Scene/Assets/AssetBuilder.hpp
     include/Graphics/Rendering.hpp
@@ -66,7 +70,9 @@ set(80CC_CORE_SOURCES
     src/Scene/Assets/AssetBuilder.cpp
     src/Scene/Components/RenderableNode.cpp
     src/Scene/Components/RigidBodyComponent.cpp
+    src/Scene/Components/SoftBodyComponent.cpp
     src/Physics/PhysicsWorld.cpp
+    src/Graphics/Rendering/Entities/SoftBodyRenderable.cpp
     src/Graphics/Rendering.cpp
     src/Graphics/Rendering/Renderable.cpp
     src/Graphics/Rendering/FrameBuffer.cpp

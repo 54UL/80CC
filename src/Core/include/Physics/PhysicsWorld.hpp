@@ -2,6 +2,8 @@
 #define PHYSICS_WORLD_HPP
 
 #include <btBulletDynamicsCommon.h>
+#include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
+#include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 
 namespace ettycc
 {
@@ -13,14 +15,19 @@ namespace ettycc
 
         void Init();
         void Step(float deltaTime);
+
+        // Backward-compat accessor — btSoftRigidDynamicsWorld IS-A btDiscreteDynamicsWorld
         btDiscreteDynamicsWorld* GetWorld();
 
+        // Full soft-body world accessor
+        btSoftRigidDynamicsWorld* GetSoftWorld();
+
     private:
-        btDefaultCollisionConfiguration*     config_     = nullptr;
-        btCollisionDispatcher*               dispatcher_ = nullptr;
-        btBroadphaseInterface*               broadphase_ = nullptr;
-        btSequentialImpulseConstraintSolver* solver_     = nullptr;
-        btDiscreteDynamicsWorld*             world_      = nullptr;
+        btSoftBodyRigidBodyCollisionConfiguration* config_     = nullptr;
+        btCollisionDispatcher*                     dispatcher_ = nullptr;
+        btBroadphaseInterface*                     broadphase_ = nullptr;
+        btSequentialImpulseConstraintSolver*       solver_     = nullptr;
+        btSoftRigidDynamicsWorld*                  world_      = nullptr;
     };
 }
 

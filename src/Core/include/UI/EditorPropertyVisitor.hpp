@@ -22,14 +22,18 @@
 #include <type_traits>
 #include <cstring>
 
+#include "imgui_internal.h"
+
 namespace ettycc
 {
     struct EditorPropertyVisitor
     {
-        bool anyChanged    = false;  // set to true if any widget was modified this frame
-        int  propertyCount = 0;      // incremented for every visible property rendered
+        bool anyChanged      = false; // true if any widget value changed this frame
+        int  propertyCount   = 0;     // incremented for every rendered property
+        bool dragActivated   = false; // rising edge: user just started dragging a widget
+        bool dragDeactivated = false; // falling edge: user just released a drag widget
+        bool isDragging      = false; // level: a drag widget is currently held down
 
-        // Called by PROP_SECTION — draws a labelled separator in the inspector.
         void Section(const char* label) { ImGui::SeparatorText(label); }
 
         template<typename T>
@@ -38,66 +42,93 @@ namespace ettycc
             if (flags & PROP_HIDDEN) return;
             ++propertyCount;
 
-            bool ro = (flags & PROP_READ_ONLY) != 0;
+            const bool ro = (flags & PROP_READ_ONLY) != 0;
+
+            // ── Two-column layout: label left, widget right ────────────────
+            const float avail      = ImGui::GetContentRegionAvail().x;
+            const float labelWidth = ImMax(80.f, avail * 0.38f);
+            const float widgetWidth = avail - labelWidth - ImGui::GetStyle().ItemSpacing.x;
 
             ImGui::PushID(label);
+            ImGui::AlignTextToFramePadding();
+
+            if (ro)
+                ImGui::TextDisabled("%s", label);
+            else
+                ImGui::TextUnformatted(label);
+
+            ImGui::SameLine(labelWidth);
+            ImGui::SetNextItemWidth(widgetWidth);
             ImGui::BeginDisabled(ro);
+
+            char wid[128];
+            snprintf(wid, sizeof(wid), "##%s", label);
 
             if constexpr (std::is_same_v<T, float>)
             {
-                ImGui::SetNextItemWidth(-1.f);
-                anyChanged |= ImGui::DragFloat(label, &value, 0.01f);
+                anyChanged |= ImGui::DragFloat(wid, &value, 0.01f);
+                TrackDrag();
             }
             else if constexpr (std::is_same_v<T, int>)
             {
-                ImGui::SetNextItemWidth(-1.f);
-                anyChanged |= ImGui::DragInt(label, &value);
+                anyChanged |= ImGui::DragInt(wid, &value);
+                TrackDrag();
             }
             else if constexpr (std::is_same_v<T, uint32_t>)
             {
                 int tmp = static_cast<int>(value);
-                ImGui::SetNextItemWidth(-1.f);
-                if (ImGui::DragInt(label, &tmp) && tmp >= 0)
+                if (ImGui::DragInt(wid, &tmp) && tmp >= 0)
                 { value = static_cast<uint32_t>(tmp); anyChanged = true; }
+                TrackDrag();
             }
             else if constexpr (std::is_same_v<T, uint64_t>)
             {
-                ImGui::LabelText(label, "%llu", static_cast<unsigned long long>(value));
+                char buf[32];
+                snprintf(buf, sizeof(buf), "%llu", static_cast<unsigned long long>(value));
+                ImGui::SetNextItemWidth(widgetWidth);
+                ImGui::InputText(wid, buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly);
             }
             else if constexpr (std::is_same_v<T, bool>)
             {
-                anyChanged |= ImGui::Checkbox(label, &value);
+                anyChanged |= ImGui::Checkbox(wid, &value);
             }
             else if constexpr (std::is_same_v<T, glm::vec2>)
             {
-                ImGui::SetNextItemWidth(-1.f);
-                anyChanged |= ImGui::DragFloat2(label, &value.x, 0.01f);
+                anyChanged |= ImGui::DragFloat2(wid, &value.x, 0.01f);
+                TrackDrag();
             }
             else if constexpr (std::is_same_v<T, glm::vec3>)
             {
-                ImGui::SetNextItemWidth(-1.f);
-                anyChanged |= ImGui::DragFloat3(label, &value.x, 0.01f);
+                anyChanged |= ImGui::DragFloat3(wid, &value.x, 0.01f);
+                TrackDrag();
             }
             else if constexpr (std::is_same_v<T, glm::vec4>)
             {
-                ImGui::SetNextItemWidth(-1.f);
-                anyChanged |= ImGui::DragFloat4(label, &value.x, 0.01f);
+                anyChanged |= ImGui::DragFloat4(wid, &value.x, 0.01f);
+                TrackDrag();
             }
             else if constexpr (std::is_same_v<T, std::string>)
             {
                 char buf[256] = {};
                 strncpy(buf, value.c_str(), sizeof(buf) - 1);
-                ImGui::SetNextItemWidth(-1.f);
-                if (ImGui::InputText(label, buf, sizeof(buf)))
+                if (ImGui::InputText(wid, buf, sizeof(buf)))
                 { value = buf; anyChanged = true; }
             }
             else
             {
-                ImGui::TextDisabled("<%s: unsupported type>", label);
+                ImGui::TextDisabled("<unsupported>");
             }
 
             ImGui::EndDisabled();
             ImGui::PopID();
+        }
+
+    private:
+        void TrackDrag()
+        {
+            isDragging     |= ImGui::IsItemActive();
+            dragActivated  |= ImGui::IsItemActivated();
+            dragDeactivated|= ImGui::IsItemDeactivated();
         }
     };
 

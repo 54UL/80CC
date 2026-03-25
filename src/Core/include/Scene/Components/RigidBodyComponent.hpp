@@ -33,6 +33,8 @@ namespace ettycc
         // Only meaningful while in kinematic mode (between Begin/EndManipulation).
         void SyncFromRenderable();
 
+        bool IsManipulated() const { return isManipulated_; }
+
         void InspectProperties(EditorPropertyVisitor& v) override;
 
         // ── Cereal serialization (original key names preserved) ───────────────

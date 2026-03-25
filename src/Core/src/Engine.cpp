@@ -4,6 +4,7 @@
 // TEST INCLUDE
 #include <Scene/Components/RenderableNode.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
+#include <Scene/Components/SoftBodyComponent.hpp>
 #include <Networking/NetworkComponent.hpp>
 #include <Dependencies/Resources.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
@@ -46,13 +47,22 @@ namespace ettycc
         // The sprite quad has local vertices at ±1, so scale = halfExtents gives
         // a world-space box of ±halfExtents — matching the Bullet btBoxShape exactly.
         sprite->underylingTransform.setGlobalPosition(pos);
-        sprite->underylingTransform.setGlobalScale(glm::vec3(halfExtents.x, halfExtents.y, 1.0f));
+        sprite->underylingTransform.setGlobalScale(halfExtents); // full 3D scale = exact hull half-extents
 
         static int index = 0;
         auto node = std::make_shared<SceneNode>("physics-box-" + std::to_string(index++));
         // RenderableNode must be added first — RigidBodyComponent finds it via ownerNode_ in OnStart
         node->AddComponent(std::make_shared<RenderableNode>(sprite));
         node->AddComponent(std::make_shared<RigidBodyComponent>(mass, halfExtents, pos));
+        rootSceneNode->AddChild(node);
+    }
+
+    void Engine::createSoftBody(std::shared_ptr<SceneNode> rootSceneNode, std::string texPath,
+                                float radius, glm::vec3 pos, float mass)
+    {
+        static int softBodyIndex = 0;
+        auto node = std::make_shared<SceneNode>("soft-body-" + std::to_string(softBodyIndex++));
+        node->AddComponent(std::make_shared<SoftBodyComponent>(radius, pos, mass, std::move(texPath)));
         rootSceneNode->AddChild(node);
     }
 
@@ -84,6 +94,11 @@ namespace ettycc
             createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
                              glm::vec3( 1.1f, -3.8f + i * 1.15f + 0.55f, 0.0f));
         }
+
+        // ── Soft body rubber discs — dropped from above ────────────────────────
+        createSoftBody(root, tex, 0.8f, glm::vec3(-3.0f,  3.0f, 0.0f), 1.0f);
+        createSoftBody(root, tex, 0.6f, glm::vec3( 0.0f,  4.5f, 0.0f), 1.0f);
+        createSoftBody(root, tex, 1.0f, glm::vec3( 3.0f,  3.0f, 0.0f), 1.5f);
     }
 
     void Engine::InitEditorCamera()
@@ -115,25 +130,33 @@ namespace ettycc
         // Static ground platform — wide and thin
         createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -4.5f, 0.0f));
 
-        // Dynamic boxes arranged in a small pyramid
-        //  row 0 (bottom): 4 boxes
-        //  row 1         : 3 boxes
-        //  row 2 (top)   : 2 boxes
-        const float BOX_H  = 0.5f;  // half-height
-        const float BOX_W  = 0.5f;  // half-width
-        const float STEP   = BOX_W * 2.1f; // slight gap so they don't start intersecting
+        // Mixed pyramid — rigid boxes and soft-body circles alternating
+        const float UNIT = 0.5f;
+        const float STEP = UNIT * 2.1f;
 
+        // row 0 (bottom, 4): box  soft  box  soft
+        // row 1 (mid,    3): soft box   soft
+        // row 2 (top,    2): box  soft
         struct { int count; float y; } rows[] = {
-            { 4, -4.5f + 0.3f + BOX_H            },
-            { 3, -4.5f + 0.3f + BOX_H * 3.f      },
-            { 2, -4.5f + 0.3f + BOX_H * 5.f      },
+            { 4, -4.5f + 0.3f + UNIT       },
+            { 3, -4.5f + 0.3f + UNIT * 3.f },
+            { 2, -4.5f + 0.3f + UNIT * 5.f },
         };
-        for (auto& row : rows)
+        for (int r = 0; r < 3; ++r)
         {
+            auto& row   = rows[r];
             float startX = -(row.count - 1) * STEP * 0.5f;
             for (int j = 0; j < row.count; ++j)
-                createPhysicsBox(root, tex, 1.0f, glm::vec3(BOX_W, BOX_H, 0.5f),
-                                 glm::vec3(startX + j * STEP, row.y, 0.0f));
+            {
+                glm::vec3 pos(startX + j * STEP, row.y, 0.0f);
+                bool useSoft = (r == 0) ? (j % 2 != 0)   // row 0: odd indices → soft
+                             : (r == 1) ? (j % 2 == 0)   // row 1: even indices → soft
+                             :            (j % 2 != 0);  // row 2: odd index → soft
+                if (useSoft)
+                    createSoftBody(root, tex, UNIT, pos, 1.0f);
+                else
+                    createPhysicsBox(root, tex, 1.0f, glm::vec3(UNIT, UNIT, 0.5f), pos);
+            }
         }
     }
 

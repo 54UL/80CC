@@ -1,5 +1,6 @@
 #include <UI/DevEditor.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
+#include <imgui_internal.h>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Resources.hpp>
@@ -253,8 +254,44 @@ namespace ettycc
 
     void DevEditor::ShowDockSpace()
     {
-        static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-        ImGui::DockSpaceOverViewport(NULL, dockspace_flags);
+        static ImGuiDockNodeFlags dockFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+        ImGuiID dsId = ImGui::DockSpaceOverViewport(NULL, dockFlags);
+        // Default layout
+        // TODO: Make an multi layout system
+        static bool layoutBuilt = false;
+        if (!layoutBuilt)
+        {
+            layoutBuilt = true;
+
+            ImGui::DockBuilderRemoveNode(dsId);
+            ImGui::DockBuilderAddNode(dsId, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dsId, ImGui::GetMainViewport()->Size);
+
+            // ── Split left strip (Hierarchy) ─────────────────────────────────
+            ImGuiID left, rest;
+            ImGui::DockBuilderSplitNode(dsId, ImGuiDir_Left, 0.18f, &left, &rest);
+
+            // ── Split right strip (Inspector) ────────────────────────────────
+            ImGuiID centre, right;
+            ImGui::DockBuilderSplitNode(rest, ImGuiDir_Right, 0.24f, &right, &centre);
+
+            // ── Split bottom strip (Debug + Assets) ──────────────────────────
+            ImGuiID viewport_row, bottom;
+            ImGui::DockBuilderSplitNode(centre, ImGuiDir_Down, 0.26f, &bottom, &viewport_row);
+
+            ImGuiID bottomLeft, bottomRight;
+            ImGui::DockBuilderSplitNode(bottom, ImGuiDir_Left, 0.38f, &bottomLeft, &bottomRight);
+
+            // ── Assign windows ───────────────────────────────────────────────
+            ImGui::DockBuilderDockWindow("Scene Hierarchy", left);
+            ImGui::DockBuilderDockWindow("Editor view",    viewport_row);
+            ImGui::DockBuilderDockWindow("Game view",      viewport_row); // tab behind Editor view
+            ImGui::DockBuilderDockWindow("Inspector",      right);
+            ImGui::DockBuilderDockWindow("Debug",          bottomLeft);
+            ImGui::DockBuilderDockWindow("Assets",         bottomRight);
+
+            ImGui::DockBuilderFinish(dsId);
+        }
     }
 
     void DevEditor::ShowMenuBar()
@@ -839,95 +876,100 @@ namespace ettycc
         // --- SINGLE NODE SELECTED ---
         auto selectedNode = selectedNodes_.back();
 
-        bool isActive = true;
-        ImGui::Checkbox("##isActive", &isActive);
-        ImGui::SameLine();
+        // ── Node name ──────────────────────────────────────────────────────────
         char nameBuf[128] = "";
         {
             std::string name = selectedNode->GetName();
             strncpy(nameBuf, name.empty() ? "UNNAMED" : name.c_str(), sizeof(nameBuf) - 1);
         }
-        if (ImGui::InputText("Name", nameBuf, IM_ARRAYSIZE(nameBuf)))
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::InputText("##name", nameBuf, IM_ARRAYSIZE(nameBuf)))
             selectedNode->SetName(nameBuf);
 
-        ImGui::Separator();
+        ImGui::Spacing();
 
+        // ── Transform section ─────────────────────────────────────────────────
+        // Rehydrate the UI cache once per selection; after that the user drives it.
         static std::unordered_map<const void*, TransformUI> transformCache;
-        const void* key = selectedNode.get();
-        TransformUI& uiTransform = transformCache[key];
-
+        const void* nodeKey = selectedNode.get();
+        TransformUI& uiTransform = transformCache[nodeKey];
         if (!uiTransform.initialized)
         {
             SetTransformUIFromNode(selectedNode, uiTransform);
             uiTransform.initialized = true;
         }
 
-        static bool updated = false;
-        if (ImGui::BeginTable("##transform_table", 1, ImGuiTableFlags_SizingStretchSame))
+        // Find the renderable and (optionally) the sibling RigidBodyComponent once.
+        RenderableNode*      renderableNode = nullptr;
+        RigidBodyComponent*  rigidBody      = nullptr;
         {
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Position");
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if (ImGui::DragFloat3("##position", uiTransform.pos, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
-                updated = true;
+            auto rc = selectedNode->GetComponentByName(RenderableNode::componentType);
+            if (rc) renderableNode = dynamic_cast<RenderableNode*>(rc.get());
 
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Rotation");
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if (ImGui::DragFloat3("##rotation", uiTransform.rot, 0.1f, -FLT_MAX, FLT_MAX, "%.3f"))
-                updated = true;
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Scale");
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if (ImGui::DragFloat3("##scale", uiTransform.scale, 0.1f, 0.0f, FLT_MAX, "%.3f"))
-                updated = true;
-
-            ImGui::EndTable();
+            auto rb = selectedNode->GetComponentByName(RigidBodyComponent::componentType);
+            if (rb) rigidBody = dynamic_cast<RigidBodyComponent*>(rb.get());
         }
 
-        if (updated)
-        {
-            auto spriteComponent = selectedNode->GetComponentByName(RenderableNode::componentType);
-            if (spriteComponent)
-            {
-                auto renderableNode = std::dynamic_pointer_cast<RenderableNode>(spriteComponent);
-                if (renderableNode && renderableNode->renderable_)
-                {
-                    Transform newTransform;
-                    newTransform.setGlobalPosition({uiTransform.pos[0], uiTransform.pos[1], uiTransform.pos[2]});
-                    newTransform.setGlobalRotation({uiTransform.rot[0], uiTransform.rot[1], uiTransform.rot[2]});
-                    newTransform.setGlobalScale({uiTransform.scale[0], uiTransform.scale[1], uiTransform.scale[2]});
+        bool transformChanged  = false;
+        bool transformActivated  = false;
+        bool transformDeactivated = false;
 
-                    renderableNode->renderable_->SetTransform(newTransform);
-                    updated = false;
-                }
-            }
+        // Helper: render one labeled DragFloat3 row, track drag events.
+        auto dragRow = [&](const char* label, float* v, float speed)
+        {
+            const float avail  = ImGui::GetContentRegionAvail().x;
+            const float lw     = ImMax(60.f, avail * 0.28f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(label);
+            ImGui::SameLine(lw);
+            ImGui::SetNextItemWidth(avail - lw);
+            char id[32]; snprintf(id, sizeof(id), "##t_%s", label);
+            transformChanged     |= ImGui::DragFloat3(id, v, speed, 0.f, 0.f, "%.3f");
+            transformActivated   |= ImGui::IsItemActivated();
+            transformDeactivated |= ImGui::IsItemDeactivated();
+        };
+
+        ImGui::SeparatorText("Transform");
+        dragRow("Position", uiTransform.pos,   0.05f);
+        dragRow("Rotation", uiTransform.rot,   0.5f);
+        dragRow("Scale",    uiTransform.scale, 0.01f);
+
+        // ── Apply transform changes + sync physics ─────────────────────────────
+        if (transformActivated && rigidBody)
+            rigidBody->BeginManipulation();
+
+        if (transformChanged && renderableNode && renderableNode->renderable_)
+        {
+            Transform t;
+            t.setGlobalPosition({uiTransform.pos[0],   uiTransform.pos[1],   uiTransform.pos[2]});
+            t.setGlobalRotation({uiTransform.rot[0],   uiTransform.rot[1],   uiTransform.rot[2]});
+            t.setGlobalScale   ({uiTransform.scale[0], uiTransform.scale[1], uiTransform.scale[2]});
+            renderableNode->renderable_->SetTransform(t);
+
+            if (rigidBody && rigidBody->IsManipulated())
+                rigidBody->SyncFromRenderable();
         }
 
-        ImGui::TextDisabled("Reset Position / Rotation / Scale");
-        ImGui::Separator();
+        if (transformDeactivated && rigidBody && rigidBody->IsManipulated())
+            rigidBody->EndManipulation();
 
+        ImGui::Spacing();
+
+        // ── Components ────────────────────────────────────────────────────────
         if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::Button("Add Component"))
+            if (ImGui::SmallButton("Add Component"))
                 ImGui::OpenPopup("add_component_popup");
 
             if (ImGui::BeginPopup("add_component_popup"))
             {
-                if (ImGui::MenuItem("Camera"))
-                    AddComponentFromTemplate(selectedNode, "Camera");
-                if (ImGui::MenuItem("Sprite"))
-                    AddComponentFromTemplate(selectedNode, "Sprite");
+                if (ImGui::MenuItem("Camera")) AddComponentFromTemplate(selectedNode, "Camera");
+                if (ImGui::MenuItem("Sprite")) AddComponentFromTemplate(selectedNode, "Sprite");
                 ImGui::EndPopup();
             }
 
             ImGui::Spacing();
 
-            // ── Per-component property panels ─────────────────────────────────
             for (auto& [channel, compList] : selectedNode->components_)
             {
                 for (auto& comp : compList)
@@ -936,52 +978,42 @@ namespace ettycc
 
                     auto info = comp->GetComponentInfo();
 
-                    // Channel badge color: blue = rendering, yellow = main
-                    ImVec4 chanCol = (channel == ProcessingChannel::RENDERING)
-                        ? ImVec4(0.35f, 0.65f, 1.f,  1.f)
+                    // Channel badge: tiny colored text before the component name
+                    const bool isRender = (channel == ProcessingChannel::RENDERING);
+                    ImVec4 badgeCol = isRender
+                        ? ImVec4(0.35f, 0.75f, 1.f,  1.f)
                         : ImVec4(1.f,   0.75f, 0.2f, 1.f);
-                    const char* chanStr = (channel == ProcessingChannel::RENDERING)
-                        ? "R" : "M";
 
-                    // Header: [M] RigidBody  or  [R] RenderableNode
                     char headerLabel[128];
                     snprintf(headerLabel, sizeof(headerLabel),
-                             "[%s] %s##comp_%llu", chanStr,
-                             info.name.c_str(), (unsigned long long)info.id);
+                             "%s##comp_%llu", info.name.c_str(), (unsigned long long)info.id);
 
-                    ImGui::PushStyleColor(ImGuiCol_Text, chanCol);
-                    bool open = ImGui::CollapsingHeader(
-                        headerLabel, ImGuiTreeNodeFlags_DefaultOpen);
+                    // Render the badge inline before the header
+                    ImGui::PushStyleColor(ImGuiCol_Text, badgeCol);
+                    ImGui::Bullet();
                     ImGui::PopStyleColor();
+                    ImGui::SameLine();
 
+                    bool open = ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen);
                     if (!open) continue;
 
                     ImGui::PushID(static_cast<int>(info.id));
-                    ImGui::Indent(8.f);
+                    ImGui::Indent(12.f);
+                    ImGui::Spacing();
 
                     EditorPropertyVisitor visitor;
                     comp->InspectProperties(visitor);
 
-                    if (visitor.anyChanged)
-                    {
-                        // If a RigidBody was edited while in kinematic mode
-                        // (e.g. via gizmo), sync the new values back to Bullet.
-                        auto* rb = dynamic_cast<RigidBodyComponent*>(comp.get());
-                        if (rb) rb->SyncFromRenderable();
-                    }
-
                     if (visitor.propertyCount == 0)
                         ImGui::TextDisabled("No exposed properties");
 
-                    ImGui::Unindent(8.f);
-                    ImGui::PopID();
                     ImGui::Spacing();
+                    ImGui::Unindent(12.f);
+                    ImGui::PopID();
                 }
             }
         }
 
-        ImGui::Separator();
-        ImGui::TextColored({0.3f, 0.9f, 0.3f, 1.0f}, "[ Source: Scene Node ]");
         ImGui::End();
     }
 
@@ -1555,10 +1587,8 @@ namespace ettycc
             pickerBuffer_->RenderPass(re.GetRenderingContext(), re.GetRenderables());
         }
 
-        bool open = true;
         ShowMenuBar();
         ShowDockSpace();
-        ImGui::ShowDemoWindow(&open);
         ShowDebugger();
         ShowEditorViewPort();
         ShowGameView();

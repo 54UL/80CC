@@ -4,6 +4,7 @@
 #include <Engine.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 #include <spdlog/spdlog.h>
+#include <BulletCollision/CollisionShapes/btConvexHullShape.h>
 
 namespace ettycc
 {
@@ -63,7 +64,29 @@ namespace ettycc
             ? syncTransform_->getGlobalPosition()
             : initialPosition_;
 
-        shape_ = new btBoxShape(btVector3(halfExtents_.x, halfExtents_.y, halfExtents_.z));
+        // Derive collision shape from the sprite's actual scale so it always
+        // matches what is visible.  The sprite quad spans ±1 in local space;
+        // after scale that becomes ±scale in world space — identical to the
+        // half-extent of a box.  Using a convex hull rather than btBoxShape
+        // lets us naturally extend this to arbitrary polygon sprites later.
+        const glm::vec3 h = syncTransform_ ? syncTransform_->getGlobalScale() : halfExtents_;
+        const btScalar  hx = btScalar(h.x);
+        const btScalar  hy = btScalar(h.y);
+        const btScalar  hz = btScalar(h.z > 0.05f ? h.z : 0.05f); // never degenerate
+
+        auto* hull = new btConvexHullShape();
+        // Zero margin: btConvexHullShape expands the hull *outward* by its margin,
+        // unlike btBoxShape which absorbs the margin inward.  At margin=0.04 (default)
+        // every rigid body would be ~0.04 units wider than the sprite, producing a
+        // visible gap.  In a locked-Z 2D simulation there is no high-speed 3D rotation
+        // so the margin's tunneling-prevention role is not needed.
+        hull->setMargin(btScalar(0.0f));
+        hull->addPoint({+hx, +hy, +hz}); hull->addPoint({-hx, +hy, +hz});
+        hull->addPoint({+hx, -hy, +hz}); hull->addPoint({-hx, -hy, +hz});
+        hull->addPoint({+hx, +hy, -hz}); hull->addPoint({-hx, +hy, -hz});
+        hull->addPoint({+hx, -hy, -hz}); hull->addPoint({-hx, -hy, -hz});
+        hull->recalcLocalAabb();
+        shape_ = hull;
 
         btTransform startTransform;
         startTransform.setIdentity();

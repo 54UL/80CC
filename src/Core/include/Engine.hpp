@@ -46,6 +46,8 @@ namespace ettycc
         static void createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos);
         void createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
                               float mass, glm::vec3 halfExtents, glm::vec3 pos);
+        void createSoftBody(std::shared_ptr<SceneNode> rootSceneNode, std::string texPath,
+                            float radius, glm::vec3 pos, float mass = 1.0f);
 
 
         // Engine front-end API
