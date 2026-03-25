@@ -12,6 +12,7 @@
 namespace ettycc
 {
     class Engine;
+    struct EditorPropertyVisitor; // forward — keeps imgui out of this header
 
     class Renderable
     {
@@ -41,6 +42,11 @@ namespace ettycc
 
         virtual void Init(const std::shared_ptr<Engine>& engineCtx) = 0;
         virtual void Pass(const std::shared_ptr<RenderingContext> &ctx, float deltaTime) = 0;
+
+        // Override in subclasses to expose type-specific fields.
+        // Default shows the base (enabled + transform).
+        // Implemented in each subclass .cpp — keeps imgui out of this header.
+        virtual void Inspect(EditorPropertyVisitor& v);
         // Override to participate in object picking. Default is no-op (cameras, grid, etc.)
         virtual void DrawForPicker(const std::shared_ptr<RenderingContext>& /*ctx*/,
                                    GLuint /*program*/, uint32_t /*id*/) {}

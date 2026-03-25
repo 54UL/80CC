@@ -39,6 +39,8 @@ set(80CC_CORE_HEADERS
     include/Game/GameModule.hpp
     include/UI/DevEditor.hpp
     include/UI/Console.hpp
+    include/UI/EditorPropertyVisitor.hpp
+    include/Scene/PropertySystem.hpp
     include/Dependencies/Resources.hpp
     include/Networking/NetworkManager.hpp
     include/Networking/NetworkComponent.hpp
@@ -66,6 +68,7 @@ set(80CC_CORE_SOURCES
     src/Scene/Components/RigidBodyComponent.cpp
     src/Physics/PhysicsWorld.cpp
     src/Graphics/Rendering.cpp
+    src/Graphics/Rendering/Renderable.cpp
     src/Graphics/Rendering/FrameBuffer.cpp
     src/Graphics/Rendering/PickerBuffer.cpp
     src/Graphics/Rendering/Entities/Camera.cpp

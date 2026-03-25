@@ -3,6 +3,7 @@
 
 #include <Scene/NodeComponent.hpp>
 #include <Scene/Transform.hpp>
+#include <Scene/PropertySystem.hpp>
 
 #include <cereal/archives/json.hpp>
 #include <glm/glm.hpp>
@@ -44,9 +45,12 @@ namespace ettycc
         // Called by NetworkManager on disconnect — hands physics back to Bullet.
         void ReleasePhysics();
 
+        void InspectProperties(EditorPropertyVisitor& v) override;
+
         uint32_t GetNetworkId() const { return networkId_; }
 
     public:
+        // ── Cereal serialization (original key names preserved) ───────────────
         template <class Archive>
         void save(Archive& ar) const
         {

@@ -1,4 +1,5 @@
 #include <UI/DevEditor.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Resources.hpp>
@@ -925,7 +926,58 @@ namespace ettycc
             }
 
             ImGui::Spacing();
-            ImGui::TextWrapped("Component introspection is not enabled in this build.");
+
+            // ── Per-component property panels ─────────────────────────────────
+            for (auto& [channel, compList] : selectedNode->components_)
+            {
+                for (auto& comp : compList)
+                {
+                    if (!comp) continue;
+
+                    auto info = comp->GetComponentInfo();
+
+                    // Channel badge color: blue = rendering, yellow = main
+                    ImVec4 chanCol = (channel == ProcessingChannel::RENDERING)
+                        ? ImVec4(0.35f, 0.65f, 1.f,  1.f)
+                        : ImVec4(1.f,   0.75f, 0.2f, 1.f);
+                    const char* chanStr = (channel == ProcessingChannel::RENDERING)
+                        ? "R" : "M";
+
+                    // Header: [M] RigidBody  or  [R] RenderableNode
+                    char headerLabel[128];
+                    snprintf(headerLabel, sizeof(headerLabel),
+                             "[%s] %s##comp_%llu", chanStr,
+                             info.name.c_str(), (unsigned long long)info.id);
+
+                    ImGui::PushStyleColor(ImGuiCol_Text, chanCol);
+                    bool open = ImGui::CollapsingHeader(
+                        headerLabel, ImGuiTreeNodeFlags_DefaultOpen);
+                    ImGui::PopStyleColor();
+
+                    if (!open) continue;
+
+                    ImGui::PushID(static_cast<int>(info.id));
+                    ImGui::Indent(8.f);
+
+                    EditorPropertyVisitor visitor;
+                    comp->InspectProperties(visitor);
+
+                    if (visitor.anyChanged)
+                    {
+                        // If a RigidBody was edited while in kinematic mode
+                        // (e.g. via gizmo), sync the new values back to Bullet.
+                        auto* rb = dynamic_cast<RigidBodyComponent*>(comp.get());
+                        if (rb) rb->SyncFromRenderable();
+                    }
+
+                    if (visitor.propertyCount == 0)
+                        ImGui::TextDisabled("No exposed properties");
+
+                    ImGui::Unindent(8.f);
+                    ImGui::PopID();
+                    ImGui::Spacing();
+                }
+            }
         }
 
         ImGui::Separator();

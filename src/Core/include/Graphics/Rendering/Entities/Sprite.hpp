@@ -43,6 +43,7 @@ namespace ettycc
         void Pass(const std::shared_ptr<RenderingContext> &ctx, float time) override;
         void DrawForPicker(const std::shared_ptr<RenderingContext>& ctx,
                            GLuint program, uint32_t id) override;
+        void Inspect(EditorPropertyVisitor& v) override;
 
         // Serialization/Deserialziation
         template <class Archive>

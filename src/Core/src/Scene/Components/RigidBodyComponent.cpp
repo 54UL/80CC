@@ -2,6 +2,7 @@
 #include <Scene/Components/RenderableNode.hpp>
 #include <Scene/SceneNode.hpp>
 #include <Engine.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 #include <spdlog/spdlog.h>
 
 namespace ettycc
@@ -141,6 +142,14 @@ namespace ettycc
         body_->activate(true);
 
         isManipulated_ = false;
+    }
+
+    void RigidBodyComponent::InspectProperties(EditorPropertyVisitor& v)
+    {
+        PROP  (mass_,            "Mass");
+        PROP  (halfExtents_,     "Half Extents");
+        PROP  (initialPosition_, "Initial Position");
+        PROP_F(rigidBodyId_,     "ID", ettycc::PROP_READ_ONLY | ettycc::PROP_NO_SERIAL);
     }
 
     void RigidBodyComponent::SyncFromRenderable()

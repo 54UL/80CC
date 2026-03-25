@@ -1,4 +1,5 @@
 #include <Scene/Transform.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 
 
 
@@ -97,5 +98,12 @@ namespace ettycc
                         * glm::scale(glm::mat4(1.f), scale);
         transformMatrix = modelMatrix;
     }
+    void Transform::Inspect(EditorPropertyVisitor& v)
+    {
+        PROP(position_, "Position");
+        PROP(rotation_, "Rotation (deg)");
+        PROP(scale_,    "Scale");
+    }
+
 } // namespace ettycc
 

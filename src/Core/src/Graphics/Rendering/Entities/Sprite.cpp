@@ -1,5 +1,6 @@
 
 #include <Graphics/Rendering/Entities/Sprite.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -195,6 +196,13 @@ namespace ettycc
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
+    }
+
+    void Sprite::Inspect(EditorPropertyVisitor& v)
+    {
+        Renderable::Inspect(v);          // Enabled + Transform section
+        PROP_SECTION("Sprite");
+        PROP(spriteFilePath_, "Texture Path");
     }
 
     std::string Sprite::LoadShaderFile(const std::string &shaderPath)

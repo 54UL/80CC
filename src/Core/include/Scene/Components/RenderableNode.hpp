@@ -34,6 +34,7 @@ namespace ettycc
         NodeComponentInfo GetComponentInfo() override;
         void OnStart(std::shared_ptr<Engine> engineInstance) override;
         void OnUpdate(float deltaTime) override;
+        void InspectProperties(EditorPropertyVisitor& v) override;
 
     public:
         template <class Archive>

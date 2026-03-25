@@ -2,6 +2,8 @@
 #define SCENE_TRANSFORM_HPP
 
 #include <glm/glm.hpp>
+// EditorPropertyVisitor is forward-declared below so this header stays imgui-free.
+namespace ettycc { struct EditorPropertyVisitor; }
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -51,6 +53,10 @@ namespace ettycc
 
         void SetMatrix(const glm::mat4 &matrix);
         glm::mat4 GetMatrix() const;
+
+        // Exposes position / rotation / scale to the property visitor.
+        // Implemented in Transform.cpp so imgui stays out of this header.
+        void Inspect(EditorPropertyVisitor& v);
 
     // Serialization
     public:

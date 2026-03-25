@@ -4,6 +4,7 @@
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/SceneNode.hpp>
 #include <Engine.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 #include <spdlog/spdlog.h>
 
 namespace ettycc
@@ -111,6 +112,12 @@ namespace ettycc
     // ── ReleasePhysics ────────────────────────────────────────────────────────
     // Called by NetworkManager on disconnect, or from the dtor.
     // Hands physics back to Bullet so the local simulation resumes.
+    void NetworkComponent::InspectProperties(EditorPropertyVisitor& v)
+    {
+        PROP_RO(networkId_,     "Network ID");
+        PROP_F (physicsLocked_, "Physics Frozen", ettycc::PROP_READ_ONLY | ettycc::PROP_NO_SERIAL);
+    }
+
     void NetworkComponent::ReleasePhysics()
     {
         if (rigidBody_ && physicsLocked_)

@@ -3,6 +3,7 @@
 
 #include <Scene/NodeComponent.hpp>
 #include <Scene/Transform.hpp>
+#include <Scene/PropertySystem.hpp>
 #include <btBulletDynamicsCommon.h>
 #include <glm/glm.hpp>
 #include <cereal/types/polymorphic.hpp>
@@ -32,7 +33,9 @@ namespace ettycc
         // Only meaningful while in kinematic mode (between Begin/EndManipulation).
         void SyncFromRenderable();
 
-    public:
+        void InspectProperties(EditorPropertyVisitor& v) override;
+
+        // ── Cereal serialization (original key names preserved) ───────────────
         template <class Archive>
         void save(Archive& ar) const
         {
