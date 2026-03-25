@@ -1289,6 +1289,200 @@ namespace ettycc
                 ImGui::EndTabItem();
             }
 
+            if (ImGui::BeginTabItem("Network"))
+            {
+                static char     netIpBuf[64]  = "127.0.0.1";
+                static int      netPort       = 7777;
+                static NetState prevNetState  = NetState::OFFLINE;
+
+                auto& nm    = engineInstance_->networkManager_;
+                auto  state = nm.GetState();
+
+                // ── Auto-load on connect ───────────────────────────────────────
+                // When state transitions to CONNECTED, load (or reload) the
+                // network scene immediately so both peers start in sync.
+                if (prevNetState != NetState::CONNECTED && state == NetState::CONNECTED)
+                {
+                    engineInstance_->LoadNetworkScene();
+                    engineInstance_->InitEditorCamera();
+                }
+                prevNetState = state;
+
+                // ── Status ────────────────────────────────────────────────────
+                ImGui::SeparatorText("Status");
+                {
+                    ImVec4 col;
+                    switch (state)
+                    {
+                    case NetState::CONNECTED:    col = {0.2f, 1.f,  0.4f, 1.f}; break;
+                    case NetState::CONNECTING:   col = {1.f,  0.8f, 0.2f, 1.f}; break;
+                    case NetState::DISCONNECTED: col = {1.f,  0.3f, 0.3f, 1.f}; break;
+                    default:                     col = {0.5f, 0.5f, 0.5f, 1.f}; break;
+                    }
+                    const char* role = nm.IsHost() ? "Host" : "Client";
+                    if (state == NetState::OFFLINE)
+                        ImGui::TextColored(col, "● %s", nm.GetStateStr());
+                    else
+                        ImGui::TextColored(col, "● %s  [%s]  %s:%d",
+                                           nm.GetStateStr(), role, netIpBuf, netPort);
+                }
+                if (state == NetState::DISCONNECTED)
+                {
+                    ImGui::Spacing();
+                    ImGui::TextColored({1.f, 0.4f, 0.4f, 1.f},
+                                       "Connection lost or rejected by remote.");
+                    ImGui::TextDisabled("Physics restored to local simulation.");
+                }
+
+                // ── Config ───────────────────────────────────────────────────
+                ImGui::SeparatorText("Config");
+                {
+                    bool locked = (state == NetState::CONNECTED ||
+                                   state == NetState::CONNECTING);
+                    ImGui::BeginDisabled(locked);
+                    ImGui::InputText("Server IP", netIpBuf, sizeof(netIpBuf));
+                    ImGui::InputInt("Port",       &netPort);
+                    netPort = std::max(1, std::min(netPort, 65535));
+                    ImGui::EndDisabled();
+                }
+
+                // ── Actions ───────────────────────────────────────────────────
+                ImGui::SeparatorText("Actions");
+
+                bool canStart = (state == NetState::OFFLINE ||
+                                 state == NetState::DISCONNECTED);
+
+                ImGui::BeginDisabled(!canStart);
+                if (ImGui::Button("Start Host", {120, 0}))
+                {
+                    nm.Shutdown();
+                    nm.InitHost(static_cast<uint16_t>(netPort));
+                }
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+
+                ImGui::BeginDisabled(!canStart);
+                if (ImGui::Button("Connect", {120, 0}))
+                {
+                    nm.Shutdown();
+                    nm.InitClient(netIpBuf, static_cast<uint16_t>(netPort));
+                }
+                ImGui::EndDisabled();
+
+                ImGui::BeginDisabled(canStart);
+                if (ImGui::Button(state == NetState::CONNECTING ? "Cancel" : "Disconnect",
+                                  {120, 0}))
+                    nm.Shutdown();
+                ImGui::EndDisabled();
+
+                // ── Bandwidth & stats ─────────────────────────────────────────
+                ImGui::SeparatorText("Bandwidth");
+                {
+                    // Helper: format bytes as B / KB / MB
+                    auto fmtBytes = [](uint64_t b, char* buf, int sz) {
+                        if      (b < 1024ULL)        snprintf(buf, sz, "%llu B",   (unsigned long long)b);
+                        else if (b < 1024ULL * 1024) snprintf(buf, sz, "%.2f KB",  b / 1024.0);
+                        else                         snprintf(buf, sz, "%.2f MB",  b / (1024.0 * 1024.0));
+                    };
+                    auto fmtBps = [](float bps, char* buf, int sz) {
+                        if      (bps < 1024.f)        snprintf(buf, sz, "%.1f B/s",  bps);
+                        else if (bps < 1024.f * 1024) snprintf(buf, sz, "%.2f KB/s", bps / 1024.f);
+                        else                          snprintf(buf, sz, "%.2f MB/s", bps / (1024.f * 1024.f));
+                    };
+
+                    const auto& bw = nm.GetBandwidthStats();
+                    char tmp[64];
+
+                    // Connection uptime
+                    if (state == NetState::CONNECTED)
+                    {
+                        int h = (int)(bw.connectedForSecs / 3600);
+                        int m = (int)(bw.connectedForSecs / 60) % 60;
+                        int s = (int)(bw.connectedForSecs) % 60;
+                        ImGui::Text("Uptime:  %02d:%02d:%02d", h, m, s);
+                    }
+
+                    // Current rates
+                    fmtBps(bw.sendBps, tmp, sizeof(tmp));
+                    ImGui::Text("Send:    %s", tmp);
+                    ImGui::SameLine(180);
+                    fmtBytes(bw.totalBytesSent, tmp, sizeof(tmp));
+                    ImGui::TextDisabled("total: %s", tmp);
+
+                    fmtBps(bw.recvBps, tmp, sizeof(tmp));
+                    ImGui::Text("Receive: %s", tmp);
+                    ImGui::SameLine(180);
+                    fmtBytes(bw.totalBytesReceived, tmp, sizeof(tmp));
+                    ImGui::TextDisabled("total: %s", tmp);
+
+                    ImGui::Text("Packets sent / received:  %llu / %llu",
+                                (unsigned long long)nm.GetTotalSent(),
+                                (unsigned long long)nm.GetTotalReceived());
+
+                    // ── Graphs ────────────────────────────────────────────────
+                    ImGui::Spacing();
+                    float avail = ImGui::GetContentRegionAvail().x;
+
+                    // Find max across both histories for a shared Y scale
+                    float maxBw = 1.f; // never show a zero-scale graph
+                    for (float v : nm.GetSendHistory()) maxBw = std::max(maxBw, v);
+                    for (float v : nm.GetRecvHistory()) maxBw = std::max(maxBw, v);
+
+                    fmtBps(bw.sendBps, tmp, sizeof(tmp));
+                    ImGui::TextColored({0.3f, 0.9f, 0.4f, 1.f}, "▲ Send  %s", tmp);
+                    ImGui::PlotLines("##bwsend",
+                        nm.GetSendHistory().data(),
+                        NetworkManager::kBwHistorySize,
+                        nm.GetBwHistoryOffset(),
+                        nullptr, 0.f, maxBw,
+                        ImVec2(avail, 55));
+
+                    fmtBps(bw.recvBps, tmp, sizeof(tmp));
+                    ImGui::TextColored({0.3f, 0.6f, 1.f, 1.f}, "▼ Recv  %s", tmp);
+                    ImGui::PlotLines("##bwrecv",
+                        nm.GetRecvHistory().data(),
+                        NetworkManager::kBwHistorySize,
+                        nm.GetBwHistoryOffset(),
+                        nullptr, 0.f, maxBw,
+                        ImVec2(avail, 55));
+                }
+
+                // ── Per-object table ──────────────────────────────────────────
+                const auto& entries = nm.GetDebugEntries();
+                if (!entries.empty())
+                {
+                    ImGui::SeparatorText("Objects");
+                    if (ImGui::BeginTable("##netdbg", 5,
+                            ImGuiTableFlags_Borders |
+                            ImGuiTableFlags_RowBg   |
+                            ImGuiTableFlags_ScrollY |
+                            ImGuiTableFlags_SizingFixedFit,
+                            ImVec2(0, 130)))
+                    {
+                        ImGui::TableSetupColumn("ID");
+                        ImGui::TableSetupColumn("X");
+                        ImGui::TableSetupColumn("Y");
+                        ImGui::TableSetupColumn("Z");
+                        ImGui::TableSetupColumn("Pkts");
+                        ImGui::TableHeadersRow();
+
+                        for (const auto& [id, e] : entries)
+                        {
+                            ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(0); ImGui::Text("%u",   id);
+                            ImGui::TableSetColumnIndex(1); ImGui::Text("%.2f", e.pos.x);
+                            ImGui::TableSetColumnIndex(2); ImGui::Text("%.2f", e.pos.y);
+                            ImGui::TableSetColumnIndex(3); ImGui::Text("%.2f", e.pos.z);
+                            ImGui::TableSetColumnIndex(4); ImGui::Text("%llu", (unsigned long long)e.count);
+                        }
+                        ImGui::EndTable();
+                    }
+                }
+
+                ImGui::EndTabItem();
+            }
+
             ImGui::EndTabBar();
         }
 

@@ -40,6 +40,8 @@ set(80CC_CORE_HEADERS
     include/UI/DevEditor.hpp
     include/UI/Console.hpp
     include/Dependencies/Resources.hpp
+    include/Networking/NetworkManager.hpp
+    include/Networking/NetworkComponent.hpp
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
     external/imgui/imgui_internal.h
@@ -76,6 +78,8 @@ set(80CC_CORE_SOURCES
     src/Input/Controls/EditorCamera.cpp
     src/UI/DevEditor.cpp
     src/Engine.cpp
+    src/Networking/NetworkManager.cpp
+    src/Networking/NetworkComponent.cpp
     # IMGUI LIBRARY SOURCES
     external/imgui/imgui.cpp
     external/imgui/imgui_demo.cpp

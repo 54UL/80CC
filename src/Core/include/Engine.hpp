@@ -13,6 +13,7 @@
 #include <Dependencies/Resources.hpp>
 #include <Game/GameModule.hpp>
 #include <Physics/PhysicsWorld.hpp>
+#include <Networking/NetworkManager.hpp>
 
 #include <memory>
 #include <vector>
@@ -35,6 +36,7 @@ namespace ettycc
         Rendering              renderEngine_;
         PhysicsWorld           physicsWorld_;
         PlayerInput            inputSystem_;
+        NetworkManager         networkManager_;
         std::shared_ptr<Scene> mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
         
     public:
@@ -59,6 +61,11 @@ namespace ettycc
         void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
         void BuildExecutable(const std::string& outputPath);
         void ConfigResource();
+
+        // Networking helpers — call before Init() if you want a networked scene
+        void InitNetwork(bool isHost, uint16_t port = 7777,
+                         const std::string& serverAddress = "127.0.0.1");
+        void LoadNetworkScene();
         
         // Engine pipeline API (backend)
         void Init() override;

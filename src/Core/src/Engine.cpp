@@ -4,6 +4,7 @@
 // TEST INCLUDE
 #include <Scene/Components/RenderableNode.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
+#include <Networking/NetworkComponent.hpp>
 #include <Dependencies/Resources.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
 
@@ -272,6 +273,7 @@ namespace ettycc
     {
         auto deltaTime = appInstance_->GetDeltaTime();
         physicsWorld_.Step(deltaTime);
+        networkManager_.Poll();
         mainScene_->Process(deltaTime, ProcessingChannel::MAIN);
 
         // Update game modules state...
@@ -305,6 +307,66 @@ namespace ettycc
     // {
     //     inputSystem_.ProcessInput(type, data);
     // }
+
+    void Engine::InitNetwork(bool isHost, uint16_t port, const std::string& serverAddress)
+    {
+        if (isHost)
+            networkManager_.InitHost(port);
+        else
+            networkManager_.InitClient(serverAddress, port);
+    }
+
+    // Builds the physics arena with a NetworkComponent on every dynamic body.
+    //
+    // IMPORTANT: all three components (RenderableNode, RigidBodyComponent,
+    // NetworkComponent) must be added to the SceneNode BEFORE AddChild is
+    // called.  AddChild → AddNode fires OnStart once for every component
+    // already present on the node.  Adding a component after AddChild skips
+    // OnStart entirely, leaving syncTransform_ / rigidBody_ as nullptr and
+    // the component never registered with NetworkManager.
+    void Engine::LoadNetworkScene()
+    {
+        spdlog::info("[Engine] building network physics scene...");
+
+        renderEngine_.ClearRenderables();
+        mainScene_ = std::make_shared<Scene>("network-scene");
+
+        const std::string tex = engineResources_->Get("sprites", "not-found");
+        auto root = mainScene_->root_node_;
+
+        // Static boundaries — no network sync needed
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3( 0.0f, -5.0f, 0.0f));
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f,  0.0f, 0.0f));
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3( 9.3f,  0.0f, 0.0f));
+
+        // Build a replicated box: ALL components are added before AddChild so
+        // that AddNode → OnStart runs once for all of them together.
+        uint32_t netId = 1;
+        static int netBoxIdx = 0;
+        auto makeNetBox = [&](glm::vec3 halfExt, glm::vec3 pos)
+        {
+            auto sprite = std::make_shared<Sprite>(tex);
+            sprite->underylingTransform.setGlobalPosition(pos);
+            sprite->underylingTransform.setGlobalScale(glm::vec3(halfExt.x, halfExt.y, 1.0f));
+
+            auto node = std::make_shared<SceneNode>("net-box-" + std::to_string(netBoxIdx++));
+            node->AddComponent(std::make_shared<RenderableNode>(sprite));
+            node->AddComponent(std::make_shared<RigidBodyComponent>(1.0f, halfExt, pos));
+            node->AddComponent(std::make_shared<NetworkComponent>(netId++));
+            root->AddChild(node); // OnStart fired once for all three ↑
+        };
+
+        for (int i = 0; i < 5; ++i)
+        {
+            makeNetBox(glm::vec3(0.5f), glm::vec3(-1.1f, -3.8f + i * 1.15f,        0.0f));
+            makeNetBox(glm::vec3(0.5f), glm::vec3( 1.1f, -3.8f + i * 1.15f + 0.55f, 0.0f));
+        }
+
+        // Do NOT call mainScene_->Init() here — AddNode already called OnStart
+        // for every component.  Calling Init() again would double-init
+        // RigidBodyComponent, leaking btRigidBody instances into the world.
+        spdlog::info("[Engine] network scene ready — {} replicated bodies", netId - 1);
+    }
 
     void Engine::BuildExecutable(const std::string &outputPath)
     {
