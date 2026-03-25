@@ -20,17 +20,19 @@ namespace ettycc
         EditorCamera(PlayerInput *input, FrameBuffer* frameBuffer);
         ~EditorCamera();
 
-        // just for testing....
         glm::vec2 position = {0.0f, 0.0f};
-        float zoom = 1.0f;
-        bool enabled = false;
-
-        [[nodiscard]] glm::mat4 ComputeViewMatrix(float deltaTime) const;
-        [[nodiscard]] glm::mat4 ComputeProjectionMatrix(float deltaTime) const;
+        float zoom    = 1.0f;
+        bool  enabled = false;
 
         // Control api
         void Update(float deltaTime) override;
         void LateUpdate(float deltaTime) override;
+        // world units visible as half-height at zoom = 1
+        static constexpr float baseSize_ = 5.0f;
+
+        [[nodiscard]] glm::mat4 ComputeViewMatrix(float deltaTime) const;
+        [[nodiscard]] glm::mat4 ComputeProjectionMatrix(float deltaTime) const;
+
 
     private:
         void EditorCamera::handleZoom(float wheelDelta, float dt);

@@ -3,22 +3,14 @@
 
 #include "../../Shading/ShaderPipeline.hpp"
 #include "../Renderable.hpp"
-
 #include <Dependency.hpp>
 #include <Dependencies/Resources.hpp>
 
 #include <memory>
 #include <string>
-#include <fstream>
-#include <sstream>
-
 #include <GL/glew.h>
 #include <GL/gl.h>
-
-#include <glm/gtc/type_ptr.hpp>
-
 #include <spdlog/spdlog.h>
-
 #include <cereal/archives/json.hpp>
 
 namespace ettycc
@@ -49,6 +41,9 @@ namespace ettycc
     public:
         void Init(const std::shared_ptr<Engine> &engineCtx) override;
         void Pass(const std::shared_ptr<RenderingContext> &ctx, float time) override;
+        void DrawForPicker(const std::shared_ptr<RenderingContext>& ctx,
+                           GLuint program, uint32_t id) override;
+        void Inspect(EditorPropertyVisitor& v) override;
 
         // Serialization/Deserialziation
         template <class Archive>

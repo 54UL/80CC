@@ -15,6 +15,8 @@ namespace ettycc::paths
     const std::string RESOURCES_DEFAULT = CONFIG_DEFAULT + "80CC.json";
 
     const std::string SCENE_DEFAULT = "\\scenes\\";
+
+    const std::string TEMPLATES_DEFAULT = "\\assets\\templates\\";
 } // namespace ettycc
 
 #endif

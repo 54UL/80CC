@@ -36,12 +36,12 @@
                         "value": "scenes/"
                     },
                     {
-                        "key": "shaders",
-                        "value": "shaders/"
-                    },
-                    {
                         "key": "templates",
                         "value": "templates/"
+                    },
+                    {
+                        "key": "shaders",
+                        "value": "shaders/"
                     }
                 ]
             }
@@ -52,11 +52,11 @@
                 "resources": [
                     {
                         "key": "loona",
-                        "value": "images/loona.jpg"
+                        "value": "images\\loona.jpg"
                     },
                     {
                         "key": "not-found",
-                        "value": "images/not_found_texture.png"
+                        "value": "images\\not_found_texture.png"
                     }
                 ]
             }
@@ -67,7 +67,7 @@
                 "resources": [
                     {
                         "key": "sprite_shader",
-                        "value": "shaders/main"
+                        "value": "shaders\\main"
                     }
                 ]
             }

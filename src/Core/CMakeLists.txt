@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.20)
 
 project(80CC_CORE CXX)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(80CC_CORE_HEADERS
     include/80CC.hpp
@@ -19,12 +21,20 @@ set(80CC_CORE_HEADERS
     include/Scene/Scene.hpp
     include/Scene/SceneNode.hpp
     include/Scene/Components/RenderableNode.hpp
+    include/Scene/Components/RigidBodyComponent.hpp
+    include/Scene/Components/SoftBodyComponent.hpp
+    include/Physics/PhysicsWorld.hpp
+    include/Graphics/Rendering/Entities/SoftBodyRenderable.hpp
+    include/Scene/Assets/AssetLoader.hpp
+    include/Scene/Assets/AssetBuilder.hpp
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
     include/Graphics/Rendering/Renderable.hpp
     include/Graphics/Rendering/FrameBuffer.hpp
+    include/Graphics/Rendering/PickerBuffer.hpp
     include/Graphics/Rendering/Entities/Camera.hpp
     include/Graphics/Rendering/Entities/Sprite.hpp
+    include/Graphics/Rendering/Entities/Grid.hpp
     include/Graphics/Shading/Shader.hpp
     include/Graphics/Shading/ShaderPipeline.hpp
     include/Input/PlayerInput.hpp
@@ -33,7 +43,11 @@ set(80CC_CORE_HEADERS
     include/Game/GameModule.hpp
     include/UI/DevEditor.hpp
     include/UI/Console.hpp
+    include/UI/EditorPropertyVisitor.hpp
+    include/Scene/PropertySystem.hpp
     include/Dependencies/Resources.hpp
+    include/Networking/NetworkManager.hpp
+    include/Networking/NetworkComponent.hpp
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
     external/imgui/imgui_internal.h
@@ -43,7 +57,8 @@ set(80CC_CORE_HEADERS
     external/imgui/imconfig.h
     external/imgui/backends/imgui_impl_sdl2.h
     external/imgui/backends/imgui_impl_opengl3.h
-    )
+    # Portable file dialogs
+    external/portable-file-dialogs/portable-file-dialogs.h)
 
 set(80CC_CORE_SOURCES
     src/80CC.cpp
@@ -51,11 +66,20 @@ set(80CC_CORE_SOURCES
     src/Scene/Transform.cpp
     src/Scene/Scene.cpp
     src/Scene/SceneNode.cpp
+    src/Scene/Assets/AssetLoader.cpp
+    src/Scene/Assets/AssetBuilder.cpp
     src/Scene/Components/RenderableNode.cpp
+    src/Scene/Components/RigidBodyComponent.cpp
+    src/Scene/Components/SoftBodyComponent.cpp
+    src/Physics/PhysicsWorld.cpp
+    src/Graphics/Rendering/Entities/SoftBodyRenderable.cpp
     src/Graphics/Rendering.cpp
+    src/Graphics/Rendering/Renderable.cpp
     src/Graphics/Rendering/FrameBuffer.cpp
+    src/Graphics/Rendering/PickerBuffer.cpp
     src/Graphics/Rendering/Entities/Camera.cpp
     src/Graphics/Rendering/Entities/Sprite.cpp
+    src/Graphics/Rendering/Entities/Grid.cpp
     src/Graphics/Shading/Shader.cpp
     src/Graphics/Shading/ShaderPipeline.cpp
     src/Input/PlayerInput.cpp
@@ -63,6 +87,8 @@ set(80CC_CORE_SOURCES
     src/Input/Controls/EditorCamera.cpp
     src/UI/DevEditor.cpp
     src/Engine.cpp
+    src/Networking/NetworkManager.cpp
+    src/Networking/NetworkComponent.cpp
     # IMGUI LIBRARY SOURCES
     external/imgui/imgui.cpp
     external/imgui/imgui_demo.cpp
@@ -70,8 +96,7 @@ set(80CC_CORE_SOURCES
     external/imgui/imgui_tables.cpp
     external/imgui/imgui_widgets.cpp
     external/imgui/backends/imgui_impl_sdl2.cpp
-    external/imgui/backends/imgui_impl_opengl3.cpp
-    )
+    external/imgui/backends/imgui_impl_opengl3.cpp)
 
 # PACKAGES...
 find_package(spdlog CONFIG REQUIRED)
@@ -82,6 +107,7 @@ find_package(Stb REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(cereal CONFIG REQUIRED)
 find_package(unofficial-enet CONFIG REQUIRED)
+find_package(Bullet CONFIG REQUIRED)
 
 # DIR INCLUDES (avoid this...)
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -93,12 +119,13 @@ add_library(80CC_CORE STATIC ${80CC_CORE_SOURCES} ${80CC_CORE_HEADERS})
 # TARGET INCLUDES
 target_include_directories(80CC_CORE
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PUBLIC ${BULLET_INCLUDE_DIRS}
     PUBLIC ${SDL2_INCLUDE_DIRS}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/portable-file-dialogs
     PUBLIC ${Stb_INCLUDE_DIR}
-    PUBLIC ${GLM_INCLUDE_DIRS}
-    )
+    PUBLIC ${GLM_INCLUDE_DIRS})
 
 target_link_libraries(80CC_CORE
     PUBLIC ${SDL2_LIBRARIES}
@@ -106,4 +133,5 @@ target_link_libraries(80CC_CORE
     PUBLIC glm::glm
     PUBLIC spdlog::spdlog
     PUBLIC cereal::cereal
-    PUBLIC unofficial::enet::enet)
+    PUBLIC unofficial::enet::enet
+    PUBLIC ${BULLET_LIBRARIES})

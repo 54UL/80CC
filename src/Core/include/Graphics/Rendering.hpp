@@ -30,9 +30,13 @@ namespace ettycc
         void SetViewPortFrameBuffer(std::shared_ptr<FrameBuffer> frameBuffer);
         std::shared_ptr<FrameBuffer> GetViewPortFrameBuffer();
 
+        const std::vector<std::shared_ptr<Renderable>>& GetRenderables() const;
+        std::shared_ptr<RenderingContext> GetRenderingContext() const;
+
         void Pass(float deltaTime);
         auto AddRenderable(std::shared_ptr<Renderable> renderable) -> void;
         void AddRenderables(const std::vector<std::shared_ptr<Renderable>>& renderables);
+        void ClearRenderables();
     };
 }
 

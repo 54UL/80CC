@@ -1,7 +1,8 @@
 {
     "name": "ettycc",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "dependencies": [
+      "gtest",
       "spdlog",
       "sdl2",
       "glew",
@@ -9,6 +10,7 @@
       "stb",
       "nlohmann-json",
       "cereal",
-      "enet"
+      "enet",
+      "bullet3"
     ]
   }

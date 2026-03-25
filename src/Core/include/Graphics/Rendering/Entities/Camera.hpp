@@ -20,7 +20,6 @@ namespace ettycc
 		bool ispresp{};
 		glm::mat4 ProjectionMatrix{};
 		std::shared_ptr<FrameBuffer> offScreenFrameBuffer;
-		bool mainCamera_;// no need to have this on all cameras...
 
 	public:
 		Camera();

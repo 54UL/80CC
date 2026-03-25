@@ -21,13 +21,13 @@ namespace ettycc
             HistoryPos = -1;
 
             // "CLASSIFY" is here to provide the test case where "C"+[tab] completes to "CL" and display multiple matches.
+            // TODO: EXTEND...
             Commands.push_back("HELP");
             Commands.push_back("HISTORY");
             Commands.push_back("CLEAR");
             Commands.push_back("CLASSIFY");
             AutoScroll = true;
             ScrollToBottom = false;
-            AddLog("Welcome to Dear ImGui!");
         }
         ~DebugConsole()
         {
@@ -167,12 +167,22 @@ namespace ettycc
                     bool has_color = false;
                     if (strstr(item, "[error]"))
                     {
-                        color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+                        color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); // red
+                        has_color = true;
+                    }
+                    else if (strstr(item, "[warn]"))
+                    {
+                        color = ImVec4(1.0f, 0.85f, 0.1f, 1.0f); // yellow
+                        has_color = true;
+                    }
+                    else if (strstr(item, "[debug]"))
+                    {
+                        color = ImVec4(0.6f, 0.6f, 0.6f, 1.0f); // grey
                         has_color = true;
                     }
                     else if (strncmp(item, "# ", 2) == 0)
                     {
-                        color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f);
+                        color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f); // orange (commands)
                         has_color = true;
                     }
                     if (has_color)

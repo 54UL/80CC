@@ -4,13 +4,16 @@
 #include <Engine.hpp>
 #include <App/ExecutionPipeline.hpp>
 #include <UI/Console.hpp>
+#include <UI/ImGuiConsoleSink.hpp>
+#include <Scene/Assets/AssetBuilder.hpp>
+#include <Graphics/Rendering/PickerBuffer.hpp>
 
 #include <imgui.h>
-#include <imgui_internal.h>  // For docking
+#include <imgui_internal.h>
 #include <stb_image.h>
 #include <stack>
 #include <memory>
-
+#include <filesystem>
 #include <Scene/Components/RenderableNode.hpp>
 
 namespace ettycc
@@ -20,7 +23,6 @@ namespace ettycc
     public:
         DevEditor(const std::shared_ptr<Engine>& engine);
         ~DevEditor();
-        // Editor execution pipeline
         void Init() override;
         void UpdateUI() override;
         void Update() override;
@@ -28,36 +30,73 @@ namespace ettycc
     private:
         void DrawEditor();
 
-        // WINDOWS ##################################################################
+        // WINDOWS
         void ShowDebugger();
         void ShowDockSpace();
         void ShowMenuBar();
-        void ShowViewport();
+        void ShowEditorViewPort();
+        void ShowGameView() const;
         void ShowInspector();
         void ShowAssetsView();
         void ShowSceneHierarchy();
 
-        // COMPONENTS ###############################################################
-
-        // SCENE NODE VIEW COMPONENT ################################################
-        // PROPERTIES
+        // SCENE HIERARCHY
         std::shared_ptr<Engine> engineInstance_;
         std::vector<std::shared_ptr<SceneNode>> selectedNodes_;
         std::string searchFilter_;
         DebugConsole uiConsole;
         bool uiConsoleOpen_;
 
-        // METHODS
         void RenderSceneTree();
-        void RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>> &selectedNodes, int depth);
+        void RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>>& selectedNodes, int depth);
         void ShowSceneContextMenu(const std::shared_ptr<SceneNode>& node);
-
-        // logic methods
         void AddNode(const std::shared_ptr<SceneNode>& selectedNode);
-        void AddComponentFromTemplate(const std::shared_ptr<SceneNode>& selectedNode, const char *templateName);
+        void AddComponentFromTemplate(const std::shared_ptr<SceneNode>& selectedNode, const char* templateName);
 
-    private: // FUNCTIONS THAT MUST BE EVERYWHERE OR BE IN A GENERIC CLASS !!!
-        GLuint LoadTextureFromFile(const char *filePath);
+        // ASSET BROWSER ############################################################
+        enum class AssetType { Template, Scene, Config, Code, Shader, Image, Unknown };
+
+        struct AssetEntry {
+            std::string path;
+            std::string name;
+            AssetType   type;
+        };
+
+        struct SelectedAsset {
+            std::string path;
+            std::string name;
+            AssetType   type;
+            uintmax_t   fileSize = 0;
+            bool        active   = false;
+        };
+
+        enum class InspectorSource { None, SceneNode, Asset };
+
+        std::shared_ptr<AssetLoader>   assetLoader_;
+        std::shared_ptr<AssetBuilder>  assetBuilder_;
+        std::shared_ptr<PickerBuffer>  pickerBuffer_;
+        uint32_t                       lastPickedId_ = 0;
+        std::vector<AssetEntry>       assetEntries_;
+        bool                          assetsScanned_ = false;
+        std::string                   currentFolder_;
+        SelectedAsset                 selectedAsset_;
+        InspectorSource               inspectorSource_ = InspectorSource::None;
+
+        void        ScanAssets();
+        void        RenderFolderTree(const std::filesystem::path& path);
+        void        RenderAssetGrid(const std::string& searchQuery);
+        AssetType   GetAssetType(const std::filesystem::path& p) const;
+        ImVec4      GetAssetColor(AssetType t) const;
+        const char* GetAssetLabel(AssetType t) const;
+        const char* GetAssetTypeName(AssetType t) const;
+
+        // VIEWPORT HELPERS
+        std::shared_ptr<SceneNode> FindNodeByRenderable(
+            const std::shared_ptr<SceneNode>& node,
+            const std::shared_ptr<Renderable>& renderable) const;
+
+        // MISC
+        GLuint LoadTextureFromFile(const char* filePath);
     };
 } // namespace ettycc
 

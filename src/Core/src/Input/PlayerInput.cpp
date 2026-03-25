@@ -42,6 +42,7 @@ namespace ettycc {
     glm::ivec2 PlayerInput::GetMousePos() const {
         return state_.mousePos;
     }
+
     glm::vec2 PlayerInput::GetMouseDelta() const {
         return state_.mouseDelta;
     }

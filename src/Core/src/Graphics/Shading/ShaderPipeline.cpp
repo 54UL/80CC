@@ -55,15 +55,13 @@ namespace ettycc
         glLinkProgram(shaderProgram);
 
         GLint success;
-        char * infoLog = nullptr;
         glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
         if (!success)
         {
-            glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
-            spdlog::error("Shader program linking failed:\n", infoLog);
+            GLchar infoLog[512];
+            glGetProgramInfoLog(shaderProgram, sizeof(infoLog), nullptr, infoLog);
+            spdlog::error("Shader program linking failed: {}", infoLog);
         }
-        
-        glLinkProgram(0);
     }
 
     int ShaderPipeline::Bind()

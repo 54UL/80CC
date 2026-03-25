@@ -1,18 +1,19 @@
 #include <Scene/Transform.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 
 
 
 namespace ettycc
 {
-    Transform::Transform()
-    {
+    Transform::Transform() {
         this->modelMatrix = glm::mat4(1.0f);
         this->transformMatrix = glm::mat4(1.0f);
         // TODO: IF CONSTRUCTED ONLY BY VECTORS CONVERT VECTOR DATA INTO MATRIX DATA, AND WHEN ACCESING THE DATA AS VECTORS CONVERT MATRIX DATA -> VECTOR DATA
         rotationMatrix = glm::mat4(1.0f);
         rotation_ = glm::vec3(0.0f, 0.0f, 0.0f);
-        position_ = glm::vec3(0.0f, -1.0f, -2.0f);
+        position_ = glm::vec3(0.0f, 0.0f, 0.0f);
         scale_ = glm::vec3(1.0f, 1.0f, 1.0f);
+        enabled = true;
     }
 
     Transform::~Transform()
@@ -20,7 +21,7 @@ namespace ettycc
         
     }
 
-    void Transform::setGlobalPosition(glm::vec3 position)
+    void Transform::setGlobalPosition(const glm::vec3 position)
     {
         position_ = position; 
         this->modelMatrix = glm::mat4(1);
@@ -28,48 +29,80 @@ namespace ettycc
         this->transformMatrix =  modelMatrix;
     }
 
-    void Transform::setGlobalRotation(glm::vec3 Euler)
+    void Transform::setGlobalRotation(const glm::vec3 Euler)
     {
         rotation_ = Euler;
         rotationMatrix = glm::mat4_cast(glm::quat(glm::radians(Euler)));
         transformMatrix = rotationMatrix * modelMatrix ;
     }
 
-    void Transform::translate(glm::vec3 RelativeDirection)
+    void Transform::setGlobalScale(const glm::vec3 scale)
+    {
+        scale_ = scale;
+        this->modelMatrix = glm::scale(this->modelMatrix, scale);
+        this->transformMatrix = modelMatrix;
+    }
+
+    void Transform::translate(const glm::vec3 RelativeDirection)
     {
         glm::quat tmpRot(this->modelMatrix);
         modelMatrix = glm::translate(this->modelMatrix, tmpRot * RelativeDirection);
         transformMatrix = modelMatrix;
     }
 
-    void Transform::SetMatrix(glm::mat4 matrix)
+    void Transform::SetMatrix(const glm::mat4 &matrix)
     {
         modelMatrix = matrix;
     }
 
-    glm::mat4 Transform::GetMatrix()
+    glm::mat4 Transform::GetMatrix() const
     {
         return transformMatrix;
     }
 
-    glm::vec3 Transform::getGlobalPosition()
+    glm::vec3 Transform::getGlobalPosition() const
     {
         return modelMatrix[3];
     }
 
-    glm::vec3 Transform::getEulerGlobalRotaion()
-    {
-        glm::quat tmpRot(modelMatrix);
-        // return glm::degrees(glm::eulerAngles(tmpRot));
-
-        return glm::vec3(glm::round(glm::degrees(glm::pitch(tmpRot))),
-                        glm::round(glm::degrees(glm::yaw(tmpRot))),
-                        glm::round(glm::degrees(glm::roll(tmpRot))));
-    }
-
-    glm::quat Transform::getGlobalRotation()
+    glm::quat Transform::getGlobalRotation() const
     {
         return glm::quat(modelMatrix);
+    }
+
+    glm::vec3 Transform::getGlobalScale() const
+    {
+        return scale_;
+    }
+
+    glm::vec3 Transform::getEulerGlobalRotation() const
+    {
+        glm::vec3 eulerAngles = glm::eulerAngles(glm::quat_cast(modelMatrix));
+
+        return glm::degrees(eulerAngles);
+    }
+
+    void Transform::SetFromTRS(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scale)
+    {
+        position_  = pos;
+        scale_     = scale;
+        rotation_  = glm::degrees(glm::eulerAngles(rot));
+
+        rotationMatrix  = glm::mat4_cast(rot);
+
+        // Build canonical T * R * S — rotation is about the object's local origin,
+        // then the result is translated to world position.  This avoids the
+        // order-dependency bugs in the individual setters.
+        modelMatrix     = glm::translate(glm::mat4(1.f), pos)
+                        * rotationMatrix
+                        * glm::scale(glm::mat4(1.f), scale);
+        transformMatrix = modelMatrix;
+    }
+    void Transform::Inspect(EditorPropertyVisitor& v)
+    {
+        PROP(position_, "Position");
+        PROP(rotation_, "Rotation (deg)");
+        PROP(scale_,    "Scale");
     }
 
 } // namespace ettycc

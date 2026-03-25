@@ -47,7 +47,7 @@ namespace ettycc
         int Exec() override;
 
         float GetDeltaTime() override;
-        float GetCurrentTime() override;
+        float GetCurrentTime();
 
         glm::ivec2 GetMainWindowSize() override;
         void AddExecutionPipeline(std::shared_ptr<ExecutionPipeline> engine) override;

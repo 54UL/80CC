@@ -42,6 +42,8 @@ namespace ettycc
         
         // Frame buffer Single camera  implementation 
         // TODO: (Get all the cameras instead and then do the framebuffer pass then pass the propper camera model and view matrixes to each viewport...)
+
+        // TODO: ADD HERE EDITOR FBO AND PBO  BINDING
         sceneFrameBuffer_->BeginFrame();
 
         for (auto renderable : renderables_)
@@ -53,6 +55,16 @@ namespace ettycc
         sceneFrameBuffer_->EndFrame();
     }
 
+    const std::vector<std::shared_ptr<Renderable>>& Rendering::GetRenderables() const
+    {
+        return renderables_;
+    }
+
+    std::shared_ptr<RenderingContext> Rendering::GetRenderingContext() const
+    {
+        return renderingCtx_;
+    }
+
     auto Rendering::AddRenderable(std::shared_ptr<Renderable> renderable) -> void
     {
         renderables_.emplace_back(renderable);
@@ -61,5 +73,10 @@ namespace ettycc
     void Rendering::AddRenderables(const std::vector<std::shared_ptr<Renderable>> &renderables)
     {
         renderables_.insert(renderables_.end(), renderables.begin(), renderables.end());
+    }
+
+    void Rendering::ClearRenderables()
+    {
+        renderables_.clear();
     }
 }

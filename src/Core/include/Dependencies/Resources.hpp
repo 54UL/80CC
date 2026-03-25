@@ -7,7 +7,6 @@
 #include <spdlog/spdlog.h>
 
 #include <cereal/types/memory.hpp>
-#include <cereal/types/unordered_map.hpp>
 #include <cereal/archives/json.hpp>
 
 namespace ettycc
@@ -47,12 +46,12 @@ namespace ettycc
             workingFolderPath_ = std::string();
 
             const char* engineWorkingFolder = std::getenv(ENV_80CC_ASSETS_ROOT.data());
-            if (engineWorkingFolder == nullptr) 
+            if (engineWorkingFolder == nullptr)
             {
-                spdlog::warn("Engine working folder not set... using: {}", paths::CONFIG_DEFAULT);    
+                spdlog::warn("Engine working folder not set... using: {}", paths::CONFIG_DEFAULT);
                 SetWorkingFolder(paths::CONFIG_DEFAULT);
             }
-            else 
+            else
             {
                 spdlog::info("Engine working folder '{}'", engineWorkingFolder);
                 SetWorkingFolder(std::string(engineWorkingFolder) + "/config/");
@@ -61,7 +60,7 @@ namespace ettycc
         ~Resources() {}
 
     public:
-        
+
         auto SetWorkingFolder(const std::string& path) -> void
         {
             workingFolderPath_ = path;
@@ -72,7 +71,7 @@ namespace ettycc
             return workingFolderPath_;
         }
 
-        auto AutoSetWorkingFolder() -> void 
+        auto AutoSetWorkingFolder() -> void
         {
             const char *engineWorkingFolder = std::getenv("ASSETS_80CC");
             if (engineWorkingFolder == nullptr)
@@ -90,18 +89,18 @@ namespace ettycc
             this->Load(paths::RESOURCES_DEFAULT);
         }
 
-        
-        auto Load(const std::string &fileName) -> void 
+
+        auto Load(const std::string &fileName) -> void
         {
             const auto filePath = workingFolderPath_ + fileName;
             std::ifstream file(filePath);
 
             if (file.is_open())
-            {   
+            {
                 cereal::JSONInputArchive archive(file);
                 archive(cereal::make_nvp("engine_data", loadedResources_));
             }
-            else 
+            else
             {
                 spdlog::error("Resource file does not exist '{}'.", filePath);
             }

@@ -17,10 +17,13 @@ namespace ettycc
 
     class RenderableNode : public NodeComponent
     {
-        const char * COLLOQUIAL_NAME = "Renderable";
 
-    private:
+    // REMAINDER THAT ALL PUBLIC MEMBERS ARE EXPERIMENTAL AND JUST BECAUSE THEY ARE SUITIABLE
+    public:
+        // make this a template....
+        static constexpr const char *componentType = "Renderable";
         std::shared_ptr<Renderable> renderable_;
+        uint64_t renderableId_;
 
     public:
         RenderableNode();
@@ -31,6 +34,7 @@ namespace ettycc
         NodeComponentInfo GetComponentInfo() override;
         void OnStart(std::shared_ptr<Engine> engineInstance) override;
         void OnUpdate(float deltaTime) override;
+        void InspectProperties(EditorPropertyVisitor& v) override;
 
     public:
         template <class Archive>

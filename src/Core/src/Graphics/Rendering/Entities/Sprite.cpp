@@ -1,5 +1,6 @@
 
 #include <Graphics/Rendering/Entities/Sprite.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -129,8 +130,7 @@ namespace ettycc
         }
         else
         {
-            // Handle error loading the image
-            std::cerr << "Error loading image: " << stbi_failure_reason() << std::endl;
+            spdlog::error("Error loading image: {}", stbi_failure_reason());
         }
 
         // Bind the shader program
@@ -146,16 +146,16 @@ namespace ettycc
     // Renderable
     void Sprite::Init(const std::shared_ptr<Engine>& engineCtx)
     {
-        if (!spriteFilePath_.empty() && initializable_)
-        {
-            auto engineResources = GetDependency(Resources);
-            const auto spriteFilePath = engineResources->GetWorkingFolder() + "\\" + spriteFilePath_;
+        if (initialized || !initializable_ || spriteFilePath_.empty())
+            return;
 
-            spdlog::info("Initializing loaded sprite [{}]", spriteFilePath);
-            spriteFilePath_.insert(0, "\\" + engineResources->GetWorkingFolder());
+        auto engineResources = GetDependency(Resources);
+        const auto fullPath = engineResources->GetWorkingFolder() + "\\" + spriteFilePath_;
 
-            InitBackend(spriteFilePath);
-        }
+        spdlog::info("Initializing sprite [{}]", fullPath);
+        InitBackend(fullPath);
+
+        initialized = true;
     }
 
     void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
@@ -181,6 +181,28 @@ namespace ettycc
         underlyingShader.Unbind();
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    void Sprite::DrawForPicker(const std::shared_ptr<RenderingContext>& ctx,
+                               GLuint program, uint32_t id)
+    {
+        if (!initialized) return;
+
+        glm::mat4 PVM = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
+        glUniformMatrix4fv(glGetUniformLocation(program, "PVM"), 1, GL_FALSE,
+                           glm::value_ptr(PVM));
+
+        // idColor is already set by RenderPass (golden-ratio hue)
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+    }
+
+    void Sprite::Inspect(EditorPropertyVisitor& v)
+    {
+        Renderable::Inspect(v);          // Enabled + Transform section
+        PROP_SECTION("Sprite");
+        PROP(spriteFilePath_, "Texture Path");
     }
 
     std::string Sprite::LoadShaderFile(const std::string &shaderPath)
