@@ -148,6 +148,26 @@ namespace ettycc
     }
 
     // -------------------------------------------------------------------------
+    // DrawForPicker
+    // -------------------------------------------------------------------------
+    void SoftBodyRenderable::DrawForPicker(const std::shared_ptr<RenderingContext>& ctx,
+                                           GLuint program, uint32_t /*id*/)
+    {
+        if (!initialized || !body_) return;
+
+        // Soft body nodes are world-space — no model matrix, just PV
+        const glm::mat4 PV = ctx->Projection * ctx->View;
+        glUniformMatrix4fv(glGetUniformLocation(program, "PVM"), 1, GL_FALSE,
+                           glm::value_ptr(PV));
+
+        glBindVertexArray(VAO_);
+        glDrawElements(GL_TRIANGLES,
+                       static_cast<GLsizei>(indices_.size()),
+                       GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+    }
+
+    // -------------------------------------------------------------------------
     // Inspect
     // -------------------------------------------------------------------------
     void SoftBodyRenderable::Inspect(EditorPropertyVisitor& v)

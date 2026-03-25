@@ -36,9 +36,8 @@ namespace ettycc
         void Pass(const std::shared_ptr<RenderingContext>& ctx, float deltaTime) override;
         void Inspect(EditorPropertyVisitor& v) override;
 
-        // DrawForPicker: no-op for soft bodies
-        void DrawForPicker(const std::shared_ptr<RenderingContext>& /*ctx*/,
-                           GLuint /*program*/, uint32_t /*id*/) override {}
+        void DrawForPicker(const std::shared_ptr<RenderingContext>& ctx,
+                           GLuint program, uint32_t id) override;
 
     public:
         ShaderPipeline shader_;
@@ -54,7 +53,6 @@ namespace ettycc
         std::vector<float>  vertexBuffer_;           // x,y,z,u,v per vertex
         std::vector<int>    indices_;
         int                 numVerts_   = 0;
-
         std::string LoadShaderFile(const std::string& path);
         void        LoadShaders();
         void        LoadTexture();

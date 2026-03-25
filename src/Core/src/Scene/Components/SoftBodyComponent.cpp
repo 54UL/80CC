@@ -169,7 +169,7 @@ namespace ettycc
         mat->m_kVST = btScalar(0.0);                                  // flat mesh — no volume stiffness
 
         // Config — flat 2D disc: no pressure or volume conservation (those need a closed 3D volume)
-        body_->m_cfg.kDP         = btScalar(0.0);   // zero numerical damping → maximum oscillation/wobble
+        body_->m_cfg.kDP         = btScalar(0.15);  // damp node velocity — prevents bounce-gap at rigid surfaces
         body_->m_cfg.kDF         = btScalar(0.1);   // low surface friction
         body_->m_cfg.piterations = 10;
         // VF_SS = vertex-face soft-soft collision (no clusters required)

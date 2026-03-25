@@ -37,6 +37,9 @@ namespace ettycc
         void OnUpdate(float deltaTime) override;
         void InspectProperties(EditorPropertyVisitor& v) override;
 
+        // Picker support — lets FindNodeByRenderable trace back to this node
+        std::shared_ptr<Renderable> GetRenderable() const { return renderable_; }
+
         // Unified property inspector — drives both editor widgets and serialization
         template<typename Visitor>
         void Inspect(Visitor& v)

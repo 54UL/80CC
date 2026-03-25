@@ -2,6 +2,7 @@
 #include <UI/EditorPropertyVisitor.hpp>
 #include <imgui_internal.h>
 #include <Scene/Components/RigidBodyComponent.hpp>
+#include <Scene/Components/SoftBodyComponent.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Resources.hpp>
 #include <Input/Controls/EditorCamera.hpp>
@@ -751,6 +752,7 @@ namespace ettycc
         const std::shared_ptr<SceneNode>& node,
         const std::shared_ptr<Renderable>& renderable) const
     {
+        // RenderableNode (sprites, cameras, …)
         auto comp = node->GetComponentByName(RenderableNode::componentType);
         if (comp)
         {
@@ -758,6 +760,16 @@ namespace ettycc
             if (rn && rn->renderable_ == renderable)
                 return node;
         }
+
+        // SoftBodyComponent owns its renderable directly (no RenderableNode wrapper)
+        auto sbComp = node->GetComponentByName(SoftBodyComponent::componentType);
+        if (sbComp)
+        {
+            auto sb = std::dynamic_pointer_cast<SoftBodyComponent>(sbComp);
+            if (sb && sb->GetRenderable() == renderable)
+                return node;
+        }
+
         for (const auto& child : node->children_)
         {
             auto found = FindNodeByRenderable(child, renderable);
