@@ -37,7 +37,9 @@ namespace ettycc
             return;
         }
 
-        // Discover the shared underlying transform from the sibling RenderableNode on this node
+        // Bootstrap the node's transform from the sibling renderable (set at creation time
+        // or via deserialization), then use the node transform as the single sync target.
+        // RenderableNode::OnUpdate will copy it back to the renderable each frame for rendering.
         if (ownerNode_)
         {
             auto it = ownerNode_->components_.find(ProcessingChannel::RENDERING);
@@ -48,15 +50,16 @@ namespace ettycc
                     auto* rn = dynamic_cast<RenderableNode*>(comp.get());
                     if (rn && rn->renderable_)
                     {
-                        syncTransform_ = &rn->renderable_->underylingTransform;
+                        ownerNode_->transform_ = rn->renderable_->underylingTransform;
                         break;
                     }
                 }
             }
+            syncTransform_ = &ownerNode_->transform_;
         }
 
         if (!syncTransform_)
-            spdlog::warn("[RigidBodyComponent] no sibling RenderableNode found — physics won't drive visuals");
+            spdlog::warn("[RigidBodyComponent] no owner node — physics won't drive visuals");
 
         // Use initial position from the shared transform if we have one, otherwise fall back to stored value
         glm::vec3 spawnPos = syncTransform_

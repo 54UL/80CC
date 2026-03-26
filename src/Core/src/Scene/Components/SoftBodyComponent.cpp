@@ -192,6 +192,12 @@ namespace ettycc
 
         softWorld_->addSoftBody(body_);
 
+        if (ownerNode_)
+        {
+            ownerNode_->transform_.setGlobalPosition(initialPosition_);
+            lastTrackedCentroid_ = initialPosition_;
+        }
+
         spdlog::info("[SoftBodyComponent] soft body created — radius={:.2f} mass={:.2f} verts={} tris={}",
                      radius_, mass_, numVerts, numTriangles);
 
@@ -214,11 +220,44 @@ namespace ettycc
 
         // Constrain all nodes to the 2D plane (Z = initialPosition_.z)
         const btScalar targetZ = static_cast<btScalar>(initialPosition_.z);
-        for (int i = 0; i < body_->m_nodes.size(); ++i)
+        const int nodeCount = body_->m_nodes.size();
+        for (int i = 0; i < nodeCount; ++i)
         {
             body_->m_nodes[i].m_x.setZ(targetZ);
             body_->m_nodes[i].m_v.setZ(btScalar(0.0));
         }
+
+        if (!ownerNode_ || nodeCount == 0)
+            return;
+
+        // Compute current bullet centroid
+        btVector3 btCentroid(0, 0, 0);
+        for (int i = 0; i < nodeCount; ++i)
+            btCentroid += body_->m_nodes[i].m_x;
+        btCentroid /= btScalar(nodeCount);
+        glm::vec3 centroid(btCentroid.getX(), btCentroid.getY(), btCentroid.getZ());
+
+        // --- Apply: detect an external edit by comparing the node transform against
+        //     what WE wrote last frame. If they differ, the inspector/gizmo moved it. ---
+        const glm::vec3 nodePos = ownerNode_->transform_.getGlobalPosition();
+        const glm::vec3 externalDelta = nodePos - lastTrackedCentroid_;
+
+        if (glm::length(externalDelta) > 0.001f)
+        {
+            const btVector3 btDelta(externalDelta.x, externalDelta.y, externalDelta.z);
+            for (int i = 0; i < nodeCount; ++i)
+            {
+                body_->m_nodes[i].m_x += btDelta;
+                body_->m_nodes[i].m_q += btDelta; // shift Verlet previous pos to avoid snap-back
+                body_->m_nodes[i].m_v  = btVector3(0, 0, 0);
+            }
+            body_->updateBounds();
+            centroid += externalDelta;
+        }
+
+        // --- Track: write current centroid back to the node transform. ---
+        ownerNode_->transform_.setGlobalPosition(centroid);
+        lastTrackedCentroid_ = centroid;
     }
 
     void SoftBodyComponent::InspectProperties(EditorPropertyVisitor& v)

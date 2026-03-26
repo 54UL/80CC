@@ -418,13 +418,10 @@ namespace ettycc
             static glm::vec3 dragStartScale = {};
             static float     dragStartAngle = 0.f;
 
-            // ─── Resolve selected RenderableNode ──────────────────────────────
-            std::shared_ptr<RenderableNode> selRN;
+            // ─── Resolve selected node ────────────────────────────────────────
+            std::shared_ptr<SceneNode> selNode;
             if (!selectedNodes_.empty() && inspectorSource_ == InspectorSource::SceneNode)
-            {
-                auto comp = selectedNodes_.back()->GetComponentByName(RenderableNode::componentType);
-                selRN = std::dynamic_pointer_cast<RenderableNode>(comp);
-            }
+                selNode = selectedNodes_.back();
 
             // ─── Gizmo hover detection (runs before click tests) ──────────────
             // Must run every frame so click-to-select knows if a handle is under
@@ -449,7 +446,7 @@ namespace ettycc
             constexpr float RING_R     = 52.f;
             constexpr float SQ_HALF    = 6.f;
 
-            if (selRN && selRN->renderable_)
+            if (selNode)
             {
                 auto& cam = engineInstance_->editorCamera_->editorCameraControl_;
                 glm::mat4 view = cam->ComputeViewMatrix(0.f);
@@ -463,7 +460,7 @@ namespace ettycc
                              imgMin.y + (1.f - (n.y * 0.5f + 0.5f)) * avail.y };
                 };
 
-                glm::vec3 wPos = selRN->renderable_->GetTransform().getGlobalPosition(); //TODO: fix this big pice of shit, transforms should come from the node not an specific component
+                glm::vec3 wPos = selNode->transform_.getGlobalPosition();
                 gizmoOrigin = toScreen(wPos);
                 gizmoXTip   = { gizmoOrigin.x + HANDLE_LEN, gizmoOrigin.y };
                 gizmoYTip   = { gizmoOrigin.x, gizmoOrigin.y - HANDLE_LEN };
@@ -586,14 +583,13 @@ namespace ettycc
             };
 
             // ─── Gizmo drag start ─────────────────────────────────────────────
-            if (hovered != AXIS_NONE && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && selRN)
+            if (hovered != AXIS_NONE && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && selNode)
             {
                 dragging       = hovered;
                 dragStartMouse = mp;
-                Transform t    = selRN->renderable_->GetTransform();
-                dragStartPos   = t.getGlobalPosition();
-                dragStartRot   = t.getStoredRotation();   // degrees
-                dragStartScale = t.getGlobalScale();
+                dragStartPos   = selNode->transform_.getGlobalPosition();
+                dragStartRot   = selNode->transform_.getStoredRotation();   // degrees
+                dragStartScale = selNode->transform_.getGlobalScale();
                 dragStartAngle = atan2f(mp.y - gizmoOrigin.y, mp.x - gizmoOrigin.x);
 
                 // If the node has a rigid body, switch it to kinematic so the
@@ -602,7 +598,7 @@ namespace ettycc
             }
 
             // ─── Gizmo drag apply ─────────────────────────────────────────────
-            if (dragging != AXIS_NONE && ImGui::IsMouseDown(ImGuiMouseButton_Left) && selRN)
+            if (dragging != AXIS_NONE && ImGui::IsMouseDown(ImGuiMouseButton_Left) && selNode)
             {
                 float dxPx = mp.x - dragStartMouse.x;
                 float dyPx = mp.y - dragStartMouse.y;
@@ -638,9 +634,9 @@ namespace ettycc
 
                 Transform newT;
                 newT.SetFromTRS(pos, rot, scale);
-                selRN->renderable_->SetTransform(newT);
+                selNode->transform_ = newT;
 
-                // Keep the bullet body in sync with the visual while in kinematic mode
+                // Keep the bullet body in sync while in kinematic mode
                 if (auto rb = getSelRB()) rb->SyncFromRenderable();
             }
 
@@ -653,7 +649,7 @@ namespace ettycc
             }
 
             // ─── Draw gizmo handles ───────────────────────────────────────────
-            if (selRN && selRN->renderable_)
+            if (selNode)
             {
                 ImDrawList* dl = ImGui::GetWindowDrawList();
 
@@ -810,19 +806,12 @@ namespace ettycc
         };
 
         void SetTransformUIFromNode(const std::shared_ptr<SceneNode>& node, TransformUI& uiTransform) {
-            auto spriteComponent = node->GetComponentByName(RenderableNode::componentType);
-            if (spriteComponent) {
-                auto renderableNode = std::dynamic_pointer_cast<RenderableNode>(spriteComponent);
-                if (renderableNode && renderableNode->renderable_) {
-                    Transform t = renderableNode->renderable_->GetTransform();
-                    const auto pos   = t.getGlobalPosition();
-                    const auto rot   = t.getGlobalRotation();
-                    const auto scale = t.getGlobalScale();
-                    uiTransform.pos[0]   = pos.x;   uiTransform.pos[1]   = pos.y;   uiTransform.pos[2]   = pos.z;
-                    uiTransform.rot[0]   = rot.x;   uiTransform.rot[1]   = rot.y;   uiTransform.rot[2]   = rot.z;
-                    uiTransform.scale[0] = scale.x; uiTransform.scale[1] = scale.y; uiTransform.scale[2] = scale.z;
-                }
-            }
+            const auto pos   = node->transform_.getGlobalPosition();
+            const auto rot   = node->transform_.getStoredRotation(); // degrees
+            const auto scale = node->transform_.getGlobalScale();
+            uiTransform.pos[0]   = pos.x;   uiTransform.pos[1]   = pos.y;   uiTransform.pos[2]   = pos.z;
+            uiTransform.rot[0]   = rot.x;   uiTransform.rot[1]   = rot.y;   uiTransform.rot[2]   = rot.z;
+            uiTransform.scale[0] = scale.x; uiTransform.scale[1] = scale.y; uiTransform.scale[2] = scale.z;
         }
     }
 
@@ -953,13 +942,13 @@ namespace ettycc
         if (transformActivated && rigidBody)
             rigidBody->BeginManipulation();
 
-        if (transformChanged && renderableNode && renderableNode->renderable_)
+        if (transformChanged)
         {
             Transform t;
             t.setGlobalPosition({uiTransform.pos[0],   uiTransform.pos[1],   uiTransform.pos[2]});
             t.setGlobalRotation({uiTransform.rot[0],   uiTransform.rot[1],   uiTransform.rot[2]});
             t.setGlobalScale   ({uiTransform.scale[0], uiTransform.scale[1], uiTransform.scale[2]});
-            renderableNode->renderable_->SetTransform(t);
+            selectedNode->transform_ = t;
 
             if (rigidBody && rigidBody->IsManipulated())
                 rigidBody->SyncFromRenderable();

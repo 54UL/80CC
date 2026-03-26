@@ -29,13 +29,20 @@ namespace ettycc
     {
         renderable_->Init(engineInstance);
         engineInstance->renderEngine_.AddRenderable(renderable_);
+        // Seed the node transform from the renderable (set at creation/deserialization time).
+        // Physics bodies override this immediately in RigidBodyComponent::OnStart.
+        if (ownerNode_)
+            ownerNode_->transform_ = renderable_->underylingTransform;
     }
 
-    void RenderableNode::OnUpdate(float deltaTime)
+    void RenderableNode::OnUpdate(float /*deltaTime*/)
     {
-        // Process updates on the renderable if changed...???
-        // REQUEST HIDE IF DISABLED???
-        // if deleted remove from the rendering...???
+        // Keep the renderable in sync with the node's authoritative transform.
+        // RigidBodyComponent (MAIN channel) writes physics pos to ownerNode_->transform_
+        // before this RENDERING-channel update runs, so rendering always shows the
+        // correct position regardless of whether the node is physics-driven or editor-driven.
+        if (ownerNode_)
+            renderable_->underylingTransform = ownerNode_->transform_;
     }
 
     void RenderableNode::InspectProperties(EditorPropertyVisitor& v)

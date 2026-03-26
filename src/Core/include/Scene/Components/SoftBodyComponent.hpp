@@ -101,6 +101,7 @@ namespace ettycc
         btSoftBody*               body_       = nullptr;
         btSoftRigidDynamicsWorld* softWorld_  = nullptr;
         std::shared_ptr<SoftBodyRenderable> renderable_;
+        glm::vec3 lastTrackedCentroid_ = { 0.0f, 0.0f, 0.0f }; // what we last wrote to ownerNode_->transform_
     };
 
 } // namespace ettycc
