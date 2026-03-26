@@ -33,7 +33,7 @@ namespace ettycc
 
         if (!ownerNode_) return;
 
-        // Find sibling RenderableNode → grab transform
+        // Find sibling RenderableNode -> grab transform
         auto renderIt = ownerNode_->components_.find(ProcessingChannel::RENDERING);
         if (renderIt != ownerNode_->components_.end())
         {

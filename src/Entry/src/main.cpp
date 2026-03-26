@@ -5,7 +5,7 @@
 #include <iostream>
 
 // IMPORTANT: THIS TAG BELOW DOES THE COMPILATION MAGIC SO DON'T FUCKING REMOVE THX
-//_80CC_USER_INCLUDES
+_80CC_USER_INCLUDES;
 
 using namespace ettycc; // IMPORTANT!!!
 
@@ -17,6 +17,8 @@ int main(int argc, char* argv[])
     std::shared_ptr<Resources> resourcesInstance = std::make_shared<Resources>();
 
 #ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
+    // Editor build: tell the engine so Init() restores the last scene instead of running modules.
+    engineInstance->SetEditorMode(true);
     auto developmentEditor = std::make_shared<DevEditor>(engineInstance);
     app->AddExecutionPipeline(developmentEditor);
 #endif
@@ -29,7 +31,7 @@ int main(int argc, char* argv[])
         return 1;
 
     // IMPORTANT: THIS TAG BELOW DOES THE COMPILATION MAGIC SO DON'T FUCKING REMOVE THX
-    //_80CC_USER_CODE
+    _80CC_USER_CODE;
     
     return app->Exec();
 }

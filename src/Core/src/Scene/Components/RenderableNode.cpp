@@ -50,9 +50,9 @@ namespace ettycc
         // Delegates to Renderable::Inspect (virtual) so Sprite, Camera, etc.
         // each show their own fields.  The call chain is:
         //   RenderableNode::InspectProperties
-        //     → Sprite::Inspect        (PROP_SECTION "Sprite" + texture path)
-        //       → Renderable::Inspect  (enabled + PROP_SECTION "Transform")
-        //         → Transform::Inspect (position / rotation / scale)
+        //     -> Sprite::Inspect        (PROP_SECTION "Sprite" + texture path)
+        //       -> Renderable::Inspect  (enabled + PROP_SECTION "Transform")
+        //         -> Transform::Inspect (position / rotation / scale)
         renderable_->Inspect(v);
 
         PROP_RO(renderableId_, "Renderable ID");

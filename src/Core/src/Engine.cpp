@@ -117,6 +117,33 @@ namespace ettycc
         spdlog::info("Editor camera initialized [1200x800]");
     }
 
+    void Engine::EnsureGameCamera()
+    {
+        // Find the first Camera already in the render list (added by a scene node).
+        std::shared_ptr<Camera> cam;
+        for (const auto& r : renderEngine_.GetRenderables())
+        {
+            if (auto c = std::dynamic_pointer_cast<Camera>(r)) { cam = c; break; }
+        }
+
+        if (!cam)
+        {
+            // No camera in scene — spawn a default free-fly camera.
+            auto sz = appInstance_->GetMainWindowSize();
+            cam = std::make_shared<Camera>(sz.x, sz.y);
+            cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
+            cam->Init(GetDependency(Engine));
+            editorCamera_ = cam;
+            spdlog::info("[Engine] No scene camera — spawned default [{}x{}]", sz.x, sz.y);
+        }
+
+        // Attach pan/zoom/scroll controls so the player can navigate in standalone.
+        cam->AttachEditorControl(&inputSystem_);
+
+        // Camera must be first so it populates ctx matrices before sprites draw.
+        renderEngine_.EnsureFirst(cam);
+    }
+
     void Engine::LoadDefaultScene()
     {
         spdlog::warn("[Engine] loading fallback physics scene...");
@@ -149,15 +176,18 @@ namespace ettycc
             for (int j = 0; j < row.count; ++j)
             {
                 glm::vec3 pos(startX + j * STEP, row.y, 0.0f);
-                bool useSoft = (r == 0) ? (j % 2 != 0)   // row 0: odd indices → soft
-                             : (r == 1) ? (j % 2 == 0)   // row 1: even indices → soft
-                             :            (j % 2 != 0);  // row 2: odd index → soft
+                bool useSoft = (r == 0) ? (j % 2 != 0)   // row 0: odd indices -> soft
+                             : (r == 1) ? (j % 2 == 0)   // row 1: even indices -> soft
+                             :            (j % 2 != 0);  // row 2: odd index -> soft
                 if (useSoft)
                     createSoftBody(root, tex, UNIT, pos, 1.0f);
                 else
                     createPhysicsBox(root, tex, 1.0f, glm::vec3(UNIT, UNIT, 0.5f), pos);
             }
         }
+
+        if (!isEditorMode_)
+            EnsureGameCamera();
     }
 
     void Engine::LoadLastScene()
@@ -218,6 +248,9 @@ namespace ettycc
         {
             spdlog::error("Errors occurred when processing scene...");
         }
+
+        if (!isEditorMode_)
+            EnsureGameCamera();
     }
 
     void Engine::StoreScene(const std::string &sceneName, const bool defaultPath) const
@@ -269,15 +302,16 @@ namespace ettycc
         ConfigResource();
         physicsWorld_.Init();
 
-        // If game modules present then they have to load the scene from there, otherwise it will load the last loaded scene (thus due to editor logic)
-        // TODO: This condition is wrong, it needs to know if is an editor or game executable
-        if (gameModules_.size() > 0)
+        // isEditorMode_ is set by main.cpp (or any host) before Init() is called.
+        // Editor  -> always restore the last scene; game modules are not run at start.
+        // Standalone -> run game modules (they own scene loading); fall back to last scene.
+        if (!isEditorMode_ && !gameModules_.empty())
         {
-            for (const auto &module : gameModules_)
+            for (const auto& module : gameModules_)
             {
                 if (!module)
                 {
-                    spdlog::error("Cannot initialize [{}] game module", module->name_);
+                    spdlog::error("Null game module in registration list, skipping");
                     continue;
                 }
                 module->OnStart(this);
@@ -286,10 +320,16 @@ namespace ettycc
         }
         else
         {
+            if (!isEditorMode_ && gameModules_.empty())
+                spdlog::warn("[Engine] No game modules registered — loading last scene");
+
             LoadLastScene();
         }
 
-        spdlog::warn("Scene loaded [{}]", mainScene_->sceneName_);
+        if (mainScene_)
+            spdlog::info("[Engine] Active scene [{}]", mainScene_->sceneName_);
+        else
+            spdlog::error("[Engine] No scene available after Init");
     }
 
     void Engine::Update()
@@ -343,7 +383,7 @@ namespace ettycc
     //
     // IMPORTANT: all three components (RenderableNode, RigidBodyComponent,
     // NetworkComponent) must be added to the SceneNode BEFORE AddChild is
-    // called.  AddChild → AddNode fires OnStart once for every component
+    // called.  AddChild -> AddNode fires OnStart once for every component
     // already present on the node.  Adding a component after AddChild skips
     // OnStart entirely, leaving syncTransform_ / rigidBody_ as nullptr and
     // the component never registered with NetworkManager.
@@ -363,7 +403,7 @@ namespace ettycc
         createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3( 9.3f,  0.0f, 0.0f));
 
         // Build a replicated box: ALL components are added before AddChild so
-        // that AddNode → OnStart runs once for all of them together.
+        // that AddNode -> OnStart runs once for all of them together.
         uint32_t netId = 1;
         static int netBoxIdx = 0;
         auto makeNetBox = [&](glm::vec3 halfExt, glm::vec3 pos)
@@ -376,7 +416,7 @@ namespace ettycc
             node->AddComponent(std::make_shared<RenderableNode>(sprite));
             node->AddComponent(std::make_shared<RigidBodyComponent>(1.0f, halfExt, pos));
             node->AddComponent(std::make_shared<NetworkComponent>(netId++));
-            root->AddChild(node); // OnStart fired once for all three ↑
+            root->AddChild(node); // OnStart fired once for all three ^
         };
 
         for (int i = 0; i < 5; ++i)

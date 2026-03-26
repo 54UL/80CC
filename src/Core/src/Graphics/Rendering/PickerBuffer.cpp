@@ -102,7 +102,7 @@ namespace ettycc
             const uint32_t  id  = i + 1;
             const glm::vec3 col = IdToColor(id);
 
-            // Store quantised RGB → id in lookup table
+            // Store quantised RGB -> id in lookup table
             const auto r8 = static_cast<uint8_t>(col.r * 255.0f + 0.5f);
             const auto g8 = static_cast<uint8_t>(col.g * 255.0f + 0.5f);
             const auto b8 = static_cast<uint8_t>(col.b * 255.0f + 0.5f);

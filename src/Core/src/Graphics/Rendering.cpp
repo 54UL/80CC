@@ -38,21 +38,34 @@ namespace ettycc
     {
         static float accumulatedTime = 0;
         accumulatedTime += deltaTime;
-        if (!sceneFrameBuffer_) return;
-        
-        // Frame buffer Single camera  implementation 
-        // TODO: (Get all the cameras instead and then do the framebuffer pass then pass the propper camera model and view matrixes to each viewport...)
 
-        // TODO: ADD HERE EDITOR FBO AND PBO  BINDING
-        sceneFrameBuffer_->BeginFrame();
+        // FBO is optional: editor sets one (viewport texture); standalone renders
+        // directly to GL 0 (the window), which SDL2App already bound in PrepareFrame.
+        if (sceneFrameBuffer_)
+            sceneFrameBuffer_->BeginFrame();
 
         for (auto renderable : renderables_)
-        {
             renderable->Pass(this->renderingCtx_, deltaTime);
-        }
-        
 
-        sceneFrameBuffer_->EndFrame();
+        if (sceneFrameBuffer_)
+            sceneFrameBuffer_->EndFrame();
+    }
+
+    void Rendering::EnsureFirst(const std::shared_ptr<Renderable>& renderable)
+    {
+        auto it = std::find(renderables_.begin(), renderables_.end(), renderable);
+        if (it != renderables_.end())
+        {
+            if (it != renderables_.begin())
+            {
+                renderables_.erase(it);
+                renderables_.insert(renderables_.begin(), renderable);
+            }
+        }
+        else
+        {
+            renderables_.insert(renderables_.begin(), renderable);
+        }
     }
 
     const std::vector<std::shared_ptr<Renderable>>& Rendering::GetRenderables() const

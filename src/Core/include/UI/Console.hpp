@@ -1,6 +1,8 @@
 #ifndef UI_CONSOLE_HPP
 #define UI_CONSOLE_HPP
 
+#include <imgui.h>
+
 namespace ettycc
 {
     struct DebugConsole

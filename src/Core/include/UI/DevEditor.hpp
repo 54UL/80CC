@@ -5,6 +5,7 @@
 #include <App/ExecutionPipeline.hpp>
 #include <UI/Console.hpp>
 #include <UI/ImGuiConsoleSink.hpp>
+#include <UI/BuildPanel.hpp>
 #include <Scene/Assets/AssetBuilder.hpp>
 #include <Graphics/Rendering/PickerBuffer.hpp>
 
@@ -39,7 +40,6 @@ namespace ettycc
         void ShowInspector();
         void ShowAssetsView();
         void ShowSceneHierarchy();
-
         // SCENE HIERARCHY
         std::shared_ptr<Engine> engineInstance_;
         std::vector<std::shared_ptr<SceneNode>> selectedNodes_;
@@ -97,6 +97,9 @@ namespace ettycc
 
         // MISC
         GLuint LoadTextureFromFile(const char* filePath);
+
+        // BUILD WINDOW
+        BuildPanel buildPanel_;
     };
 } // namespace ettycc
 

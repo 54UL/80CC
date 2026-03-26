@@ -60,7 +60,7 @@ namespace ettycc
         // Encode packed RGB to lookup key
         static uint32_t  PackColor(uint8_t r, uint8_t g, uint8_t b);
 
-        // Rebuilt every RenderPass: packed RGB → object ID
+        // Rebuilt every RenderPass: packed RGB -> object ID
         mutable std::unordered_map<uint32_t, uint32_t> colorToId_;
     };
 }

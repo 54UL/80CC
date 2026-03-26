@@ -8,6 +8,8 @@
 #include <Input/Controls/EditorCamera.hpp>
 #include <unordered_map>
 #include <algorithm>
+#include <cstring>
+#include <cstdio>
 #include <portable-file-dialogs.h>
 
 #undef max
@@ -32,7 +34,7 @@ namespace ettycc
         spdlog::default_logger()->sinks().push_back(consoleSink);
     }
 
-    DevEditor::~DevEditor() {}
+    DevEditor::~DevEditor() = default;
 
     // -------------------------------------------------------------------------
     // ASSET BROWSER HELPERS
@@ -290,6 +292,7 @@ namespace ettycc
             ImGui::DockBuilderDockWindow("Inspector",      right);
             ImGui::DockBuilderDockWindow("Debug",          bottomLeft);
             ImGui::DockBuilderDockWindow("Assets",         bottomRight);
+            ImGui::DockBuilderDockWindow("Build",          bottomRight); // tab behind Assets
 
             ImGui::DockBuilderFinish(dsId);
         }
@@ -460,7 +463,7 @@ namespace ettycc
                              imgMin.y + (1.f - (n.y * 0.5f + 0.5f)) * avail.y };
                 };
 
-                glm::vec3 wPos = selRN->renderable_->GetTransform().getGlobalPosition();
+                glm::vec3 wPos = selRN->renderable_->GetTransform().getGlobalPosition(); //TODO: fix this big pice of shit, transforms should come from the node not an specific component
                 gizmoOrigin = toScreen(wPos);
                 gizmoXTip   = { gizmoOrigin.x + HANDLE_LEN, gizmoOrigin.y };
                 gizmoYTip   = { gizmoOrigin.x, gizmoOrigin.y - HANDLE_LEN };
@@ -1607,6 +1610,7 @@ namespace ettycc
         ShowInspector();
         ShowSceneHierarchy();
         ShowAssetsView();
+        buildPanel_.Draw();
     }
 
     void DevEditor::Init()

@@ -108,7 +108,7 @@ namespace ettycc
 
     void RigidBodyComponent::OnUpdate(float /*deltaTime*/)
     {
-        // Skip physics→visual sync while the editor gizmo is manipulating this body
+        // Skip physics->visual sync while the editor gizmo is manipulating this body
         if (!body_ || !syncTransform_ || mass_ == 0.0f || isManipulated_)
             return;
 

@@ -79,6 +79,10 @@
                     {
                         "key": "last_scene",
                         "value": "default_scene.json"
+                    },
+                    {
+                        "key": "editor_default_scene",
+                        "value": "default_scene.json"
                     }
                 ]
             }

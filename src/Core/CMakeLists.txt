@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(80CC_CORE_HEADERS
+    include/Build/ProjectGenerator.hpp
     include/80CC.hpp
     include/Paths.hpp
     include/Engine.hpp
@@ -42,6 +43,7 @@ set(80CC_CORE_HEADERS
     include/Input/Controls/EditorCamera.hpp
     include/Game/GameModule.hpp
     include/UI/DevEditor.hpp
+    include/UI/BuildPanel.hpp
     include/UI/Console.hpp
     include/UI/EditorPropertyVisitor.hpp
     include/Scene/PropertySystem.hpp
@@ -86,6 +88,7 @@ set(80CC_CORE_SOURCES
     src/Input/Controls/GhostCamera.cpp
     src/Input/Controls/EditorCamera.cpp
     src/UI/DevEditor.cpp
+    src/UI/BuildPanel.cpp
     src/Engine.cpp
     src/Networking/NetworkManager.cpp
     src/Networking/NetworkComponent.cpp

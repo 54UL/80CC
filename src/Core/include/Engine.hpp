@@ -38,10 +38,18 @@ namespace ettycc
         PlayerInput            inputSystem_;
         NetworkManager         networkManager_;
         std::shared_ptr<Scene> mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
+
+    private:
+        bool isEditorMode_ = false;
         
     public:
         Engine(std::shared_ptr<App> appInstance);
         ~Engine() override;
+
+        // Call before Init(). True = running inside DevEditor, False = standalone game executable.
+        // This is the single source of truth for editor/game mode at runtime.
+        void SetEditorMode(bool isEditor) { isEditorMode_ = isEditor; }
+        bool IsEditorMode()         const { return isEditorMode_; }
 
         static void createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos);
         void createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
@@ -52,6 +60,10 @@ namespace ettycc
 
         // Engine front-end API
         void InitEditorCamera();
+        // Scans scene renderables for the first Camera; creates a default free-fly
+        // camera if none exists. Ensures the camera is first in the render list.
+        // Called automatically after every scene load in standalone mode.
+        void EnsureGameCamera();
         void LoadDefaultScene();
         void LoadPhysicsScene();
         // Engine front-end API
