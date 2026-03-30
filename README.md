@@ -3,4 +3,4 @@ Personal game engine for 2d games.
 
 ### Editor WIP
 
-![editor-wip](https://github.com/54UL/80CC/blob/main/gallery/editor-wip-2.png)
+![editor-wip](https://github.com/54UL/80CC/blob/main/gallery/editor-wip-3.png)
