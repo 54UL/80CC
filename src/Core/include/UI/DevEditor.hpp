@@ -55,7 +55,8 @@ namespace ettycc
         void AddComponentFromTemplate(const std::shared_ptr<SceneNode>& selectedNode, const char* templateName);
 
         // ASSET BROWSER ############################################################
-        enum class AssetType { Template, Scene, Config, Code, Shader, Image, Unknown };
+        //TODO: URGENT REFACTORS (forgive me)
+        enum class AssetType { Template, Scene, Config, Code, Shader, Image, Audio, Unknown };
 
         struct AssetEntry {
             std::string path;

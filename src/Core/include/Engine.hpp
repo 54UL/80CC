@@ -14,15 +14,53 @@
 #include <Game/GameModule.hpp>
 #include <Physics/PhysicsWorld.hpp>
 #include <Networking/NetworkManager.hpp>
+#include <Audio/AudioManager.hpp>
 
 #include <memory>
 #include <vector>
+#include <array>
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
 
 namespace ettycc
 {
+    // ── Per-frame thread timing data ──────────────────────────────────────────
+    // Written by Engine each frame, read by DevEditor for the Threads debug tab.
+    // All values are in milliseconds.
+    struct ChannelSample
+    {
+        float durationMs = 0.f;
+        bool  async      = false; // true when the channel ran on a worker thread
+    };
+
+    struct ThreadDebugInfo
+    {
+        static constexpr int kHistorySize = 96;
+
+        ChannelSample physics;    // physicsWorld_.Step + networkManager_.Poll
+        ChannelSample main;       // Scene::Process(MAIN)
+        ChannelSample audio;      // audioManager_.Update + Scene::Process(AUDIO)
+        ChannelSample rendering;  // Scene::Process(RENDERING) + renderEngine_.Pass
+        float updatePhaseMs  = 0.f; // total Engine::Update duration
+        float presentPhaseMs = 0.f; // total Engine::PresentFrame duration
+
+        // Rolling histories for sparkline plots (ring-buffer, newest at tail)
+        std::array<float, kHistorySize> mainHistory      {};
+        std::array<float, kHistorySize> audioHistory     {};
+        std::array<float, kHistorySize> renderingHistory {};
+        std::array<float, kHistorySize> frameHistory     {};
+        int historyOffset = 0; // oldest-entry index into ring buffer
+
+        void PushSample()
+        {
+            mainHistory     [historyOffset] = main.durationMs;
+            audioHistory    [historyOffset] = audio.durationMs;
+            renderingHistory[historyOffset] = rendering.durationMs;
+            frameHistory    [historyOffset] = updatePhaseMs + presentPhaseMs;
+            historyOffset = (historyOffset + 1) % kHistorySize;
+        }
+    };
 
     class Engine : public EnginePipeline
     {
@@ -35,9 +73,11 @@ namespace ettycc
 
         Rendering              renderEngine_;
         PhysicsWorld           physicsWorld_;
+        AudioManager           audioManager_;
         PlayerInput            inputSystem_;
         NetworkManager         networkManager_;
-        std::shared_ptr<Scene> mainScene_; // THIS SHOULD BE A MULTI SCENE ARRAY...
+        std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
+        ThreadDebugInfo        threadDebugInfo_;
 
     private:
         bool isEditorMode_ = false;

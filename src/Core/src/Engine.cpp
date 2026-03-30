@@ -1,5 +1,7 @@
 #include <Engine.hpp>
 #include <Dependency.hpp>
+#include <future>
+#include <chrono>
 
 // TEST INCLUDE
 #include <Scene/Components/RenderableNode.hpp>
@@ -24,6 +26,15 @@ namespace ettycc
 
     Engine::~Engine()
     {
+        // Reset the scene BEFORE shutting down AudioManager.
+        // AudioSourceComponent::~AudioSourceComponent calls DestroySource(), which
+        // calls alDeleteSources() — those calls require a live AL context.
+        // If Shutdown() ran first the context would already be null and the
+        // OpenAL driver would abort().
+        mainScene_.reset();
+
+        audioManager_.Shutdown();
+
         // TODO: Check if this is appropiate to handle here...
         if (engineResources_)
         {
@@ -334,6 +345,10 @@ namespace ettycc
     {
         ConfigResource();
         physicsWorld_.Init();
+        audioManager_.Init();
+
+        if (isEditorMode_)
+            audioManager_.PlayStartupChime();
 
         // isEditorMode_ is set by main.cpp (or any host) before Init() is called.
         // Editor  -> always restore the last scene; game modules are not run at start.
@@ -367,19 +382,28 @@ namespace ettycc
 
     void Engine::Update()
     {
-        auto deltaTime = appInstance_->GetDeltaTime();
-        physicsWorld_.Step(deltaTime);
-        networkManager_.Poll();
-        mainScene_->Process(deltaTime, ProcessingChannel::MAIN);
+        using Clock = std::chrono::high_resolution_clock;
+        using Ms    = std::chrono::duration<float, std::milli>;
 
-        // Update game modules state...
-        if (gameModules_.size() > 0)
-        {
-            for (const auto &module : gameModules_)
-            {
-                module->OnUpdate(deltaTime);
-            }
-        }
+        const float dt        = appInstance_->GetDeltaTime();
+        const auto  frameStart = Clock::now();
+
+        // ── Phase 1: serial systems that WRITE to scene state ─────────────────
+        auto t0 = Clock::now();
+        physicsWorld_.Step(dt);
+        networkManager_.Poll();
+        threadDebugInfo_.physics.durationMs = Ms(Clock::now() - t0).count();
+        threadDebugInfo_.physics.async      = false;
+
+        auto t1 = Clock::now();
+        mainScene_->Process(dt, ProcessingChannel::MAIN);
+        threadDebugInfo_.main.durationMs = Ms(Clock::now() - t1).count();
+        threadDebugInfo_.main.async      = false;
+
+        for (const auto& module : gameModules_)
+            module->OnUpdate(dt);
+
+        threadDebugInfo_.updatePhaseMs = Ms(Clock::now() - frameStart).count();
     }
 
     void Engine::PrepareFrame()
@@ -388,10 +412,41 @@ namespace ettycc
 
     void Engine::PresentFrame()
     {
-        mainScene_->Process(appInstance_->GetDeltaTime(), ProcessingChannel::RENDERING);
+        using Clock = std::chrono::high_resolution_clock;
+        using Ms    = std::chrono::duration<float, std::milli>;
 
-        renderEngine_.Pass(appInstance_->GetDeltaTime()); // this just broke the shader animations lol
-        inputSystem_.ResetState(); // TODO: CHECK IF IS MORE SUITIABLE TO HAVING IT ON THE DEFAULT CASE WHEN PROCESSING INPUT (ALWAYS ENTERS THERE)
+        const float dt         = appInstance_->GetDeltaTime();
+        const auto  frameStart = Clock::now();
+
+        auto scene = mainScene_;
+
+        // Audio timing is written to threadDebugInfo_ (a member, not a stack var)
+        // so there is no lifetime hazard if an exception unwinds before get().
+        threadDebugInfo_.audio.durationMs = 0.f;
+
+        auto audioFuture = std::async(std::launch::async, [this, scene, dt]()
+        {
+            auto t = Clock::now();
+            audioManager_.Update();
+            scene->Process(dt, ProcessingChannel::AUDIO);
+            // safe: this is a member write; join in get() provides happens-before
+            threadDebugInfo_.audio.durationMs = Ms(Clock::now() - t).count();
+        });
+
+        auto t2 = Clock::now();
+        scene->Process(dt, ProcessingChannel::RENDERING);
+        renderEngine_.Pass(dt);
+        threadDebugInfo_.rendering.durationMs = Ms(Clock::now() - t2).count();
+        threadDebugInfo_.rendering.async      = false;
+
+        audioFuture.get(); // join — threadDebugInfo_.audio.durationMs written by worker
+
+        threadDebugInfo_.audio.async = true;
+
+        threadDebugInfo_.presentPhaseMs = Ms(Clock::now() - frameStart).count();
+        threadDebugInfo_.PushSample();
+
+        inputSystem_.ResetState();
     }
 
     PlayerInput * Engine::GetInputSystem()

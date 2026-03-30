@@ -16,6 +16,7 @@ namespace ettycc::paths
     const std::string SCENE_DEFAULT     = "scenes/";
     const std::string TEMPLATES_DEFAULT  = "templates/";
     const std::string BUILD_CONFIG_FILE  = "config/build_config.json";
+    const std::string AUDIO_DEFAULT      = "audio/";
 } // namespace ettycc
 
 #endif

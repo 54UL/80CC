@@ -197,12 +197,13 @@ namespace ettycc
 
     auto SceneNode::ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void
     {
-        auto componentsToProcess = components_[processingChannel];
+        // Use find() not operator[] — operator[] inserts a default entry when the
+        // key is absent, which is a write and causes data races when two channels
+        // run concurrently on the same node.
+        auto it = components_.find(processingChannel);
+        if (it == components_.end()) return;
 
-        // lol iterate just like this 4 the moment...
-        for (auto &component : componentsToProcess)
-        {
+        for (auto& component : it->second)
             component->OnUpdate(deltaTime);
-        }
     }
 }

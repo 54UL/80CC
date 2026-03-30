@@ -3,6 +3,8 @@
 #include <imgui_internal.h>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
+#include <Scene/Components/AudioSourceComponent.hpp>
+#include <Scene/Components/AudioListenerComponent.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
@@ -59,6 +61,8 @@ namespace ettycc
             return AssetType::Shader;
         if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
             return AssetType::Image;
+        if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac")
+            return AssetType::Audio;
         return AssetType::Unknown;
     }
 
@@ -71,6 +75,7 @@ namespace ettycc
             case AssetType::Code:     return {0.90f, 0.55f, 0.10f, 1.f}; // orange
             case AssetType::Shader:   return {0.58f, 0.44f, 0.86f, 1.f}; // purple
             case AssetType::Image:    return {0.13f, 0.70f, 0.67f, 1.f}; // teal
+            case AssetType::Audio:    return {0.90f, 0.40f, 0.80f, 1.f}; // magenta
             default:                  return {0.35f, 0.35f, 0.35f, 1.f};
         }
     }
@@ -84,6 +89,7 @@ namespace ettycc
             case AssetType::Code:     return "C++";
             case AssetType::Shader:   return "SHD";
             case AssetType::Image:    return "IMG";
+            case AssetType::Audio:    return "SFX";
             default:                  return "???";
         }
     }
@@ -97,6 +103,7 @@ namespace ettycc
             case AssetType::Code:     return "Source Code";
             case AssetType::Shader:   return "Shader";
             case AssetType::Image:    return "Image";
+            case AssetType::Audio:    return "Audio Clip";
             default:                  return "Unknown";
         }
     }
@@ -710,6 +717,41 @@ namespace ettycc
                 }
             }
 
+            // ─── Audio source gizmo ───────────────────────────────────────────
+            // Draw min/max distance rings when an AudioSourceComponent (Spatial)
+            // is present on the selected node.
+            if (selNode)
+            {
+                auto audioComp = selNode->GetComponentByName(AudioSourceComponent::componentType);
+                if (audioComp)
+                {
+                    auto* src = dynamic_cast<AudioSourceComponent*>(audioComp.get());
+                    if (src && src->GetMode() == AudioSourceComponent::AudioMode::Spatial)
+                    {
+                        // worldPerPixel was computed in the hover block above.
+                        // gizmoOrigin is the screen-space centre of the node.
+                        ImDrawList* dl = ImGui::GetWindowDrawList();
+
+                        const float minPx = src->GetMinDistance() / worldPerPixel;
+                        const float maxPx = src->GetMaxDistance() / worldPerPixel;
+
+                        // Inner ring — full-volume zone (bright green)
+                        dl->AddCircle(gizmoOrigin, minPx,
+                                      IM_COL32(80, 230, 80, 200), 64, 1.5f);
+                        // Outer ring — silence boundary (orange, faded)
+                        dl->AddCircle(gizmoOrigin, maxPx,
+                                      IM_COL32(255, 140, 40, 130), 64, 1.0f);
+
+                        // Label on the inner ring
+                        dl->AddText({ gizmoOrigin.x + minPx + 4.f, gizmoOrigin.y - 8.f },
+                                    IM_COL32(80, 230, 80, 220), "min");
+                        // Label on the outer ring
+                        dl->AddText({ gizmoOrigin.x + maxPx + 4.f, gizmoOrigin.y - 8.f },
+                                    IM_COL32(255, 140, 40, 200), "max");
+                    }
+                }
+            }
+
             // ─── Camera pan / focus ───────────────────────────────────────────
             static bool    isViewportFocused = false;
             static ImVec2  lockedCursorPos;
@@ -851,6 +893,13 @@ namespace ettycc
                 ImGui::TextWrapped("Drag onto the viewport to spawn this prefab into the scene.");
             }
 
+            if (selectedAsset_.type == AssetType::Audio)
+            {
+                ImGui::Spacing();
+                ImGui::TextWrapped("Audio clip — add an Audio Source component to a scene node "
+                                   "and set 'Clip Path' to this file's path.");
+            }
+
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::TextColored({1.0f, 0.6f, 0.15f, 1.0f}, "[ Source: Asset ]");
@@ -970,8 +1019,19 @@ namespace ettycc
 
             if (ImGui::BeginPopup("add_component_popup"))
             {
-                if (ImGui::MenuItem("Camera")) AddComponentFromTemplate(selectedNode, "Camera");
-                if (ImGui::MenuItem("Sprite")) AddComponentFromTemplate(selectedNode, "Sprite");
+                if (ImGui::MenuItem("Camera"))        AddComponentFromTemplate(selectedNode, "Camera");
+                if (ImGui::MenuItem("Sprite"))        AddComponentFromTemplate(selectedNode, "Sprite");
+                ImGui::Separator();
+                if (ImGui::MenuItem("Audio Source"))
+                {
+                    auto comp = std::make_shared<AudioSourceComponent>();
+                    selectedNode->AddComponent(comp);
+                }
+                if (ImGui::MenuItem("Audio Listener"))
+                {
+                    auto comp = std::make_shared<AudioListenerComponent>();
+                    selectedNode->AddComponent(comp);
+                }
                 ImGui::EndPopup();
             }
 
@@ -986,10 +1046,10 @@ namespace ettycc
                     auto info = comp->GetComponentInfo();
 
                     // Channel badge: tiny colored text before the component name
-                    const bool isRender = (channel == ProcessingChannel::RENDERING);
-                    ImVec4 badgeCol = isRender
-                        ? ImVec4(0.35f, 0.75f, 1.f,  1.f)
-                        : ImVec4(1.f,   0.75f, 0.2f, 1.f);
+                    ImVec4 badgeCol;
+                    if      (channel == ProcessingChannel::RENDERING) badgeCol = {0.35f, 0.75f, 1.f,  1.f}; // blue
+                    else if (channel == ProcessingChannel::AUDIO)     badgeCol = {0.90f, 0.40f, 0.80f, 1.f}; // magenta
+                    else                                              badgeCol = {1.f,   0.75f, 0.2f, 1.f};  // yellow
 
                     char headerLabel[128];
                     snprintf(headerLabel, sizeof(headerLabel),
@@ -1569,6 +1629,158 @@ namespace ettycc
                         }
                         ImGui::EndTable();
                     }
+                }
+
+                ImGui::EndTabItem();
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            if (ImGui::BeginTabItem("Threads"))
+            {
+                auto& td  = engineInstance_->threadDebugInfo_;
+                int   off = td.historyOffset;
+
+                const float avail = ImGui::GetContentRegionAvail().x;
+
+                // ── Per-channel stat table ────────────────────────────────────
+                ImGui::SeparatorText("Channel Timings");
+
+                struct Row { const char* label; const ChannelSample* s; ImVec4 col; };
+                Row rows[] = {
+                    { "Physics+Net", &td.physics,   {0.55f, 0.85f, 0.40f, 1.f} },
+                    { "MAIN",        &td.main,       {0.30f, 0.65f, 1.00f, 1.f} },
+                    { "RENDERING",   &td.rendering,  {1.00f, 0.55f, 0.20f, 1.f} },
+                    { "AUDIO",       &td.audio,      {0.90f, 0.40f, 0.85f, 1.f} },
+                };
+
+                if (ImGui::BeginTable("##threadtable", 4,
+                        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                        ImGuiTableFlags_SizingFixedFit))
+                {
+                    ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthFixed, 100.f);
+                    ImGui::TableSetupColumn("ms",      ImGuiTableColumnFlags_WidthFixed,  60.f);
+                    ImGui::TableSetupColumn("Thread",  ImGuiTableColumnFlags_WidthFixed,  70.f);
+                    ImGui::TableSetupColumn("Bar",     ImGuiTableColumnFlags_WidthStretch);
+                    ImGui::TableHeadersRow();
+
+                    // find max for bar scaling
+                    float maxMs = 0.1f;
+                    for (auto& r : rows) maxMs = std::max(maxMs, r.s->durationMs);
+
+                    for (auto& r : rows)
+                    {
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::TextColored(r.col, "%s", r.label);
+
+                        ImGui::TableSetColumnIndex(1);
+                        ImGui::Text("%.2f", r.s->durationMs);
+
+                        ImGui::TableSetColumnIndex(2);
+                        ImGui::TextDisabled(r.s->async ? "worker" : "main");
+
+                        ImGui::TableSetColumnIndex(3);
+                        float barW = (r.s->durationMs / maxMs) *
+                                     ImGui::GetContentRegionAvail().x;
+                        ImVec2 p = ImGui::GetCursorScreenPos();
+                        ImGui::GetWindowDrawList()->AddRectFilled(
+                            p, { p.x + barW, p.y + 12.f },
+                            ImGui::ColorConvertFloat4ToU32(r.col));
+                        ImGui::Dummy({ ImGui::GetContentRegionAvail().x, 12.f });
+                    }
+                    ImGui::EndTable();
+                }
+
+                ImGui::Spacing();
+                ImGui::Text("Update phase:  %.2f ms", td.updatePhaseMs);
+                ImGui::SameLine(180);
+                ImGui::Text("Present phase: %.2f ms", td.presentPhaseMs);
+                ImGui::Text("Frame total:   %.2f ms  (%.1f fps)",
+                            td.updatePhaseMs + td.presentPhaseMs,
+                            td.updatePhaseMs + td.presentPhaseMs > 0.f
+                                ? 1000.f / (td.updatePhaseMs + td.presentPhaseMs)
+                                : 0.f);
+
+                // ── Timeline (two horizontal rows: main / worker) ─────────────
+                ImGui::SeparatorText("Frame Timeline  (this frame)");
+                ImGui::TextDisabled("Main thread: [Physics][  MAIN  ] ... [  RENDERING  ]");
+                ImGui::TextDisabled("Worker:                             [    AUDIO     ]");
+                ImGui::Spacing();
+
+                float total = td.updatePhaseMs + td.presentPhaseMs;
+                if (total > 0.f)
+                {
+                    const float tlW  = avail - 8.f;
+                    const float rowH = 18.f;
+                    const float gap  = 4.f;
+
+                    ImDrawList* dl   = ImGui::GetWindowDrawList();
+                    ImVec2 origin    = ImGui::GetCursorScreenPos();
+
+                    auto drawSegment = [&](float xStart, float dur, ImVec4 col,
+                                          const char* lbl, float rowY)
+                    {
+                        float x0 = origin.x + (xStart / total) * tlW;
+                        float x1 = origin.x + ((xStart + dur)  / total) * tlW;
+                        if (x1 <= x0 + 1.f) x1 = x0 + 2.f;
+                        ImU32 c = ImGui::ColorConvertFloat4ToU32(col);
+                        dl->AddRectFilled({x0, rowY}, {x1, rowY + rowH}, c, 3.f);
+                        dl->AddRect      ({x0, rowY}, {x1, rowY + rowH},
+                                          IM_COL32(0,0,0,120), 3.f);
+                        // label if wide enough
+                        ImVec2 tsz = ImGui::CalcTextSize(lbl);
+                        if (x1 - x0 > tsz.x + 4.f)
+                            dl->AddText({x0 + (x1-x0-tsz.x)*0.5f,
+                                         rowY + (rowH-tsz.y)*0.5f},
+                                        IM_COL32(255,255,255,230), lbl);
+                    };
+
+                    float row0 = origin.y;
+                    float row1 = origin.y + rowH + gap;
+
+                    // Main thread row: physics | MAIN | (gap = module/overhead) | RENDERING
+                    float physStart  = 0.f;
+                    float mainStart  = physStart + td.physics.durationMs;
+                    float renderOff  = td.updatePhaseMs; // rendering starts in PresentFrame
+                    drawSegment(physStart,  td.physics.durationMs,   {0.55f,0.85f,0.40f,0.9f}, "Phys",    row0);
+                    drawSegment(mainStart,  td.main.durationMs,       {0.30f,0.65f,1.00f,0.9f}, "MAIN",    row0);
+                    drawSegment(renderOff,  td.rendering.durationMs,  {1.00f,0.55f,0.20f,0.9f}, "REND",    row0);
+
+                    // Worker row: audio starts in parallel with RENDERING
+                    drawSegment(renderOff,  td.audio.durationMs,      {0.90f,0.40f,0.85f,0.9f}, "AUDIO",   row1);
+
+                    // Labels
+                    dl->AddText({origin.x, row0 + rowH + 2.f},  IM_COL32(180,180,180,160), "main");
+                    dl->AddText({origin.x, row1 + rowH + 2.f},  IM_COL32(180,180,180,160), "worker");
+
+                    // Advance cursor past the two rows + labels
+                    ImGui::Dummy({tlW, rowH * 2.f + gap + 14.f});
+                }
+
+                // ── Rolling sparkline histories ───────────────────────────────
+                ImGui::SeparatorText("History");
+
+                struct Plot { const char* lbl; const float* data; ImVec4 col; };
+                Plot plots[] = {
+                    { "MAIN (ms)",      td.mainHistory.data(),      {0.30f, 0.65f, 1.00f, 1.f} },
+                    { "AUDIO (ms)",     td.audioHistory.data(),     {0.90f, 0.40f, 0.85f, 1.f} },
+                    { "RENDERING (ms)", td.renderingHistory.data(), {1.00f, 0.55f, 0.20f, 1.f} },
+                    { "Frame (ms)",     td.frameHistory.data(),     {0.85f, 0.85f, 0.20f, 1.f} },
+                };
+                for (auto& p : plots)
+                {
+                    float maxV = 0.1f;
+                    for (int i = 0; i < ThreadDebugInfo::kHistorySize; ++i)
+                        maxV = std::max(maxV, p.data[i]);
+                    char overlay[32];
+                    snprintf(overlay, sizeof(overlay), "%.2f ms", p.data[
+                        (off + ThreadDebugInfo::kHistorySize - 1) % ThreadDebugInfo::kHistorySize]);
+                    ImGui::PushStyleColor(ImGuiCol_PlotLines,
+                                          ImGui::ColorConvertFloat4ToU32(p.col));
+                    ImGui::PlotLines(p.lbl, p.data, ThreadDebugInfo::kHistorySize,
+                                     off, overlay, 0.f, maxV * 1.2f,
+                                     ImVec2(avail, 45.f));
+                    ImGui::PopStyleColor();
                 }
 
                 ImGui::EndTabItem();

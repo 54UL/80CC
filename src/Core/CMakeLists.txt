@@ -24,6 +24,9 @@ set(80CC_CORE_HEADERS
     include/Scene/Components/RenderableNode.hpp
     include/Scene/Components/RigidBodyComponent.hpp
     include/Scene/Components/SoftBodyComponent.hpp
+    include/Scene/Components/AudioSourceComponent.hpp
+    include/Scene/Components/AudioListenerComponent.hpp
+    include/Audio/AudioManager.hpp
     include/Physics/PhysicsWorld.hpp
     include/Graphics/Rendering/Entities/SoftBodyRenderable.hpp
     include/Scene/Assets/AssetLoader.hpp
@@ -80,6 +83,9 @@ set(80CC_CORE_SOURCES
     src/Scene/Components/RenderableNode.cpp
     src/Scene/Components/RigidBodyComponent.cpp
     src/Scene/Components/SoftBodyComponent.cpp
+    src/Scene/Components/AudioSourceComponent.cpp
+    src/Scene/Components/AudioListenerComponent.cpp
+    src/Audio/AudioManager.cpp
     src/Physics/PhysicsWorld.cpp
     src/Graphics/Rendering/Entities/SoftBodyRenderable.cpp
     src/Graphics/Rendering.cpp
@@ -112,6 +118,7 @@ set(80CC_CORE_SOURCES
     external/imgui/backends/imgui_impl_opengl3.cpp)
 
 # PACKAGES...
+find_package(OpenAL MODULE REQUIRED)  # MODULE = bypass vcpkg's stale OpenALConfig.cmake
 find_package(spdlog CONFIG REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -147,4 +154,5 @@ target_link_libraries(80CC_CORE
     PUBLIC spdlog::spdlog
     PUBLIC cereal::cereal
     PUBLIC unofficial::enet::enet
-    PUBLIC ${BULLET_LIBRARIES})
+    PUBLIC ${BULLET_LIBRARIES}
+    PUBLIC OpenAL::OpenAL)
