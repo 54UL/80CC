@@ -4,7 +4,8 @@
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Dependency.hpp>
-#include <Dependencies/Resources.hpp>
+#include <Dependencies/Globals.hpp>
+#include <GlobalKeys.hpp>
 #include <Input/Controls/EditorCamera.hpp>
 #include <unordered_map>
 #include <algorithm>
@@ -26,7 +27,8 @@ namespace ettycc
     static bool frameBufferErrorShown = false;
 
     DevEditor::DevEditor(const std::shared_ptr<Engine>& engine)
-        : engineInstance_(engine), uiConsoleOpen_(false)
+        : engineInstance_(engine), uiConsoleOpen_(false),
+          buildPanel_(configurationsWindow_.GetBuildConfig())
     {
         // Register early so logs emitted during Engine::Init() are captured.
         // DebugConsole::AddLog only uses malloc/ImVector — no ImGui context needed.
@@ -327,7 +329,8 @@ namespace ettycc
 
             if (ImGui::BeginMenu("Editor"))
             {
-                ImGui::MenuItem("Configure", NULL);
+                if (ImGui::MenuItem("Configure", NULL))
+                    configurationsWindow_.Open();
                 ImGui::EndMenu();
             }
 
@@ -1592,6 +1595,7 @@ namespace ettycc
         }
 
         ShowMenuBar();
+        configurationsWindow_.Draw();
         ShowDockSpace();
         ShowDebugger();
         ShowEditorViewPort();
@@ -1614,8 +1618,8 @@ namespace ettycc
         pickerBuffer_ = std::make_shared<PickerBuffer>(glm::ivec2(1200, 800));
         pickerBuffer_->Init();
 
-        auto resources   = GetDependency(Resources);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get("paths", "shaders");
+        auto resources   = GetDependency(Globals);
+        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
         pickerBuffer_->InitShader(shadersPath);
     }
 

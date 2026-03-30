@@ -6,8 +6,15 @@
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Networking/NetworkComponent.hpp>
-#include <Dependencies/Resources.hpp>
+#include <Dependencies/Globals.hpp>
+#include <GlobalKeys.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
+#include <filesystem>
+#ifdef _WIN32
+#  include <windows.h>
+#else
+#  include <unistd.h>
+#endif
 
 namespace ettycc
 {
@@ -73,7 +80,7 @@ namespace ettycc
         renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("physics-scene");
 
-        const std::string tex = engineResources_->Get("sprites", "not-found");
+        const std::string tex = engineResources_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;
 
         // ── Static boundaries ─────────────────────────────────────────────────
@@ -152,7 +159,7 @@ namespace ettycc
         mainScene_ = std::make_shared<Scene>("default-scene");
 
         auto root = mainScene_->root_node_;
-        const std::string tex = engineResources_->Get("sprites", "not-found");
+        const std::string tex = engineResources_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
 
         // Static ground platform — wide and thin
         createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -4.5f, 0.0f));
@@ -192,7 +199,7 @@ namespace ettycc
 
     void Engine::LoadLastScene()
     {
-        auto lastLoadedScene = engineResources_->Get("state", "last_scene");
+        auto lastLoadedScene = engineResources_->Get(gk::prefix::STATE, gk::key::STATE_LAST_SCENE);
         spdlog::warn("Loading last scene: {}", lastLoadedScene);
 
         LoadScene(lastLoadedScene);
@@ -240,7 +247,7 @@ namespace ettycc
 
         if (mainScene_)
         {
-            engineResources_->Set("state", "last_scene", mainScene_->sceneName_);
+            engineResources_->Set(gk::prefix::STATE, gk::key::STATE_LAST_SCENE, mainScene_->sceneName_);
 
             spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
         }
@@ -290,11 +297,37 @@ namespace ettycc
 
     void Engine::ConfigResource()
     {
-        engineResources_ = GetDependency(Resources);
+        engineResources_ = GetDependency(Globals);
         engineResources_->AutoSetWorkingFolder();
 
         // Load 80CC.json, the working folder should point to the 80CC.JSON (important as hell...)
         engineResources_->Load(paths::RESOURCES_DEFAULT);
+
+        // Register runtime engine paths so any system can read them via Globals.
+        engineResources_->Set(gk::prefix::ENGINE, gk::key::ENGINE_WORKING_DIR,
+                              engineResources_->GetWorkingFolder());
+//TODO: REFACTOR
+#ifdef _WIN32
+        char exeBuf[512] = {};
+        if (GetModuleFileNameA(nullptr, exeBuf, sizeof(exeBuf)))
+        {
+            const std::string exeDir =
+                std::filesystem::path(exeBuf).parent_path().string();
+            engineResources_->Set(gk::prefix::ENGINE, gk::key::ENGINE_EXE_DIR, exeDir);
+        }
+#else
+        {
+            char exeBuf[512] = {};
+            ssize_t len = ::readlink("/proc/self/exe", exeBuf, sizeof(exeBuf) - 1);
+            if (len > 0)
+            {
+                exeBuf[len] = '\0';
+                const std::string exeDir =
+                    std::filesystem::path(exeBuf).parent_path().string();
+                engineResources_->Set(gk::prefix::ENGINE, gk::key::ENGINE_EXE_DIR, exeDir);
+            }
+        }
+#endif
     }
 
     void Engine::Init()
@@ -394,7 +427,7 @@ namespace ettycc
         renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("network-scene");
 
-        const std::string tex = engineResources_->Get("sprites", "not-found");
+        const std::string tex = engineResources_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;
 
         // Static boundaries — no network sync needed

@@ -42,6 +42,13 @@ set(80CC_CORE_HEADERS
     include/Input/Controls/GhostCamera.hpp
     include/Input/Controls/EditorCamera.hpp
     include/Game/GameModule.hpp
+    include/GlobalKeys.hpp
+    include/Dependencies/Globals.hpp
+    include/Build/BuildStrings.hpp
+    include/Build/BuildConfig.hpp
+    include/Build/BuildController.hpp
+    include/UI/Build/BuildPanelUI.hpp
+    include/UI/ConfigurationsWindow.hpp
     include/UI/DevEditor.hpp
     include/UI/BuildPanel.hpp
     include/UI/Console.hpp
@@ -87,6 +94,9 @@ set(80CC_CORE_SOURCES
     src/Input/PlayerInput.cpp
     src/Input/Controls/GhostCamera.cpp
     src/Input/Controls/EditorCamera.cpp
+    src/Build/BuildController.cpp
+    src/UI/Build/BuildPanelUI.cpp
+    src/UI/ConfigurationsWindow.cpp
     src/UI/DevEditor.cpp
     src/UI/BuildPanel.cpp
     src/Engine.cpp

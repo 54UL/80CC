@@ -10,7 +10,7 @@
 #include <Input/Controls/GhostCamera.hpp>
 #include <Input/PlayerInput.hpp>
 #include <Scene/Scene.hpp>
-#include <Dependencies/Resources.hpp>
+#include <Dependencies/Globals.hpp>
 #include <Game/GameModule.hpp>
 #include <Physics/PhysicsWorld.hpp>
 #include <Networking/NetworkManager.hpp>
@@ -29,7 +29,7 @@ namespace ettycc
     public:
         // DEPENDENCIES (ONLY INTERNAL SYSTEMS....)
         std::shared_ptr<App>                        appInstance_;
-        std::shared_ptr<Resources>                  engineResources_;
+        std::shared_ptr<Globals>                    engineResources_;
         std::vector<std::shared_ptr<GameModule>>    gameModules_;
         std::shared_ptr<Camera>                     editorCamera_;
 

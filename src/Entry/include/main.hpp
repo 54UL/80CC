@@ -3,5 +3,6 @@
 
 #define _80CC_USER_INCLUDES
 #define _80CC_USER_CODE
+#define _80CC_ASSET_INIT
 
 #endif

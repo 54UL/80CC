@@ -136,6 +136,8 @@ namespace ettycc
         shader_.Bind();
         glUniformMatrix4fv(glGetUniformLocation(shader_.GetProgramId(), "PV"),
                            1, GL_FALSE, glm::value_ptr(PV));
+        glUniform2f(glGetUniformLocation(shader_.GetProgramId(), "tiling"),
+                    tiling.x, tiling.y);
 
         glBindVertexArray(VAO_);
         glDrawElements(GL_TRIANGLES,
@@ -175,6 +177,8 @@ namespace ettycc
         Renderable::Inspect(v);
         PROP_SECTION("Soft Body");
         PROP_RO(numVerts_, "Vertices");
+        PROP(tiling.x, "Tiling X");
+        PROP(tiling.y, "Tiling Y");
     }
 
     // -------------------------------------------------------------------------
@@ -195,8 +199,8 @@ namespace ettycc
 
     void SoftBodyRenderable::LoadShaders()
     {
-        auto resources   = GetDependency(Resources);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get("paths", "shaders");
+        auto resources   = GetDependency(Globals);
+        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
 
         auto vert = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
         auto frag = LoadShaderFile(shadersPath + shaderBaseName_ + ".frag");
@@ -211,7 +215,7 @@ namespace ettycc
 
     void SoftBodyRenderable::LoadTexture()
     {
-        auto resources = GetDependency(Resources);
+        auto resources = GetDependency(Globals);
         const std::string fullPath = resources->GetWorkingFolder() + "\\" + texturePath_;
 
         glGenTextures(1, &TEXTURE_);

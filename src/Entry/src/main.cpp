@@ -4,17 +4,18 @@
 #include <memory>
 #include <iostream>
 
-// IMPORTANT: THIS TAG BELOW DOES THE COMPILATION MAGIC SO DON'T FUCKING REMOVE THX
 _80CC_USER_INCLUDES;
 
 using namespace ettycc; // IMPORTANT!!!
 
 int main(int argc, char* argv[]) 
 {
-    std::shared_ptr<App> app = std::make_shared<SDL2App>("80CC");
-    
+    _80CC_ASSET_INIT;
+
+    std::shared_ptr<App> app = std::make_shared<SDL2App>("80CC"); // TODO: Use compilation name...
+
     std::shared_ptr<Engine> engineInstance = std::make_shared<Engine>(app);
-    std::shared_ptr<Resources> resourcesInstance = std::make_shared<Resources>();
+    std::shared_ptr<Globals> resourcesInstance = std::make_shared<Globals>();
 
 #ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
     // Editor build: tell the engine so Init() restores the last scene instead of running modules.
@@ -25,12 +26,11 @@ int main(int argc, char* argv[])
 
     // Dependency registration (move this!!)
     RegisterDependency(Engine, engineInstance);
-    RegisterDependency(Resources, resourcesInstance);
+    RegisterDependency(Globals, resourcesInstance);
     
     if (app->Init(argc, argv))
         return 1;
 
-    // IMPORTANT: THIS TAG BELOW DOES THE COMPILATION MAGIC SO DON'T FUCKING REMOVE THX
     _80CC_USER_CODE;
     
     return app->Exec();

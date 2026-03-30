@@ -4,7 +4,8 @@
 #include "../../Shading/ShaderPipeline.hpp"
 #include "../Renderable.hpp"
 #include <Dependency.hpp>
-#include <Dependencies/Resources.hpp>
+#include <Dependencies/Globals.hpp>
+#include <GlobalKeys.hpp>
 
 #include <memory>
 #include <string>
@@ -22,6 +23,11 @@ namespace ettycc
     private:
         GLuint VAO, VBO, EBO, TEXTURE;
         std::string spriteFilePath_;
+
+        // Tiling multiplier applied on top of the scale-relative tiling.
+        // 1.0 = the checker (or any texture) tiles once per world unit of scale.
+        // 2.0 = twice as dense, 0.5 = half as dense, etc.
+        float tilingMultiplier_ = 1.0f;
 
     public:
         ShaderPipeline underlyingShader;
@@ -49,7 +55,9 @@ namespace ettycc
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(cereal::base_class<Renderable>(this), CEREAL_NVP(spriteFilePath_));
+            ar(cereal::base_class<Renderable>(this),
+               CEREAL_NVP(spriteFilePath_),
+               CEREAL_NVP(tilingMultiplier_));
         }
 
         // Internal usage

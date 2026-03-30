@@ -5,7 +5,8 @@
 #include <App/ExecutionPipeline.hpp>
 #include <UI/Console.hpp>
 #include <UI/ImGuiConsoleSink.hpp>
-#include <UI/BuildPanel.hpp>
+#include <UI/Build/BuildPanelUI.hpp>
+#include <UI/ConfigurationsWindow.hpp>
 #include <Scene/Assets/AssetBuilder.hpp>
 #include <Graphics/Rendering/PickerBuffer.hpp>
 
@@ -99,7 +100,8 @@ namespace ettycc
         GLuint LoadTextureFromFile(const char* filePath);
 
         // BUILD WINDOW
-        BuildPanel buildPanel_;
+        ConfigurationsWindow configurationsWindow_;
+        BuildPanelUI         buildPanel_;
     };
 } // namespace ettycc
 

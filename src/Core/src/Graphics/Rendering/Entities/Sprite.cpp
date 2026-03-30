@@ -1,6 +1,9 @@
 
 #include <Graphics/Rendering/Entities/Sprite.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
+#include <cmath>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -85,8 +88,8 @@ namespace ettycc
     void Sprite::LoadShaders()
     {
         // TODO: THIS OPERATION NEEDS TO BE EAGEAR INITIALIZED INSTEAD OF LAZY INIT...
-        auto resources = GetDependency(Resources);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get("paths", "shaders");
+        auto resources = GetDependency(Globals);
+        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
 
         // TODO: Make shader types constants...
         auto vertexShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
@@ -149,7 +152,7 @@ namespace ettycc
         if (initialized || !initializable_ || spriteFilePath_.empty())
             return;
 
-        auto engineResources = GetDependency(Resources);
+        auto engineResources = GetDependency(Globals);
         const auto fullPath = engineResources->GetWorkingFolder() + "\\" + spriteFilePath_;
 
         spdlog::info("Initializing sprite [{}]", fullPath);
@@ -174,6 +177,14 @@ namespace ettycc
 
         glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "deltaTime"), time);
         glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "time"), elapsedTime);
+
+        // Scale-relative tiling: texture density stays constant regardless of stretch.
+        // tiling = scale.xy * multiplier, so a 5x1 sprite tiles 5x in X by default.
+        const glm::vec3 scale = underylingTransform.getGlobalScale();
+        const glm::vec2 tiling(std::abs(scale.x) * tilingMultiplier_,
+                               std::abs(scale.y) * tilingMultiplier_);
+        glUniform2f(glGetUniformLocation(underlyingShader.GetProgramId(), "tiling"),
+                    tiling.x, tiling.y);
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -203,6 +214,7 @@ namespace ettycc
         Renderable::Inspect(v);          // Enabled + Transform section
         PROP_SECTION("Sprite");
         PROP(spriteFilePath_, "Texture Path");
+        PROP(tilingMultiplier_, "Tiling Multiplier");
     }
 
     std::string Sprite::LoadShaderFile(const std::string &shaderPath)

@@ -8,15 +8,14 @@
 
 namespace ettycc::paths
 {
-    const std::string ASSETS_DEFAULT = "\\assets\\";
-
-    const std::string CONFIG_DEFAULT = "\\config\\";
-
-    const std::string RESOURCES_DEFAULT = CONFIG_DEFAULT + "80CC.json";
-
-    const std::string SCENE_DEFAULT = "\\scenes\\";
-
-    const std::string TEMPLATES_DEFAULT = "\\assets\\templates\\";
+    // All paths are relative to the assets root (set via ASSETS_80CC env var,
+    // or "assets/" relative to the process working directory in standalone mode).
+    const std::string ASSETS_DEFAULT    = "assets/";
+    const std::string CONFIG_DEFAULT    = "config/";
+    const std::string RESOURCES_DEFAULT = "config/80CC.json";
+    const std::string SCENE_DEFAULT     = "scenes/";
+    const std::string TEMPLATES_DEFAULT  = "templates/";
+    const std::string BUILD_CONFIG_FILE  = "config/build_config.json";
 } // namespace ettycc
 
 #endif

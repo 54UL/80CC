@@ -1,7 +1,8 @@
 #include <Engine.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
 #include <Graphics/Shading/Shader.hpp>
-#include <Dependencies/Resources.hpp>
+#include <Dependencies/Globals.hpp>
+#include <GlobalKeys.hpp>
 #include <Dependency.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -24,8 +25,8 @@ namespace ettycc
     {
         if (initialized) return;
 
-        auto resources   = GetDependency(Resources);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get("paths", "shaders");
+        auto resources   = GetDependency(Globals);
+        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
 
         auto vert = LoadShaderFile(shadersPath + "grid.vert");
         auto frag = LoadShaderFile(shadersPath + "grid.frag");

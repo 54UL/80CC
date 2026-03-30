@@ -4,8 +4,10 @@
 #include <Graphics/Rendering/Renderable.hpp>
 #include <Graphics/Shading/ShaderPipeline.hpp>
 #include <Dependency.hpp>
-#include <Dependencies/Resources.hpp>
+#include <Dependencies/Globals.hpp>
+#include <GlobalKeys.hpp>
 
+#include <glm/glm.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -41,6 +43,11 @@ namespace ettycc
 
     public:
         ShaderPipeline shader_;
+
+    public:
+        // Soft bodies don't have a rigid transform so tiling is set manually.
+        // (1,1) = texture maps once across the UV range; increase to tile more densely.
+        glm::vec2 tiling { 1.0f, 1.0f };
 
     private:
         GLuint VAO_     = 0;
