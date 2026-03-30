@@ -10,12 +10,11 @@ using namespace ettycc; // IMPORTANT!!!
 
 int main(int argc, char* argv[]) 
 {
-    _80CC_ASSET_INIT;
-
-    std::shared_ptr<App> app = std::make_shared<SDL2App>("80CC"); // TODO: Use compilation name...
-
+    std::shared_ptr<App> app = std::make_shared<SDL2App>(COMPILED_EXEC_NAME);
     std::shared_ptr<Engine> engineInstance = std::make_shared<Engine>(app);
     std::shared_ptr<Globals> resourcesInstance = std::make_shared<Globals>();
+
+    _80CC_ASSET_INIT;
 
 #ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
     // Editor build: tell the engine so Init() restores the last scene instead of running modules.
@@ -27,7 +26,7 @@ int main(int argc, char* argv[])
     // Dependency registration (move this!!)
     RegisterDependency(Engine, engineInstance);
     RegisterDependency(Globals, resourcesInstance);
-    
+
     if (app->Init(argc, argv))
         return 1;
 

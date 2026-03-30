@@ -5,4 +5,8 @@
 #define _80CC_USER_CODE
 #define _80CC_ASSET_INIT
 
+#ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
+#define COMPILED_EXEC_NAME "80CC"
+#endif
+
 #endif
