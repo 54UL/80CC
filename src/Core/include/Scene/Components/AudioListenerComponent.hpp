@@ -24,6 +24,29 @@ namespace ettycc
         AudioListenerComponent() = default;
         ~AudioListenerComponent() = default;
 
+        // Non-copyable, movable — consistent with all other components so
+        // ComponentPool swap-and-pop always uses move, never accidental copy.
+        AudioListenerComponent(const AudioListenerComponent&)            = delete;
+        AudioListenerComponent& operator=(const AudioListenerComponent&) = delete;
+
+        AudioListenerComponent(AudioListenerComponent&& o) noexcept
+            : gain_(o.gain_)
+            , prevPos_(o.prevPos_)
+            , audioMgr_(o.audioMgr_)
+        {
+            o.audioMgr_ = nullptr;
+        }
+
+        AudioListenerComponent& operator=(AudioListenerComponent&& o) noexcept
+        {
+            if (this == &o) return *this;
+            gain_     = o.gain_;
+            prevPos_  = o.prevPos_;
+            audioMgr_ = o.audioMgr_;
+            o.audioMgr_ = nullptr;
+            return *this;
+        }
+
         // ── System-facing API (called by AudioSystem) ─────────────────────────
         void Init(AudioManager& mgr, const Transform& initialTransform);
         void UpdateListener(float dt, const Transform& t);

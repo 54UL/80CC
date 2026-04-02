@@ -36,7 +36,7 @@ namespace ettycc
 
     void FrameBuffer::BeginFrame()
     {
-        constexpr const float lightGray = 0X1E / 100.0f;
+        constexpr const float lightGray = 0X1E / 100.0f;// TODO: CHANGE THIS FOR AND CUSTOM BACKGROUND IMAGE OR COLOR...
 
         glClearColor(lightGray, lightGray,lightGray, 1.0f);
         glBindFramebuffer(GL_FRAMEBUFFER, id_);

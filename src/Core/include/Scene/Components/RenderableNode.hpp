@@ -26,6 +26,27 @@ namespace ettycc
         explicit RenderableNode(std::shared_ptr<Renderable> renderable);
         ~RenderableNode();
 
+        // Non-copyable, movable — the user-declared destructor suppresses
+        // implicit move ops, so we declare them explicitly.
+        RenderableNode(const RenderableNode&)            = delete;
+        RenderableNode& operator=(const RenderableNode&) = delete;
+
+        RenderableNode(RenderableNode&& o) noexcept
+            : renderable_(std::move(o.renderable_))
+            , initialized_(o.initialized_)
+        {
+            o.initialized_ = false;
+        }
+
+        RenderableNode& operator=(RenderableNode&& o) noexcept
+        {
+            if (this == &o) return *this;
+            renderable_  = std::move(o.renderable_);
+            initialized_ = o.initialized_;
+            o.initialized_ = false;
+            return *this;
+        }
+
         // ── System-facing API (called by RenderSystem) ────────────────────────
         void InitRenderable(Engine& engine);
         void SyncTransform(const Transform& t);

@@ -19,6 +19,11 @@ namespace ettycc
         , registry_(o.registry_)
         , physicsLocked_(o.physicsLocked_)
     {
+        // Re-register this new address so the NetworkManager doesn't hold
+        // a dangling pointer after ComponentPool vector reallocation.
+        if (networkManager_)
+            networkManager_->Register(networkId_, this);
+
         // Null source so its destructor won't Unregister/ReleasePhysics.
         o.networkManager_ = nullptr;
         o.syncTransform_  = nullptr;
@@ -39,6 +44,10 @@ namespace ettycc
         entity_          = o.entity_;
         registry_        = o.registry_;
         physicsLocked_   = o.physicsLocked_;
+
+        // Re-register this new address with the NetworkManager.
+        if (networkManager_)
+            networkManager_->Register(networkId_, this);
 
         o.networkManager_ = nullptr;
         o.syncTransform_  = nullptr;
