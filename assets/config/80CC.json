@@ -1,91 +1,74 @@
 {
-    "engine_data": [
-        {
-            "key": "app",
-            "value": {
-                "resources": [
-                    {
-                        "key": "title",
-                        "value": "80CC"
-                    },
-                    {
-                        "key": "flags",
-                        "value": "WINDOWED"
-                    },
-                    {
-                        "key": "resolution",
-                        "value": "800,600"
-                    }
-                ]
+    "value0": {
+        "engine_data": [
+            {
+                "key": "app",
+                "value": {
+                    "resources": [
+                        {
+                            "key": "title",
+                            "value": "80CC"
+                        },
+                        {
+                            "key": "flags",
+                            "value": "WINDOWED"
+                        },
+                        {
+                            "key": "resolution",
+                            "value": "800,600"
+                        }
+                    ]
+                }
+            },
+            {
+                "key": "paths",
+                "value": {
+                    "resources": [
+                        {
+                            "key": "config",
+                            "value": "config/"
+                        },
+                        {
+                            "key": "images",
+                            "value": "images/"
+                        },
+                        {
+                            "key": "templates",
+                            "value": "templates/"
+                        },
+                        {
+                            "key": "scenes",
+                            "value": "scenes/"
+                        },
+                        {
+                            "key": "shaders",
+                            "value": "shaders/"
+                        }
+                    ]
+                }
+            },
+            {
+                "key": "sprites",
+                "value": {
+                    "resources": [
+                        {
+                            "key": "not-found",
+                            "value": "images/not_found_texture.png"
+                        }
+                    ]
+                }
+            },
+            {
+                "key": "state",
+                "value": {
+                    "resources": [
+                        {
+                            "key": "last_scene",
+                            "value": ""
+                        }
+                    ]
+                }
             }
-        },
-        {
-            "key": "paths",
-            "value": {
-                "resources": [
-                    {
-                        "key": "config",
-                        "value": "config/"
-                    },
-                    {
-                        "key": "images",
-                        "value": "images/"
-                    },
-                    {
-                        "key": "scenes",
-                        "value": "scenes/"
-                    },
-                    {
-                        "key": "templates",
-                        "value": "templates/"
-                    },
-                    {
-                        "key": "shaders",
-                        "value": "shaders/"
-                    }
-                ]
-            }
-        },
-        {
-            "key": "sprites",
-            "value": {
-                "resources": [
-                    {
-                        "key": "loona",
-                        "value": "images\\loona.jpg"
-                    },
-                    {
-                        "key": "not-found",
-                        "value": "images\\not_found_texture.png"
-                    }
-                ]
-            }
-        },
-        {
-            "key": "shaders",
-            "value": {
-                "resources": [
-                    {
-                        "key": "sprite_shader",
-                        "value": "shaders\\main"
-                    }
-                ]
-            }
-        },
-        {
-            "key": "state",
-            "value": {
-                "resources": [
-                    {
-                        "key": "last_scene",
-                        "value": "default_scene.json"
-                    },
-                    {
-                        "key": "editor_default_scene",
-                        "value": "default_scene.json"
-                    }
-                ]
-            }
-        }
-    ]
+        ]
+    }
 }

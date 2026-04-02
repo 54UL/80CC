@@ -1,82 +1,89 @@
 #ifndef SCENE_NODE_HPP
 #define SCENE_NODE_HPP
 
-#include "NodeComponent.hpp"
 #include <Scene/Transform.hpp>
+#include <Scene/Api.hpp>
+#include <ECS/Entity.hpp>
 
 #include <string>
 #include <memory>
-#include <map>
 #include <vector>
+#include <functional>
 
 #include <spdlog/spdlog.h>
 
 #include <cereal/types/memory.hpp>
 #include <cereal/archives/json.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/vector.hpp>
+
+namespace ettycc::ecs { class Registry; }
 
 namespace ettycc
 {
-    class Scene;
+    class Scene; // forward — template helpers defined in Scene/SceneNode.inl
+
     class SceneNode : public std::enable_shared_from_this<SceneNode>
     {
     private:
-        uint64_t id_;
-        uint64_t sceneId_;
+        ecs::Entity id_      = ecs::NullEntity;
+        uint64_t    sceneId_ = 0;
         std::string name_;
-        bool enabled_;
-        bool initialized;
+        bool        enabled_ = true;
 
     public:
-        // PUBLIC EXPERIMENTAL MEMBERS
-        bool isSelected_;
-        Transform transform_;
-        std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>> components_;
+        bool       isSelected_ = false;
+        Transform  transform_;
 
-        std::shared_ptr<SceneNode> parent_; // make it weak ptr...
+        std::shared_ptr<SceneNode>              parent_;
         std::vector<std::shared_ptr<SceneNode>> children_;
 
-        // Serialization/Deserialization
+        // Set by Scene::AddNode so template helpers below can reach the registry.
+        Scene* scene_ = nullptr;
+
+        // Components queued before this node was attached to a scene.
+        // Flushed into the registry inside AddNode().
+        std::vector<std::function<void(ecs::Registry&, ecs::Entity)>> pendingComponents_;
+
+        // ── Serialization ─────────────────────────────────────────────────────
         template <class Archive>
-        void serialize(Archive &ar)
+        void serialize(Archive& ar)
         {
             ar(CEREAL_NVP(id_),
                CEREAL_NVP(sceneId_),
                CEREAL_NVP(name_),
                CEREAL_NVP(enabled_),
                CEREAL_NVP(transform_),
-               CEREAL_NVP(components_),
                CEREAL_NVP(parent_),
                CEREAL_NVP(children_));
         }
 
     public:
         SceneNode();
-        SceneNode(const std::string& name);
-        SceneNode(const std::vector<std::shared_ptr<SceneNode>>& children);
-
+        explicit SceneNode(const std::string& name);
+        explicit SceneNode(const std::vector<std::shared_ptr<SceneNode>>& children);
         ~SceneNode();
 
-        auto InitNode() -> void;
-        auto GetId() -> uint64_t;
-        auto GetName() -> std::string;
-        auto SetName(const std::string& name) -> void;
+        auto InitNode()                          -> void;
+        auto GetId()    const                    -> ecs::Entity   { return id_; }
+        auto GetName()  const                    -> std::string   { return name_; }
+        auto SetName(const std::string& name)    -> void          { name_ = name; }
+        auto IsEnabled() const                   -> bool          { return enabled_; }
 
-        auto SetParent(const std::shared_ptr<SceneNode>& node) -> bool;
+        auto SetParent(const std::shared_ptr<SceneNode>& node)    -> bool;
 
-        auto AddNode(const std::shared_ptr<SceneNode>& node) -> uint64_t;
-        auto AddNodes(const std::vector<std::shared_ptr<SceneNode>>& node) -> std::vector<uint64_t>;
-        auto RemoveNode(uint64_t id) -> void;
+        auto AddNode (const std::shared_ptr<SceneNode>& node)     -> ecs::Entity;
+        auto AddNodes(const std::vector<std::shared_ptr<SceneNode>>& nodes)
+                                                                  -> std::vector<ecs::Entity>;
+        auto RemoveNode(ecs::Entity id)                           -> void;
+        auto AddChild  (std::shared_ptr<SceneNode> childNode)     -> void;
 
-        auto AddComponent(std::shared_ptr<NodeComponent> component) -> uint64_t;
-
-        auto AddChild(std::shared_ptr<SceneNode> childrenNode) -> void;
-
-        auto GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>;
-        auto GetComponentByName(const std::string& name) -> std::shared_ptr<NodeComponent>;
-
-        auto ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void;
+        // ── ECS component helpers (defined in SceneNode.inl, included by Scene.hpp) ──
+        // Add a component of type T. If the node is not yet in a scene the
+        // component is queued and flushed into the registry when the node enters.
+        template<typename T>  void AddComponent(T comp);
+        // Get a pointer to component T on this entity (nullptr if absent).
+        template<typename T>  T* GetComponent();
+        template<typename T>  bool HasComponent() const;
     };
 }
 

@@ -1,50 +1,112 @@
 #ifndef AUDIO_SOURCE_COMPONENT_HPP
 #define AUDIO_SOURCE_COMPONENT_HPP
 
-#include <Scene/NodeComponent.hpp>
+#include <Scene/Api.hpp>
 #include <Scene/PropertySystem.hpp>
+#include <Scene/Transform.hpp>
 #include <AL/al.h>
 #include <glm/glm.hpp>
-#include <cereal/types/polymorphic.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/types/string.hpp>
 #include <string>
 
 namespace ettycc
 {
+    struct EditorPropertyVisitor;
+    class  AudioManager;
+    class  Engine;
+
     // ── AudioSourceComponent ──────────────────────────────────────────────────
     // Two modes:
     //   Flat    — position-independent 2D sound (music, UI, ambience).
-    //             Uses AL_SOURCE_RELATIVE so it always plays at the listener.
     //   Spatial — 2D positional audio with distance attenuation and Doppler.
-    //             Position is taken from the owning node's world transform.
-    class AudioSourceComponent : public NodeComponent
+    //
+    // AudioSystem calls Init() once and UpdateAudio() every AUDIO frame.
+    class AudioSourceComponent
     {
     public:
         enum class AudioMode : int { Flat = 0, Spatial = 1 };
 
-        static constexpr const char* componentType = "AudioSource";
+        static constexpr const char*        componentType = "AudioSource";
+        static constexpr ProcessingChannel  channel       = ProcessingChannel::AUDIO;
 
         AudioSourceComponent() = default;
-        ~AudioSourceComponent() override;
+        ~AudioSourceComponent();
 
-        NodeComponentInfo GetComponentInfo() override;
-        void OnStart(std::shared_ptr<Engine> engineInstance) override;
-        void OnUpdate(float deltaTime) override;
-        void InspectProperties(EditorPropertyVisitor& v) override;
+        // Non-copyable: owns OpenAL source/buffer handles. Movable so
+        // std::vector can relocate without double-deleting AL objects.
+        AudioSourceComponent(const AudioSourceComponent&)            = delete;
+        AudioSourceComponent& operator=(const AudioSourceComponent&) = delete;
 
-        // Runtime playback control (also callable from inspector buttons)
+        AudioSourceComponent(AudioSourceComponent&& o) noexcept
+            : clipPath_(std::move(o.clipPath_))
+            , modeInt_(o.modeInt_), volume_(o.volume_), pitch_(o.pitch_)
+            , loop_(o.loop_), playOnStart_(o.playOnStart_)
+            , minDistance_(o.minDistance_), maxDistance_(o.maxDistance_)
+            , dopplerFactor_(o.dopplerFactor_), rolloffFactor_(o.rolloffFactor_)
+            , alSource_(o.alSource_), alBuffer_(o.alBuffer_)
+            , prevPos_(o.prevPos_), sourceReady_(o.sourceReady_)
+            , audioMgr_(o.audioMgr_), engine_(o.engine_)
+        {
+            o.alSource_    = AL_NONE;
+            o.alBuffer_    = AL_NONE;
+            o.sourceReady_ = false;
+            o.audioMgr_   = nullptr;
+            o.engine_     = nullptr;
+        }
+
+        AudioSourceComponent& operator=(AudioSourceComponent&& o) noexcept
+        {
+            if (this == &o) return *this;
+            // Release existing AL resources before stealing from o
+            if (alSource_ != AL_NONE) { alSourceStop(alSource_); alDeleteSources(1, &alSource_); }
+            if (alBuffer_ != AL_NONE) { alDeleteBuffers(1, &alBuffer_); }
+
+            clipPath_      = std::move(o.clipPath_);
+            modeInt_       = o.modeInt_;
+            volume_        = o.volume_;
+            pitch_         = o.pitch_;
+            loop_          = o.loop_;
+            playOnStart_   = o.playOnStart_;
+            minDistance_   = o.minDistance_;
+            maxDistance_   = o.maxDistance_;
+            dopplerFactor_ = o.dopplerFactor_;
+            rolloffFactor_ = o.rolloffFactor_;
+            alSource_      = o.alSource_;
+            alBuffer_      = o.alBuffer_;
+            prevPos_       = o.prevPos_;
+            sourceReady_   = o.sourceReady_;
+            audioMgr_     = o.audioMgr_;
+            engine_       = o.engine_;
+
+            o.alSource_    = AL_NONE;
+            o.alBuffer_    = AL_NONE;
+            o.sourceReady_ = false;
+            o.audioMgr_   = nullptr;
+            o.engine_     = nullptr;
+            return *this;
+        }
+
+        // ── System-facing API (called by AudioSystem) ─────────────────────────
+        void Init(AudioManager& mgr, Engine& engine, const Transform& initialTransform);
+        void UpdateAudio(float dt, const Transform& t);
+        bool IsInitialized() const { return sourceReady_; }
+
+        // ── Playback control (also used by editor inspector buttons) ──────────
         void Play();
         void Stop();
         void Pause();
         bool IsPlaying() const;
 
-        // Accessors used by the editor gizmo
+        // ── Accessors ─────────────────────────────────────────────────────────
         float     GetMinDistance() const { return minDistance_; }
         float     GetMaxDistance() const { return maxDistance_; }
         AudioMode GetMode()        const { return static_cast<AudioMode>(modeInt_); }
 
-        // ── Cereal serialization (via shared Inspect template) ────────────────
+        // ── Editor inspector ──────────────────────────────────────────────────
+        void InspectProperties(EditorPropertyVisitor& v);
+
+        // ── Serialization ─────────────────────────────────────────────────────
         template<class Archive>
         void serialize(Archive& ar)
         {
@@ -72,30 +134,29 @@ namespace ettycc
             PROP(rolloffFactor_, "Rolloff Factor");
         }
 
-        void RebuildSource();           // (re)create AL source from current settings
-        void ApplySourceSettings();     // push current properties to the AL source
-        void UpdateSpatialPosition(float deltaTime); // sync node pos + velocity → AL
+        void RebuildSource();
+        void ApplySourceSettings();
+        void UpdateSpatialPosition(float dt, const Transform& t);
 
         // ── Serialized fields ─────────────────────────────────────────────────
-        std::string clipPath_      = "";   // relative to assets/audio/ or absolute
-        int         modeInt_       = 0;    // AudioMode cast to int
+        std::string clipPath_      = "";
+        int         modeInt_       = 0;
         float       volume_        = 1.0f;
         float       pitch_         = 1.0f;
         bool        loop_          = false;
         bool        playOnStart_   = false;
-        float       minDistance_   = 1.0f;  // inner radius: full volume
-        float       maxDistance_   = 10.0f; // outer radius: silent
-        float       dopplerFactor_ = 1.0f;  // 0 = no doppler, 1 = realistic
+        float       minDistance_   = 1.0f;
+        float       maxDistance_   = 10.0f;
+        float       dopplerFactor_ = 1.0f;
         float       rolloffFactor_ = 1.0f;
-        uint64_t    sourceId_      = 0;     // stable component ID
 
-        // ── Runtime (not serialized) ──────────────────────────────────────────
-        ALuint    alSource_     = AL_NONE;
-        ALuint    alBuffer_     = AL_NONE;
-        glm::vec3 prevPos_      = {0.f, 0.f, 0.f};
-        bool      sourceReady_  = false;
-        class AudioManager* audioMgr_ = nullptr;
-        class Engine*       engine_   = nullptr;
+        // ── Runtime (not serialized, set by AudioSystem::Init) ────────────────
+        ALuint        alSource_    = AL_NONE;
+        ALuint        alBuffer_    = AL_NONE;
+        glm::vec3     prevPos_     = {0.f, 0.f, 0.f};
+        bool          sourceReady_ = false;
+        AudioManager* audioMgr_   = nullptr;
+        Engine*       engine_     = nullptr;
     };
 
 } // namespace ettycc

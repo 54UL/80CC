@@ -1,50 +1,53 @@
 #ifndef RENDERABLE_NODE_HPP
 #define RENDERABLE_NODE_HPP
 
-#include <Engine.hpp>
-#include <Scene/NodeComponent.hpp>
+#include <Scene/Api.hpp>
 #include <Graphics/Rendering/Entities/Sprite.hpp>
 #include <memory>
 
-#include <cereal/types/polymorphic.hpp>
 #include <cereal/types/memory.hpp>
 #include <cereal/archives/json.hpp>
 
 namespace ettycc
-{   
-    // Front-end class for the renderable interface...
-    // Implements sprite, camera and all rendering stuff on the node system
+{
+    class Engine;
+    struct EditorPropertyVisitor;
 
-    class RenderableNode : public NodeComponent
+    // ── RenderableNode ────────────────────────────────────────────────────────
+    // Wraps a Renderable (Sprite, Camera, …) as a data component.
+    // Initialization and per-frame sync are performed by RenderSystem.
+    class RenderableNode
     {
-
-    // REMAINDER THAT ALL PUBLIC MEMBERS ARE EXPERIMENTAL AND JUST BECAUSE THEY ARE SUITIABLE
     public:
-        // make this a template....
-        static constexpr const char *componentType = "Renderable";
-        std::shared_ptr<Renderable> renderable_;
-        uint64_t renderableId_;
+        static constexpr const char*        componentType = "Renderable";
+        static constexpr ProcessingChannel  channel       = ProcessingChannel::RENDERING;
 
-    public:
-        RenderableNode();
-        RenderableNode(const std::shared_ptr<Renderable>& renderable);
+        RenderableNode() = default;
+        explicit RenderableNode(std::shared_ptr<Renderable> renderable);
         ~RenderableNode();
 
-        // NodeComponent interface...
-        NodeComponentInfo GetComponentInfo() override;
-        void OnStart(std::shared_ptr<Engine> engineInstance) override;
-        void OnUpdate(float deltaTime) override;
-        void InspectProperties(EditorPropertyVisitor& v) override;
+        // ── System-facing API (called by RenderSystem) ────────────────────────
+        void InitRenderable(Engine& engine);
+        void SyncTransform(const Transform& t);
+        bool IsInitialized() const { return initialized_; }
 
-    public:
+        // ── Editor inspector ──────────────────────────────────────────────────
+        void InspectProperties(EditorPropertyVisitor& v);
+
+        // ── Serialization ─────────────────────────────────────────────────────
         template <class Archive>
-        void serialize(Archive &ar)
+        void serialize(Archive& ar)
         {
             ar(CEREAL_NVP(renderable_));
         }
-    };  
+
+    public:
+        std::shared_ptr<Renderable> renderable_;
+
+    private:
+        bool initialized_ = false;
+    };
 
 } // namespace ettycc
-
 
 #endif

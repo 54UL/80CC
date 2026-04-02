@@ -31,25 +31,23 @@ namespace ettycc
         worldInfo.water_offset        = btScalar(0.0);
         worldInfo.water_normal        = btVector3(0.0f, 0.0f, 0.0f);
         worldInfo.m_sparsesdf.Initialize();
-        // Default voxel size is 0.25: nodes can only resolve to ~0.125 units from the
-        // surface, which is visibly a gap at typical zoom.  0.1 halves that to ~0.05
-        // without the rebuild cost of 0.05 (which overflows the SDF cache on moving bodies).
-        worldInfo.m_sparsesdf.setDefaultVoxelsz(btScalar(0.1f));
 
         spdlog::info("[PhysicsWorld] initialized (soft+rigid) — gravity (0, -9.81, 0)");
     }
 
     void PhysicsWorld::Step(float deltaTime)
     {
-        if (world_)
-            world_->stepSimulation(deltaTime, 10);
+        if (!world_) return;
+        // Guard against degenerate delta (first frame, minimized window, breakpoint, etc.).
+        if (deltaTime <= 0.f || deltaTime > 0.25f)
+            deltaTime = 1.f / 60.f;
+        world_->stepSimulation(deltaTime, 16);
     }
 
     btDiscreteDynamicsWorld* PhysicsWorld::GetWorld()
     {
         return world_;   // implicit upcast — btSoftRigidDynamicsWorld IS-A btDiscreteDynamicsWorld
     }
-
     btSoftRigidDynamicsWorld* PhysicsWorld::GetSoftWorld()
     {
         return world_;

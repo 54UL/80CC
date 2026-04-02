@@ -1,9 +1,10 @@
 #ifndef NETWORK_COMPONENT_HPP
 #define NETWORK_COMPONENT_HPP
 
-#include <Scene/NodeComponent.hpp>
+#include <Scene/Api.hpp>
 #include <Scene/Transform.hpp>
 #include <Scene/PropertySystem.hpp>
+#include <ECS/Entity.hpp>
 
 #include <cereal/archives/json.hpp>
 #include <glm/glm.hpp>
@@ -11,46 +12,61 @@
 
 #include <cstdint>
 
+namespace ettycc::ecs { class Registry; }
+
 namespace ettycc
 {
-    class NetworkManager;     // forward
-    class RigidBodyComponent; // forward
+    class NetworkManager;
+    class RigidBodyComponent;
 
     // ── NetworkComponent ──────────────────────────────────────────────────────
-    // Attach to a SceneNode to mark it as network-replicated.
+    // Marks the entity as network-replicated.
     //
-    // Host:   OnUpdate reads transform -> BroadcastTransform every frame.
-    // Client: NetworkManager receives packet -> ApplyRemoteTransform.
+    // Host:   BroadcastUpdate() is called by NetworkSystem each MAIN frame.
+    // Client: NetworkManager receives a packet and calls ApplyRemoteTransform().
     //         On first apply the sibling RigidBodyComponent is switched to
-    //         kinematic so Bullet stops simulating it, letting the network
-    //         drive the body directly.
-    class NetworkComponent : public NodeComponent
+    //         kinematic so Bullet stops simulating it.
+    class NetworkComponent
     {
     public:
-        static constexpr const char* componentType = "Network";
+        static constexpr const char*        componentType = "Network";
+        static constexpr ProcessingChannel  channel       = ProcessingChannel::MAIN;
 
         NetworkComponent() = default;
         explicit NetworkComponent(uint32_t networkId);
-        ~NetworkComponent() override;
+        ~NetworkComponent();
 
-        NodeComponentInfo GetComponentInfo() override;
-        void OnStart (std::shared_ptr<Engine> engineInstance) override;
-        void OnUpdate(float deltaTime) override;
+        // Non-copyable, movable.  The destructor calls Unregister(), so the
+        // move constructor MUST null the source's networkManager_ — otherwise
+        // a vector reallocation inside ComponentPool moves the element and
+        // the moved-from destructor silently unregisters the live component.
+        NetworkComponent(const NetworkComponent&)            = delete;
+        NetworkComponent& operator=(const NetworkComponent&) = delete;
 
-        // Called by NetworkManager when a remote transform packet arrives.
+        NetworkComponent(NetworkComponent&& o) noexcept;
+        NetworkComponent& operator=(NetworkComponent&& o) noexcept;
+
+        // ── System-facing API (called by NetworkSystem) ───────────────────────
+        void Init(NetworkManager& mgr,
+                  Transform& syncTransform,
+                  ecs::Entity entity,
+                  ecs::Registry& registry);
+        void BroadcastUpdate();
+        bool IsInitialized() const { return networkManager_ != nullptr; }
+
+        // ── Called by NetworkManager on packet receive ─────────────────────────
         void ApplyRemoteTransform(const glm::vec3& pos,
                                   const glm::quat& rot,
                                   const glm::vec3& scale);
-
-        // Called by NetworkManager on disconnect — hands physics back to Bullet.
         void ReleasePhysics();
 
-        void InspectProperties(EditorPropertyVisitor& v) override;
-
+        // ── Accessors ─────────────────────────────────────────────────────────
         uint32_t GetNetworkId() const { return networkId_; }
 
-    public:
-        // ── Cereal serialization (original key names preserved) ───────────────
+        // ── Editor inspector ──────────────────────────────────────────────────
+        void InspectProperties(EditorPropertyVisitor& v);
+
+        // ── Serialization ─────────────────────────────────────────────────────
         template <class Archive>
         void save(Archive& ar) const
         {
@@ -64,12 +80,19 @@ namespace ettycc
         }
 
     private:
-        uint32_t          networkId_      = 0;
-        uint64_t          componentId_    = 0;
-        NetworkManager*   networkManager_ = nullptr;
-        Transform*        syncTransform_  = nullptr;
-        RigidBodyComponent* rigidBody_    = nullptr;  // sibling, may be null
-        bool              physicsLocked_  = false;    // true while kinematic on client
+        // ── Serialized ────────────────────────────────────────────────────────
+        uint32_t networkId_ = 0;
+
+        // ── Runtime (not serialized, set by NetworkSystem) ────────────────────
+        NetworkManager*     networkManager_ = nullptr;
+        Transform*          syncTransform_  = nullptr;
+        ecs::Entity         entity_         = ecs::NullEntity;
+        ecs::Registry*      registry_       = nullptr;
+        bool                physicsLocked_  = false;
+
+        // Looks up the sibling RigidBodyComponent from the registry each time
+        // instead of caching a raw pointer that goes stale on pool reallocation.
+        RigidBodyComponent* GetRigidBody() const;
     };
 
 } // namespace ettycc

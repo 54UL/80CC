@@ -3,11 +3,14 @@
 #include <future>
 #include <chrono>
 
-// TEST INCLUDE
 #include <Scene/Components/RenderableNode.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Networking/NetworkComponent.hpp>
+#include <Scene/Systems/PhysicsSystem.hpp>
+#include <Scene/Systems/RenderSystem.hpp>
+#include <Scene/Systems/AudioSystem.hpp>
+#include <Scene/Systems/NetworkSystem.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
@@ -36,10 +39,10 @@ namespace ettycc
         audioManager_.Shutdown();
 
         // TODO: Check if this is appropiate to handle here...
-        if (engineResources_)
+        if (globals_)
         {
             spdlog::warn("Engine config auto-saved");
-            engineResources_->Store(paths::RESOURCES_DEFAULT);
+            StoreGlobals(paths::RESOURCES_DEFAULT);
         }
         else
         {
@@ -47,76 +50,98 @@ namespace ettycc
         }
     }
 
-    // TODO: THIS SHOULD BE SOMEWHERE IN A ASSET BULDER IN ORDDER TO CREATE STUFF LIKE THIS FROM TEMPLATES
-    void Engine::createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos) {
-        auto spriteComponent = std::make_shared<Sprite>(spriteTexturePath);
-        static int index = 0;
-        auto spriteNode = std::make_shared<SceneNode>(std::string("sprite primitive #").append(std::to_string(index++)));
-
-        spriteNode->AddComponent(std::make_shared<RenderableNode>(spriteComponent));
-        spriteComponent->underylingTransform.setGlobalPosition(pos);
-        rootSceneNode->AddChild(spriteNode);
+    // ── Scene system setup ────────────────────────────────────────────────────
+    // Registers the default ECS systems and calls Init so that any already-loaded
+    // components are initialized. Call once per scene before adding nodes.
+    static void SetupSceneSystems(Scene& scene, Engine& engine)
+    {
+        scene.systems_.clear();
+        scene.RegisterSystem(std::make_unique<RenderSystem>());
+        scene.RegisterSystem(std::make_unique<PhysicsSystem>());
+        scene.RegisterSystem(std::make_unique<AudioSystem>());
+        scene.RegisterSystem(std::make_unique<NetworkSystem>());
+        scene.Init(engine);
     }
 
-    void Engine::createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
-                                   float mass, glm::vec3 halfExtents, glm::vec3 pos)
+    // ── Factory helpers ───────────────────────────────────────────────────────
+    void Engine::createSprite(const std::shared_ptr<SceneNode> &rootSceneNode,
+                              std::string spriteTexturePath,
+                              const glm::vec3& pos)
+    {
+        const auto sprite = std::make_shared<Sprite>(spriteTexturePath);
+        sprite->underylingTransform.setGlobalPosition(pos);
+
+        static int index = 0;
+        auto node = std::make_shared<SceneNode>(
+            std::string("sprite primitive #") + std::to_string(index++));
+
+        mainScene_->registry_.Add<RenderableNode>(node->GetId(), RenderableNode{sprite});
+        rootSceneNode->AddChild(node);
+    }
+
+    void Engine::createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode,
+                                  const std::string& texPath,
+                                  float mass,
+                                  glm::vec3 halfExtents,
+                                  glm::vec3 pos) const
     {
         auto sprite = std::make_shared<Sprite>(texPath);
-        // The sprite quad has local vertices at ±1, so scale = halfExtents gives
-        // a world-space box of ±halfExtents — matching the Bullet btBoxShape exactly.
         sprite->underylingTransform.setGlobalPosition(pos);
-        sprite->underylingTransform.setGlobalScale(halfExtents); // full 3D scale = exact hull half-extents
+        sprite->underylingTransform.setGlobalScale(halfExtents);
 
         static int index = 0;
         auto node = std::make_shared<SceneNode>("physics-box-" + std::to_string(index++));
-        // RenderableNode must be added first — RigidBodyComponent finds it via ownerNode_ in OnStart
-        node->AddComponent(std::make_shared<RenderableNode>(sprite));
-        node->AddComponent(std::make_shared<RigidBodyComponent>(mass, halfExtents, pos));
+
+        // Add components BEFORE AddChild so OnEntityAdded sees both at once.
+        mainScene_->registry_.Add<RenderableNode>(node->GetId(), RenderableNode{sprite});
+        mainScene_->registry_.Add<RigidBodyComponent>(
+            node->GetId(), RigidBodyComponent{mass, halfExtents, pos});
         rootSceneNode->AddChild(node);
     }
 
-    void Engine::createSoftBody(std::shared_ptr<SceneNode> rootSceneNode, std::string texPath,
-                                float radius, glm::vec3 pos, float mass)
-    {
+    void Engine::createSoftBody(std::shared_ptr<SceneNode> rootSceneNode,
+                                std::string texPath,
+                                float radius, glm::vec3 pos, float mass) const {
         static int softBodyIndex = 0;
         auto node = std::make_shared<SceneNode>("soft-body-" + std::to_string(softBodyIndex++));
-        node->AddComponent(std::make_shared<SoftBodyComponent>(radius, pos, mass, std::move(texPath)));
+
+        mainScene_->registry_.Add<SoftBodyComponent>(
+            node->GetId(), SoftBodyComponent{radius, pos, mass, std::move(texPath)});
         rootSceneNode->AddChild(node);
     }
 
-    void Engine::LoadPhysicsScene()
+    void Engine::LoadDefaultScene()
     {
-        spdlog::info("[Engine] building physics scene...");
+        spdlog::warn("[Engine] loading built-in fallback scene...");
 
         renderEngine_.ClearRenderables();
-        mainScene_ = std::make_shared<Scene>("physics-scene");
+        mainScene_ = std::make_shared<Scene>("default-scene");
+        SetupSceneSystems(*mainScene_, *this);
 
-        const std::string tex = engineResources_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+        const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;
 
         // ── Static boundaries ─────────────────────────────────────────────────
-        // Ground
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f),  glm::vec3( 0.0f, -5.0f, 0.0f));
-        // Left wall
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f),  glm::vec3(-9.3f,  0.0f, 0.0f));
-        // Right wall
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f),  glm::vec3( 9.3f,  0.0f, 0.0f));
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3( 0.0f, -5.0f, 0.0f)); // ground
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f,  0.0f, 0.0f)); // left wall
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3( 9.3f,  0.0f, 0.0f)); // right wall
 
-        // ── Dynamic boxes: two columns, staggered ──────────────────────────────
-        for (int i = 0; i < 5; ++i)
+        // ── Two staggered columns of dynamic rigid boxes ──────────────────────
+        for (int i = 0; i < 4; ++i)
         {
-            // Left column
             createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
                              glm::vec3(-1.1f, -3.8f + i * 1.15f, 0.0f));
-            // Right column — offset slightly so they topple on each other
             createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
                              glm::vec3( 1.1f, -3.8f + i * 1.15f + 0.55f, 0.0f));
         }
 
-        // ── Soft body rubber discs — dropped from above ────────────────────────
-        createSoftBody(root, tex, 0.8f, glm::vec3(-3.0f,  3.0f, 0.0f), 1.0f);
-        createSoftBody(root, tex, 0.6f, glm::vec3( 0.0f,  4.5f, 0.0f), 1.0f);
-        createSoftBody(root, tex, 1.0f, glm::vec3( 3.0f,  3.0f, 0.0f), 1.5f);
+        // ── Soft body discs dropped from above ────────────────────────────────
+        createSoftBody(root, tex, 0.7f, glm::vec3(-2.5f, 3.5f, 0.0f), 1.0f);
+        createSoftBody(root, tex, 0.5f, glm::vec3( 0.0f, 4.5f, 0.0f), 1.0f);
+        createSoftBody(root, tex, 0.9f, glm::vec3( 2.5f, 3.5f, 0.0f), 1.5f);
+
+        if (!isEditorMode_)
+            EnsureGameCamera();
     }
 
     void Engine::InitEditorCamera()
@@ -162,55 +187,9 @@ namespace ettycc
         renderEngine_.EnsureFirst(cam);
     }
 
-    void Engine::LoadDefaultScene()
-    {
-        spdlog::warn("[Engine] loading fallback physics scene...");
-
-        renderEngine_.ClearRenderables();
-        mainScene_ = std::make_shared<Scene>("default-scene");
-
-        auto root = mainScene_->root_node_;
-        const std::string tex = engineResources_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
-
-        // Static ground platform — wide and thin
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -4.5f, 0.0f));
-
-        // Mixed pyramid — rigid boxes and soft-body circles alternating
-        const float UNIT = 0.5f;
-        const float STEP = UNIT * 2.1f;
-
-        // row 0 (bottom, 4): box  soft  box  soft
-        // row 1 (mid,    3): soft box   soft
-        // row 2 (top,    2): box  soft
-        struct { int count; float y; } rows[] = {
-            { 4, -4.5f + 0.3f + UNIT       },
-            { 3, -4.5f + 0.3f + UNIT * 3.f },
-            { 2, -4.5f + 0.3f + UNIT * 5.f },
-        };
-        for (int r = 0; r < 3; ++r)
-        {
-            auto& row   = rows[r];
-            float startX = -(row.count - 1) * STEP * 0.5f;
-            for (int j = 0; j < row.count; ++j)
-            {
-                glm::vec3 pos(startX + j * STEP, row.y, 0.0f);
-                bool useSoft = (r == 0) ? (j % 2 != 0)   // row 0: odd indices -> soft
-                             : (r == 1) ? (j % 2 == 0)   // row 1: even indices -> soft
-                             :            (j % 2 != 0);  // row 2: odd index -> soft
-                if (useSoft)
-                    createSoftBody(root, tex, UNIT, pos, 1.0f);
-                else
-                    createPhysicsBox(root, tex, 1.0f, glm::vec3(UNIT, UNIT, 0.5f), pos);
-            }
-        }
-
-        if (!isEditorMode_)
-            EnsureGameCamera();
-    }
-
     void Engine::LoadLastScene()
     {
-        auto lastLoadedScene = engineResources_->Get(gk::prefix::STATE, gk::key::STATE_LAST_SCENE);
+        auto lastLoadedScene = globals_->Get(gk::prefix::STATE, gk::key::STATE_LAST_SCENE);
         spdlog::warn("Loading last scene: {}", lastLoadedScene);
 
         LoadScene(lastLoadedScene);
@@ -227,27 +206,29 @@ namespace ettycc
 
         if (defaultPath)
         {
-            path= engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName;
+            path= globals_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName;
         }
 
         std::ifstream ifs(path);
+        bool loadedFromFile = false;
 
         if (!ifs.is_open())
         {
-            spdlog::error("Can't open file scene [{}]", sceneName);
-
+            spdlog::error("Can't open file scene [{}]", path);
             LoadDefaultScene();
         }
         else
         {
-            renderEngine_.ClearRenderables();
+            renderEngine_.ClearRenderables(); // TODO: MAKE SURE WE CLEAN UP EVERYTHING....
+
             cereal::JSONInputArchive archive2(ifs);
             try
             {
                 {
                     mainScene_ = std::make_shared<Scene>("");
                     archive2(*mainScene_);
-                    mainScene_->Init();
+                    SetupSceneSystems(*mainScene_, *this);
+                    loadedFromFile = true;
                     spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
                 }
             } catch (const std::exception& e) {
@@ -258,9 +239,12 @@ namespace ettycc
 
         if (mainScene_)
         {
-            engineResources_->Set(gk::prefix::STATE, gk::key::STATE_LAST_SCENE, mainScene_->sceneName_);
-
-            spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
+            if (loadedFromFile)
+            {
+                // Store the actual file path so LoadLastScene can reopen it on next boot.
+                globals_->Set(gk::prefix::STATE, gk::key::STATE_LAST_SCENE, path);
+            }
+            spdlog::info("Active scene [{}]", mainScene_->sceneName_);
         }
         else
         {
@@ -273,28 +257,28 @@ namespace ettycc
 
     void Engine::StoreScene(const std::string &sceneName, const bool defaultPath) const
     {
-        std::string_view path = sceneName;
+        // Use std::string (not string_view) — the concatenated path is a temporary.
+        std::string path = defaultPath
+            ? globals_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName
+            : sceneName;
 
-        if (defaultPath)
-        {
-            path= engineResources_->GetWorkingFolder() + paths::SCENE_DEFAULT + sceneName;
-        }
-
-        std::ofstream ofs(path.data());
+        std::ofstream ofs(path);
 
         if (!ofs.is_open()) {
-            spdlog::error("Cannot store scene {}", sceneName);
+            spdlog::error("Cannot store scene {}", path);
             return;
         }
 
-        spdlog::info("Storing scene {}", sceneName);
+        spdlog::info("Storing scene {}", path);
 
         {
             cereal::JSONOutputArchive archive(ofs);
             archive(*mainScene_);
         }
 
-        spdlog::info("Scene stored successfully {}", sceneName);
+        // Store the actual file path so LoadLastScene can reopen it directly.
+        globals_->Set(gk::prefix::STATE, gk::key::STATE_LAST_SCENE, path);
+        spdlog::info("Scene stored successfully {}", path);
     }
 
     void Engine::RegisterModules(const std::vector<std::shared_ptr<GameModule>> &modules)
@@ -306,17 +290,70 @@ namespace ettycc
         }
     }
 
+    // ── Persistence ────────────────────────────────────────────────────
+    void Engine::LoadGlobals(const std::string& fileName) {
+        const auto filePath = globals_->GetWorkingFolder() + fileName;
+
+        std::ifstream file(filePath);
+        if (!file.is_open())
+        {
+            spdlog::error("Globals file not found: '{}'", filePath);
+            return;
+        }
+
+        // Strip UTF-8 BOM (EF BB BF) written by some Windows editors —
+        // RapidJSON does not skip it and will fail to parse the document.
+        {
+            unsigned char bom[3] = {};
+            file.read(reinterpret_cast<char*>(bom), 3);
+            if (!(bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF))
+                file.seekg(0); // not a BOM — rewind to start
+        }
+
+        try
+        {
+            cereal::JSONInputArchive ar(file);
+            ar(*globals_);
+        }
+        catch (const std::exception& e)
+        {
+            spdlog::error("Failed to parse globals '{}': {}", filePath, e.what());
+        }
+    }
+
+    void Engine::StoreGlobals(const std::string& fileName) const
+    {
+        const auto filePath = globals_->GetWorkingFolder() + fileName;
+
+        std::ofstream file(filePath);
+        if (!file.is_open())
+        {
+            spdlog::warn("Cannot write globals file: '{}'", filePath);
+            return;
+        }
+
+        cereal::JSONOutputArchive ar(file);
+        ar(*globals_);
+    }
+
     void Engine::ConfigResource()
     {
-        engineResources_ = GetDependency(Globals);
-        engineResources_->AutoSetWorkingFolder();
+        globals_ = GetDependency(Globals);
+        globals_->AutoSetWorkingFolder();
 
-        // Load 80CC.json, the working folder should point to the 80CC.JSON (important as hell...)
-        engineResources_->Load(paths::RESOURCES_DEFAULT);
+        // Seed structural defaults first — engine works even if the file is missing/corrupt.
+        globals_->SetupDefaults();
+
+        // Load 80CC.json; successful load overwrites the defaults above.
+        LoadGlobals(paths::RESOURCES_DEFAULT);
+
+        // Always write back so the file is in clean cereal format for next run
+        // (fixes corrupt/BOM files automatically).
+        StoreGlobals(paths::RESOURCES_DEFAULT);
 
         // Register runtime engine paths so any system can read them via Globals.
-        engineResources_->Set(gk::prefix::ENGINE, gk::key::ENGINE_WORKING_DIR,
-                              engineResources_->GetWorkingFolder());
+        globals_->Set(gk::prefix::ENGINE, gk::key::ENGINE_WORKING_DIR,
+                              globals_->GetWorkingFolder());
 //TODO: REFACTOR
 #ifdef _WIN32
         char exeBuf[512] = {};
@@ -324,7 +361,7 @@ namespace ettycc
         {
             const std::string exeDir =
                 std::filesystem::path(exeBuf).parent_path().string();
-            engineResources_->Set(gk::prefix::ENGINE, gk::key::ENGINE_EXE_DIR, exeDir);
+            globals_->Set(gk::prefix::ENGINE, gk::key::ENGINE_EXE_DIR, exeDir);
         }
 #else
         {
@@ -335,7 +372,7 @@ namespace ettycc
                 exeBuf[len] = '\0';
                 const std::string exeDir =
                     std::filesystem::path(exeBuf).parent_path().string();
-                engineResources_->Set(gk::prefix::ENGINE, gk::key::ENGINE_EXE_DIR, exeDir);
+                globals_->Set(gk::prefix::ENGINE, gk::key::ENGINE_EXE_DIR, exeDir);
             }
         }
 #endif
@@ -481,8 +518,9 @@ namespace ettycc
 
         renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("network-scene");
+        SetupSceneSystems(*mainScene_, *this);
 
-        const std::string tex = engineResources_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+        const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;
 
         // Static boundaries — no network sync needed
@@ -490,8 +528,17 @@ namespace ettycc
         createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f,  0.0f, 0.0f));
         createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3( 9.3f,  0.0f, 0.0f));
 
+        // Pre-allocate pool capacity so vector::push_back never reallocates.
+        // Reallocation would move components to new addresses, invalidating
+        // the raw pointers that NetworkManager::registry_ caches.
+        constexpr int kNetBoxCount = 10;   // 5 iterations × 2 boxes
+        constexpr int kTotalRB     = kNetBoxCount + 3;  // +3 static walls
+        mainScene_->registry_.Pool<RenderableNode>().Reserve(kTotalRB);
+        mainScene_->registry_.Pool<RigidBodyComponent>().Reserve(kTotalRB);
+        mainScene_->registry_.Pool<NetworkComponent>().Reserve(kNetBoxCount);
+
         // Build a replicated box: ALL components are added before AddChild so
-        // that AddNode -> OnStart runs once for all of them together.
+        // that OnEntityAdded sees all three components at once.
         uint32_t netId = 1;
         static int netBoxIdx = 0;
         auto makeNetBox = [&](glm::vec3 halfExt, glm::vec3 pos)
@@ -501,10 +548,12 @@ namespace ettycc
             sprite->underylingTransform.setGlobalScale(glm::vec3(halfExt.x, halfExt.y, 1.0f));
 
             auto node = std::make_shared<SceneNode>("net-box-" + std::to_string(netBoxIdx++));
-            node->AddComponent(std::make_shared<RenderableNode>(sprite));
-            node->AddComponent(std::make_shared<RigidBodyComponent>(1.0f, halfExt, pos));
-            node->AddComponent(std::make_shared<NetworkComponent>(netId++));
-            root->AddChild(node); // OnStart fired once for all three ^
+            mainScene_->registry_.Add<RenderableNode>(node->GetId(), RenderableNode{sprite});
+            mainScene_->registry_.Add<RigidBodyComponent>(node->GetId(),
+                RigidBodyComponent{1.0f, halfExt, pos});
+            mainScene_->registry_.Add<NetworkComponent>(node->GetId(),
+                NetworkComponent{netId++});
+            root->AddChild(node);
         };
 
         for (int i = 0; i < 5; ++i)

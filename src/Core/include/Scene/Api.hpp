@@ -13,21 +13,43 @@ namespace ettycc
         AUDIO
     };
 
-    typedef struct 
+    struct NodeComponentInfo
     {
         uint64_t id;
         std::string name;
         bool enabled;
         ProcessingChannel processingChannel;
-    } NodeComponentInfo;
+    };
 
     namespace Utils
     {
-        // temporal hack to define consistent incremental ids across all the components...
-        static uint64_t currentComponentIndex = 1;
-        static uint64_t GetNextIncrementalId()
+        // Returns a reference to the shared entity ID counter so that both
+        // GetNextEntityId() and FastForwardEntityCounter() use the same value.
+        inline uint64_t& EntityCounter()
         {
-            return currentComponentIndex++;
+            static uint64_t counter = 1;
+            return counter;
+        }
+
+        // Allocates the next unique entity ID.
+        inline uint64_t GetNextEntityId()
+        {
+            return EntityCounter()++;
+        }
+
+        // Call after deserializing a scene: ensures the counter is strictly
+        // above every ID that was loaded, preventing new nodes from getting
+        // IDs that collide with existing ones.
+        inline void FastForwardEntityCounter(uint64_t pastId)
+        {
+            if (EntityCounter() <= pastId)
+                EntityCounter() = pastId + 1;
+        }
+
+        // Legacy alias — kept so any remaining code compiles.
+        inline uint64_t GetNextIncrementalId()
+        {
+            return GetNextEntityId();
         }
     }
 } // namespace ettcc

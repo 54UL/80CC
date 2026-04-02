@@ -85,6 +85,10 @@ set(80CC_CORE_SOURCES
     src/Scene/Components/SoftBodyComponent.cpp
     src/Scene/Components/AudioSourceComponent.cpp
     src/Scene/Components/AudioListenerComponent.cpp
+    src/Scene/Systems/PhysicsSystem.cpp
+    src/Scene/Systems/RenderSystem.cpp
+    src/Scene/Systems/AudioSystem.cpp
+    src/Scene/Systems/NetworkSystem.cpp
     src/Audio/AudioManager.cpp
     src/Physics/PhysicsWorld.cpp
     src/Graphics/Rendering/Entities/SoftBodyRenderable.cpp

@@ -1,57 +1,100 @@
 #ifndef RIGID_BODY_COMPONENT_HPP
 #define RIGID_BODY_COMPONENT_HPP
 
-#include <Scene/NodeComponent.hpp>
-#include <Scene/Transform.hpp>
 #include <Scene/PropertySystem.hpp>
+#include <Scene/Transform.hpp>
+#include <Scene/Api.hpp>
 #include <btBulletDynamicsCommon.h>
 #include <glm/glm.hpp>
-#include <cereal/types/polymorphic.hpp>
 #include <cereal/archives/json.hpp>
 
 namespace ettycc
 {
-    class RigidBodyComponent : public NodeComponent
+    struct EditorPropertyVisitor;
+
+    // ── RigidBodyComponent ────────────────────────────────────────────────────
+    // Pure data component — no virtual methods, no back-pointer to its entity.
+    // Runtime initialization and per-frame sync are performed by PhysicsSystem.
+    class RigidBodyComponent
     {
     public:
-        static constexpr const char* componentType = "RigidBody";
+        static constexpr const char*        componentType = "RigidBody";
+        static constexpr ProcessingChannel  channel       = ProcessingChannel::MAIN;
+
         RigidBodyComponent() = default;
         RigidBodyComponent(float mass, glm::vec3 halfExtents, glm::vec3 initialPosition);
-        ~RigidBodyComponent() override;
+        ~RigidBodyComponent();
 
-        NodeComponentInfo GetComponentInfo() override;
-        void OnStart(std::shared_ptr<Engine> engineInstance) override;
-        void OnUpdate(float deltaTime) override;
+        // Non-copyable: owns Bullet objects. Movable so std::vector can relocate
+        // without triggering the destructor on a valid body.
+        RigidBodyComponent(const RigidBodyComponent&)            = delete;
+        RigidBodyComponent& operator=(const RigidBodyComponent&) = delete;
 
-        // Editor gizmo interface — called when the user starts / ends a drag
-        // on the owning node.  Switches between kinematic (editor-controlled)
-        // and dynamic (simulation-controlled) mode.
-        void BeginManipulation();
-        void EndManipulation();
-
-        // Pushes the current renderable world-position into the bullet body.
-        // Only meaningful while in kinematic mode (between Begin/EndManipulation).
-        void SyncFromRenderable();
-
-        bool IsManipulated() const { return isManipulated_; }
-
-        void InspectProperties(EditorPropertyVisitor& v) override;
-
-        // ── Cereal serialization (original key names preserved) ───────────────
-        template <class Archive>
-        void save(Archive& ar) const
+        RigidBodyComponent(RigidBodyComponent&& o) noexcept
+            : mass_(o.mass_), halfExtents_(o.halfExtents_)
+            , initialPosition_(o.initialPosition_)
+            , syncTransform_(o.syncTransform_)
+            , physWorld_(o.physWorld_)
+            , shape_(o.shape_), motionState_(o.motionState_), body_(o.body_)
+            , isManipulated_(o.isManipulated_)
         {
-            ar(cereal::make_nvp("mass",   mass_),
-               cereal::make_nvp("half_x", halfExtents_.x),
-               cereal::make_nvp("half_y", halfExtents_.y),
-               cereal::make_nvp("half_z", halfExtents_.z),
-               cereal::make_nvp("pos_x",  initialPosition_.x),
-               cereal::make_nvp("pos_y",  initialPosition_.y),
-               cereal::make_nvp("pos_z",  initialPosition_.z));
+            o.syncTransform_ = nullptr;
+            o.physWorld_     = nullptr;
+            o.shape_         = nullptr;
+            o.motionState_   = nullptr;
+            o.body_          = nullptr;
         }
 
+        RigidBodyComponent& operator=(RigidBodyComponent&& o) noexcept
+        {
+            if (this == &o) return *this;
+            if (body_ && physWorld_) physWorld_->removeRigidBody(body_);
+            delete motionState_; motionState_ = nullptr;
+            delete body_;        body_        = nullptr;
+            delete shape_;       shape_       = nullptr;
+
+            mass_            = o.mass_;
+            halfExtents_     = o.halfExtents_;
+            initialPosition_ = o.initialPosition_;
+            syncTransform_   = o.syncTransform_;
+            physWorld_       = o.physWorld_;
+            shape_           = o.shape_;
+            motionState_     = o.motionState_;
+            body_            = o.body_;
+            isManipulated_   = o.isManipulated_;
+
+            o.syncTransform_ = nullptr;
+            o.physWorld_     = nullptr;
+            o.shape_         = nullptr;
+            o.motionState_   = nullptr;
+            o.body_          = nullptr;
+            return *this;
+        }
+
+        // ── System-facing API (called by PhysicsSystem) ───────────────────────
+        // Creates the Bullet rigid body and links it to the node transform.
+        // Optional siblingRenderable pointer seeds the initial transform.
+        void InitBody(btDiscreteDynamicsWorld* world,
+                      Transform& syncTransform,
+                      const Transform* seedTransform = nullptr);
+
+        // Pulls the Bullet simulation result into the node transform.
+        void SyncToTransform(Transform& t) const;
+
+        bool IsInitialized() const { return body_ != nullptr; }
+
+        // ── Editor gizmo API ──────────────────────────────────────────────────
+        void BeginManipulation();
+        void EndManipulation();
+        void SyncFromRenderable();          // push node transform → Bullet
+        bool IsManipulated() const         { return isManipulated_; }
+
+        // ── Editor inspector ──────────────────────────────────────────────────
+        void InspectProperties(EditorPropertyVisitor& v);
+
+        // ── Serialization ─────────────────────────────────────────────────────
         template <class Archive>
-        void load(Archive& ar)
+        void serialize(Archive& ar)
         {
             ar(cereal::make_nvp("mass",   mass_),
                cereal::make_nvp("half_x", halfExtents_.x),
@@ -63,18 +106,18 @@ namespace ettycc
         }
 
     private:
+        // ── Serialized fields ─────────────────────────────────────────────────
         float     mass_            = 1.0f;
         glm::vec3 halfExtents_     = { 0.5f, 0.5f, 0.5f };
         glm::vec3 initialPosition_ = { 0.0f, 0.0f, 0.0f };
-        uint64_t rigidBodyId_     = 0;
-        
-        // Runtime — not serialized
-        Transform*               syncTransform_  = nullptr;
+
+        // ── Runtime (not serialized, set by PhysicsSystem::InitBody) ─────────
+        Transform*               syncTransform_ = nullptr;
         btDiscreteDynamicsWorld* physWorld_      = nullptr;
         btCollisionShape*        shape_          = nullptr;
         btDefaultMotionState*    motionState_    = nullptr;
         btRigidBody*             body_           = nullptr;
-        bool                     isManipulated_  = false; // true while editor gizmo drag is active
+        bool                     isManipulated_  = false;
     };
 }
 

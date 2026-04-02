@@ -78,12 +78,7 @@ namespace ettycc
 
     int ShaderPipeline::Unbind()
     {
-        if (shaderProgram == 0)
-        {
-            return 1;
-        }
-        glUseProgram(shaderProgram);
-
+        glUseProgram(0);
         return 0;
     }
 

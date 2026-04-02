@@ -200,7 +200,7 @@ namespace ettycc
     void SoftBodyRenderable::LoadShaders()
     {
         auto resources   = GetDependency(Globals);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
+        auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
 
         auto vert = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
         auto frag = LoadShaderFile(shadersPath + shaderBaseName_ + ".frag");
@@ -216,7 +216,7 @@ namespace ettycc
     void SoftBodyRenderable::LoadTexture()
     {
         auto resources = GetDependency(Globals);
-        const std::string fullPath = resources->GetWorkingFolder() + "\\" + texturePath_;
+        const std::string fullPath = resources->GetWorkingFolder() + texturePath_;
 
         glGenTextures(1, &TEXTURE_);
         glBindTexture(GL_TEXTURE_2D, TEXTURE_);

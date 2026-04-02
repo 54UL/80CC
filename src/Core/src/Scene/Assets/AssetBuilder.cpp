@@ -41,7 +41,7 @@ namespace ettycc {
             }
 
             auto node = std::make_shared<SceneNode>(name);
-            node->AddComponent(std::make_shared<RenderableNode>(sprite));
+            node->AddComponent(RenderableNode(sprite));
             return node;
         });
     }

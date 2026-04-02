@@ -31,6 +31,14 @@ int main(int argc, char* argv[])
         return 1;
 
     _80CC_USER_CODE;
-    
-    return app->Exec();
+
+    int exitCode = app->Exec();
+
+    // Release all dependency-injected shared_ptrs before the static Dependency
+    // singleton is torn down.  Without this, Engine/Globals destructors would
+    // fire in the static cleanup phase — after SDL2App and spdlog statics are
+    // potentially already gone — causing crashes in their destructors.
+    Dependency::getInstance().Clear();
+
+    return exitCode;
 }

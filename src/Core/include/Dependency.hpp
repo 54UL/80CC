@@ -40,6 +40,11 @@ namespace ettycc
             return nullptr;
         }
 
+        // Release all registered instances before static destructors run.
+        // Call this at the end of main() so that Engine/Globals/etc. are
+        // destroyed in a controlled order while spdlog and SDL are still alive.
+        void Clear() { instances.clear(); }
+
     private:
         Dependency() = default;
         Dependency(const Dependency &) = delete;

@@ -1,30 +1,38 @@
 #ifndef AUDIO_LISTENER_COMPONENT_HPP
 #define AUDIO_LISTENER_COMPONENT_HPP
 
-#include <Scene/NodeComponent.hpp>
+#include <Scene/Api.hpp>
 #include <Scene/PropertySystem.hpp>
+#include <Scene/Transform.hpp>
 #include <glm/glm.hpp>
-#include <cereal/types/polymorphic.hpp>
 #include <cereal/archives/json.hpp>
 
 namespace ettycc
 {
-    // Notes:
-    // The position of the owning node drives AL_POSITION each frame.
-    // Velocity is computed from frame-to-frame displacement for Doppler.
-    class AudioListenerComponent : public NodeComponent
+    struct EditorPropertyVisitor;
+    class  AudioManager;
+
+    // ── AudioListenerComponent ────────────────────────────────────────────────
+    // Marks the entity whose position drives the OpenAL listener each frame.
+    // AudioSystem calls Init() once and UpdateListener() every AUDIO frame.
+    class AudioListenerComponent
     {
     public:
-        static constexpr const char* componentType = "AudioListener";
+        static constexpr const char*        componentType = "AudioListener";
+        static constexpr ProcessingChannel  channel       = ProcessingChannel::AUDIO;
 
         AudioListenerComponent() = default;
-        ~AudioListenerComponent() override = default;
+        ~AudioListenerComponent() = default;
 
-        NodeComponentInfo GetComponentInfo() override;
-        void OnStart(std::shared_ptr<Engine> engineInstance) override;
-        void OnUpdate(float deltaTime) override;
-        void InspectProperties(EditorPropertyVisitor& v) override;
+        // ── System-facing API (called by AudioSystem) ─────────────────────────
+        void Init(AudioManager& mgr, const Transform& initialTransform);
+        void UpdateListener(float dt, const Transform& t);
+        bool IsInitialized() const { return audioMgr_ != nullptr; }
 
+        // ── Editor inspector ──────────────────────────────────────────────────
+        void InspectProperties(EditorPropertyVisitor& v);
+
+        // ── Serialization ─────────────────────────────────────────────────────
         template<class Archive>
         void serialize(Archive& ar)
         {
@@ -40,12 +48,11 @@ namespace ettycc
         }
 
         // ── Serialized ────────────────────────────────────────────────────────
-        float    gain_     = 1.0f;
-        uint64_t listenerId_ = 0;
+        float gain_ = 1.0f;
 
-        // ── Runtime ───────────────────────────────────────────────────────────
-        glm::vec3 prevPos_  = {0.f, 0.f, 0.f};
-        class AudioManager* audioMgr_ = nullptr;
+        // ── Runtime (not serialized, set by AudioSystem::Init) ────────────────
+        glm::vec3     prevPos_ = {0.f, 0.f, 0.f};
+        AudioManager* audioMgr_ = nullptr;
     };
 
 } // namespace ettycc

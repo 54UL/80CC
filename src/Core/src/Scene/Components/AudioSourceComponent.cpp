@@ -1,14 +1,13 @@
 #include <Scene/Components/AudioSourceComponent.hpp>
 #include <Audio/AudioManager.hpp>
 #include <Engine.hpp>
-#include <Scene/SceneNode.hpp>
-#include <UI/EditorPropertyVisitor.hpp>
 #include <Dependencies/Globals.hpp>
 #include <Paths.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-//TODO: FIX WIN32 HEADER ISSUES
+// TODO: FIX WIN32 HEADER ISSUES
 #undef max
 #undef min
 
@@ -20,17 +19,12 @@ namespace ettycc
             audioMgr_->DestroySource(alSource_);
     }
 
-    NodeComponentInfo AudioSourceComponent::GetComponentInfo()
+    // ── System-facing: initialize AL source ───────────────────────────────────
+    void AudioSourceComponent::Init(AudioManager& mgr, Engine& engine,
+                                    const Transform& initialTransform)
     {
-        if (sourceId_ == 0)
-            sourceId_ = Utils::GetNextIncrementalId();
-        return { sourceId_, componentType, true, ProcessingChannel::AUDIO };
-    }
-
-    void AudioSourceComponent::OnStart(std::shared_ptr<Engine> engineInstance)
-    {
-        engine_   = engineInstance.get();
-        audioMgr_ = &engineInstance->audioManager_;
+        engine_   = &engine;
+        audioMgr_ = &mgr;
 
         if (!audioMgr_->IsInitialized())
         {
@@ -40,28 +34,25 @@ namespace ettycc
 
         RebuildSource();
 
-        if (ownerNode_)
-            prevPos_ = ownerNode_->transform_.getGlobalPosition();
+        prevPos_ = initialTransform.getGlobalPosition();
 
-        if (playOnStart_)
-            Play();
+        if (playOnStart_) Play();
     }
 
-    void AudioSourceComponent::OnUpdate(float deltaTime)
+    // ── System-facing: per-frame update ───────────────────────────────────────
+    void AudioSourceComponent::UpdateAudio(float dt, const Transform& t)
     {
         if (!sourceReady_ || alSource_ == AL_NONE) return;
 
-        // Re-apply settings if the clip path changed at runtime
         if (static_cast<AudioMode>(modeInt_) == AudioMode::Spatial)
-            UpdateSpatialPosition(deltaTime);
+            UpdateSpatialPosition(dt, t);
 
-        // Sync runtime properties every frame so inspector changes take effect
         ApplySourceSettings();
     }
 
+    // ── Private: (re)create AL source ─────────────────────────────────────────
     void AudioSourceComponent::RebuildSource()
     {
-        // Clean up old source
         if (alSource_ != AL_NONE)
             audioMgr_->DestroySource(alSource_);
         alSource_    = AL_NONE;
@@ -70,14 +61,12 @@ namespace ettycc
 
         if (clipPath_.empty()) return;
 
-        // Resolve the clip path: try absolute first, then relative to assets/audio/
         std::string absPath = clipPath_;
         {
             std::ifstream probe(absPath, std::ios::binary);
             if (!probe.is_open() && engine_)
             {
-                const std::string workDir =
-                    engine_->engineResources_->GetWorkingFolder();
+                const std::string workDir = engine_->globals_->GetWorkingFolder();
                 absPath = workDir + paths::AUDIO_DEFAULT + clipPath_;
             }
         }
@@ -101,6 +90,7 @@ namespace ettycc
         sourceReady_ = true;
     }
 
+    // ── Private: push properties to AL ────────────────────────────────────────
     void AudioSourceComponent::ApplySourceSettings()
     {
         if (alSource_ == AL_NONE) return;
@@ -113,52 +103,42 @@ namespace ettycc
 
         if (mode == AudioMode::Flat)
         {
-            // Position-independent: always plays at listener regardless of node position
-            alSourcei(alSource_, AL_SOURCE_RELATIVE, AL_TRUE);
+            alSourcei (alSource_, AL_SOURCE_RELATIVE, AL_TRUE);
             alSource3f(alSource_, AL_POSITION, 0.f, 0.f, 0.f);
-            alSource3f(alSource_, AL_VELOCITY, 0.f, 0.f, 0.f);
-            alSourcef(alSource_, AL_ROLLOFF_FACTOR, 0.f);
+            alSource3f(alSource_, AL_VELOCITY,  0.f, 0.f, 0.f);
+            alSourcef (alSource_, AL_ROLLOFF_FACTOR, 0.f);
         }
         else
         {
-            // Positional: update in UpdateSpatialPosition()
-            alSourcei(alSource_, AL_SOURCE_RELATIVE, AL_FALSE);
-            alSourcef(alSource_, AL_REFERENCE_DISTANCE, glm::max(minDistance_, 0.01f));
-            alSourcef(alSource_, AL_MAX_DISTANCE,       glm::max(maxDistance_, minDistance_ + 0.01f));
-            alSourcef(alSource_, AL_ROLLOFF_FACTOR,     rolloffFactor_);
-            // AL_DOPPLER_FACTOR is global — we scale the source velocity instead
-            // to achieve per-source doppler control (0 = disabled, 1 = full)
+            alSourcei (alSource_, AL_SOURCE_RELATIVE, AL_FALSE);
+            alSourcef (alSource_, AL_REFERENCE_DISTANCE, glm::max(minDistance_, 0.01f));
+            alSourcef (alSource_, AL_MAX_DISTANCE,
+                       glm::max(maxDistance_, minDistance_ + 0.01f));
+            alSourcef (alSource_, AL_ROLLOFF_FACTOR, rolloffFactor_);
         }
     }
 
-    void AudioSourceComponent::UpdateSpatialPosition(float deltaTime)
+    // ── Private: spatial position sync ────────────────────────────────────────
+    void AudioSourceComponent::UpdateSpatialPosition(float dt, const Transform& t)
     {
-        if (!ownerNode_) return;
+        const glm::vec3 pos = t.getGlobalPosition();
 
-        const glm::vec3 pos = ownerNode_->transform_.getGlobalPosition();
-
-        // Compute velocity for Doppler effect
         glm::vec3 vel = {0.f, 0.f, 0.f};
-        if (deltaTime > 0.0001f)
-            vel = (pos - prevPos_) / deltaTime;
+        if (dt > 0.0001f)
+            vel = (pos - prevPos_) / dt;
         prevPos_ = pos;
 
-        alSource3f(alSource_, AL_POSITION, pos.x, pos.y, 0.f); // 2D: z=0
-        // Scale velocity by dopplerFactor_ to allow per-source doppler control
-        // (0 = no doppler for this source, 1 = full doppler)
+        alSource3f(alSource_, AL_POSITION, pos.x, pos.y, 0.f);
         alSource3f(alSource_, AL_VELOCITY,
                    vel.x * dopplerFactor_, vel.y * dopplerFactor_, 0.f);
     }
 
     // ── Playback control ──────────────────────────────────────────────────────
-
     void AudioSourceComponent::Play()
     {
         if (!sourceReady_ || alSource_ == AL_NONE)
         {
-            // Lazy rebuild: clip path may have been set after construction
-            if (audioMgr_ && audioMgr_->IsInitialized())
-                RebuildSource();
+            if (audioMgr_ && audioMgr_->IsInitialized()) RebuildSource();
         }
         if (alSource_ != AL_NONE)
         {
@@ -169,14 +149,12 @@ namespace ettycc
 
     void AudioSourceComponent::Stop()
     {
-        if (alSource_ != AL_NONE)
-            alSourceStop(alSource_);
+        if (alSource_ != AL_NONE) alSourceStop(alSource_);
     }
 
     void AudioSourceComponent::Pause()
     {
-        if (alSource_ != AL_NONE)
-            alSourcePause(alSource_);
+        if (alSource_ != AL_NONE) alSourcePause(alSource_);
     }
 
     bool AudioSourceComponent::IsPlaying() const
@@ -187,12 +165,12 @@ namespace ettycc
         return state == AL_PLAYING;
     }
 
+    // ── Editor inspector ──────────────────────────────────────────────────────
     void AudioSourceComponent::InspectProperties(EditorPropertyVisitor& v)
     {
         Inspect(v);
 
 #ifdef EDITOR_BUILD
-        // ── Playback buttons ──────────────────────────────────────────────────
         ImGui::Spacing();
         ImGui::SeparatorText("Controls");
         if (ImGui::Button("Play"))  Play();
@@ -201,7 +179,6 @@ namespace ettycc
         ImGui::SameLine();
         if (ImGui::Button("Pause")) Pause();
 
-        // Rebuild source if clip path changed
         if (v.anyChanged && audioMgr_ && audioMgr_->IsInitialized())
             RebuildSource();
 #endif

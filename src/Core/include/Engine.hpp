@@ -62,12 +62,12 @@ namespace ettycc
         }
     };
 
-    class Engine : public EnginePipeline
+    class Engine final : public EnginePipeline
     {
     public:
         // DEPENDENCIES (ONLY INTERNAL SYSTEMS....)
         std::shared_ptr<App>                        appInstance_;
-        std::shared_ptr<Globals>                    engineResources_;
+        std::shared_ptr<Globals>                    globals_;
         std::vector<std::shared_ptr<GameModule>>    gameModules_;
         std::shared_ptr<Camera>                     editorCamera_;
 
@@ -83,7 +83,7 @@ namespace ettycc
         bool isEditorMode_ = false;
         
     public:
-        Engine(std::shared_ptr<App> appInstance);
+        explicit Engine(std::shared_ptr<App> appInstance);
         ~Engine() override;
 
         // Call before Init(). True = running inside DevEditor, False = standalone game executable.
@@ -91,11 +91,12 @@ namespace ettycc
         void SetEditorMode(bool isEditor) { isEditorMode_ = isEditor; }
         bool IsEditorMode()         const { return isEditorMode_; }
 
-        static void createSprite(std::shared_ptr<SceneNode> rootSceneNode, std::string spriteTexturePath, const glm::vec3 pos);
+        // TODO: Implement some pattern to create this from other place
+        void createSprite(const std::shared_ptr<SceneNode>& rootSceneNode, std::string spriteTexturePath, const glm::vec3& pos);
         void createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
-                              float mass, glm::vec3 halfExtents, glm::vec3 pos);
+                              float mass, glm::vec3 halfExtents, glm::vec3 pos) const;
         void createSoftBody(std::shared_ptr<SceneNode> rootSceneNode, std::string texPath,
-                            float radius, glm::vec3 pos, float mass = 1.0f);
+                            float radius, glm::vec3 pos, float mass = 1.0f) const;
 
 
         // Engine front-end API
@@ -105,7 +106,6 @@ namespace ettycc
         // Called automatically after every scene load in standalone mode.
         void EnsureGameCamera();
         void LoadDefaultScene();
-        void LoadPhysicsScene();
         // Engine front-end API
         void LoadLastScene();
         void LoadScene(const std::string& sceneName, const bool defaultPath = true);
@@ -113,6 +113,11 @@ namespace ettycc
 
 
         void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
+
+        void LoadGlobals(const std::string &fileName);
+
+        void StoreGlobals(const std::string &fileName) const;
+
         void BuildExecutable(const std::string& outputPath);
         void ConfigResource();
 

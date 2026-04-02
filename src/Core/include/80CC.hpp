@@ -19,22 +19,11 @@
 #include <Scene/Components/AudioSourceComponent.hpp>
 #include <Scene/Components/AudioListenerComponent.hpp>
 
-// TODO: IMPLEMENT OWN SERIALIZATION API TO REGISTER THIS VALUES....
-CEREAL_REGISTER_TYPE(ettycc::RenderableNode);
+// Renderable hierarchy still uses cereal polymorphism (Sprite/Camera are
+// stored as shared_ptr<Renderable> inside RenderableNode).
 CEREAL_REGISTER_TYPE(ettycc::Sprite);
 CEREAL_REGISTER_TYPE(ettycc::Camera);
-CEREAL_REGISTER_TYPE(ettycc::RigidBodyComponent);
-CEREAL_REGISTER_TYPE(ettycc::SoftBodyComponent);
-CEREAL_REGISTER_TYPE(ettycc::AudioSourceComponent);
-CEREAL_REGISTER_TYPE(ettycc::AudioListenerComponent);
-
 CEREAL_REGISTER_TYPE(ettycc::Renderable);
-
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::RenderableNode)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::RigidBodyComponent)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::SoftBodyComponent)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::AudioSourceComponent)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::NodeComponent, ettycc::AudioListenerComponent)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Sprite)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ettycc::Renderable, ettycc::Camera)
 

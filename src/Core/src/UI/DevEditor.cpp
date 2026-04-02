@@ -5,6 +5,7 @@
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Scene/Components/AudioSourceComponent.hpp>
 #include <Scene/Components/AudioListenerComponent.hpp>
+#include <Networking/NetworkComponent.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
@@ -111,7 +112,7 @@ namespace ettycc
     void DevEditor::ScanAssets()
     {
         assetEntries_.clear();
-        const std::string root = engineInstance_->engineResources_->GetWorkingFolder();
+        const std::string root = engineInstance_->globals_->GetWorkingFolder();
         if (root.empty()) return;
 
         // Default selected folder to root on first scan
@@ -316,7 +317,7 @@ namespace ettycc
                 if (ImGui::MenuItem("Open", NULL))
                 {
                     auto f = pfd::open_file("Choose a scene",
-                        engineInstance_->engineResources_->GetWorkingFolder(),
+                        engineInstance_->globals_->GetWorkingFolder(),
                         { "Json files", "*.json", "All Files", "*" },
                         pfd::opt::force_overwrite);
                     spdlog::info("Opening file from dev editor...");
@@ -325,7 +326,7 @@ namespace ettycc
                 if (ImGui::MenuItem("Save", NULL))
                 {
                     auto f = pfd::save_file("Select a path",
-                        engineInstance_->engineResources_->GetWorkingFolder(),
+                        engineInstance_->globals_->GetWorkingFolder(),
                         { "Json files", "*.json", "All Files", "*" },
                         pfd::opt::none);
                     spdlog::info("Saving file from dev editor: " + f.result());
@@ -586,10 +587,9 @@ namespace ettycc
             }
 
             // ─── Helper: get RigidBodyComponent on the selected node (may be null) ──
-            auto getSelRB = [&]() -> std::shared_ptr<RigidBodyComponent> {
+            auto getSelRB = [&]() -> RigidBodyComponent* {
                 if (selectedNodes_.empty()) return nullptr;
-                auto comp = selectedNodes_.back()->GetComponentByName(RigidBodyComponent::componentType);
-                return std::dynamic_pointer_cast<RigidBodyComponent>(comp);
+                return selectedNodes_.back()->GetComponent<RigidBodyComponent>();
             };
 
             // ─── Gizmo drag start ─────────────────────────────────────────────
@@ -722,10 +722,9 @@ namespace ettycc
             // is present on the selected node.
             if (selNode)
             {
-                auto audioComp = selNode->GetComponentByName(AudioSourceComponent::componentType);
-                if (audioComp)
+                auto* src = selNode->GetComponent<AudioSourceComponent>();
+                if (src)
                 {
-                    auto* src = dynamic_cast<AudioSourceComponent*>(audioComp.get());
                     if (src && src->GetMode() == AudioSourceComponent::AudioMode::Spatial)
                     {
                         // worldPerPixel was computed in the hover block above.
@@ -797,20 +796,16 @@ namespace ettycc
         const std::shared_ptr<Renderable>& renderable) const
     {
         // RenderableNode (sprites, cameras, …)
-        auto comp = node->GetComponentByName(RenderableNode::componentType);
-        if (comp)
+        if (auto* rn = node->GetComponent<RenderableNode>())
         {
-            auto rn = std::dynamic_pointer_cast<RenderableNode>(comp);
-            if (rn && rn->renderable_ == renderable)
+            if (rn->renderable_ == renderable)
                 return node;
         }
 
         // SoftBodyComponent owns its renderable directly (no RenderableNode wrapper)
-        auto sbComp = node->GetComponentByName(SoftBodyComponent::componentType);
-        if (sbComp)
+        if (auto* sb = node->GetComponent<SoftBodyComponent>())
         {
-            auto sb = std::dynamic_pointer_cast<SoftBodyComponent>(sbComp);
-            if (sb && sb->GetRenderable() == renderable)
+            if (sb->GetRenderable() == renderable)
                 return node;
         }
 
@@ -959,11 +954,8 @@ namespace ettycc
         RenderableNode*      renderableNode = nullptr;
         RigidBodyComponent*  rigidBody      = nullptr;
         {
-            auto rc = selectedNode->GetComponentByName(RenderableNode::componentType);
-            if (rc) renderableNode = dynamic_cast<RenderableNode*>(rc.get());
-
-            auto rb = selectedNode->GetComponentByName(RigidBodyComponent::componentType);
-            if (rb) rigidBody = dynamic_cast<RigidBodyComponent*>(rb.get());
+            renderableNode = selectedNode->GetComponent<RenderableNode>();
+            rigidBody      = selectedNode->GetComponent<RigidBodyComponent>();
         }
 
         bool transformChanged  = false;
@@ -1024,38 +1016,46 @@ namespace ettycc
                 ImGui::Separator();
                 if (ImGui::MenuItem("Audio Source"))
                 {
-                    auto comp = std::make_shared<AudioSourceComponent>();
-                    selectedNode->AddComponent(comp);
+                    if (!selectedNode->HasComponent<AudioSourceComponent>())
+                    {
+                        selectedNode->AddComponent(AudioSourceComponent {});
+                        engineInstance_->mainScene_->NotifyEntityAdded(
+                            selectedNode->GetId(), *engineInstance_);
+                    }
                 }
                 if (ImGui::MenuItem("Audio Listener"))
                 {
-                    auto comp = std::make_shared<AudioListenerComponent>();
-                    selectedNode->AddComponent(comp);
+                    if (!selectedNode->HasComponent<AudioListenerComponent>())
+                    {
+                        selectedNode->AddComponent(AudioListenerComponent {});
+                        engineInstance_->mainScene_->NotifyEntityAdded(
+                            selectedNode->GetId(), *engineInstance_);
+                    }
                 }
                 ImGui::EndPopup();
             }
 
             ImGui::Spacing();
 
-            for (auto& [channel, compList] : selectedNode->components_)
             {
-                for (auto& comp : compList)
+                auto& scene = *engineInstance_->mainScene_;
+                const ecs::Entity eid = selectedNode->GetId();
+                const auto& typeNames = scene.registry_.GetComponentTypes(eid);
+
+                for (int i = 0; i < (int)typeNames.size(); ++i)
                 {
-                    if (!comp) continue;
+                    const std::string& typeName = typeNames[i];
 
-                    auto info = comp->GetComponentInfo();
-
-                    // Channel badge: tiny colored text before the component name
+                    // Channel badge color derived from component type.
                     ImVec4 badgeCol;
-                    if      (channel == ProcessingChannel::RENDERING) badgeCol = {0.35f, 0.75f, 1.f,  1.f}; // blue
-                    else if (channel == ProcessingChannel::AUDIO)     badgeCol = {0.90f, 0.40f, 0.80f, 1.f}; // magenta
-                    else                                              badgeCol = {1.f,   0.75f, 0.2f, 1.f};  // yellow
+                    if      (typeName == RenderableNode::componentType)          badgeCol = {0.35f, 0.75f, 1.f,   1.f}; // blue
+                    else if (typeName == AudioSourceComponent::componentType ||
+                             typeName == AudioListenerComponent::componentType)  badgeCol = {0.90f, 0.40f, 0.80f, 1.f}; // magenta
+                    else                                                         badgeCol = {1.f,   0.75f, 0.2f,  1.f}; // yellow
 
                     char headerLabel[128];
-                    snprintf(headerLabel, sizeof(headerLabel),
-                             "%s##comp_%llu", info.name.c_str(), (unsigned long long)info.id);
+                    snprintf(headerLabel, sizeof(headerLabel), "%s##comp_%d", typeName.c_str(), i);
 
-                    // Render the badge inline before the header
                     ImGui::PushStyleColor(ImGuiCol_Text, badgeCol);
                     ImGui::Bullet();
                     ImGui::PopStyleColor();
@@ -1064,12 +1064,42 @@ namespace ettycc
                     bool open = ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen);
                     if (!open) continue;
 
-                    ImGui::PushID(static_cast<int>(info.id));
+                    ImGui::PushID(i);
                     ImGui::Indent(12.f);
                     ImGui::Spacing();
 
                     EditorPropertyVisitor visitor;
-                    comp->InspectProperties(visitor);
+
+                    if (typeName == RenderableNode::componentType)
+                    {
+                        if (auto* c = selectedNode->GetComponent<RenderableNode>())
+                            c->InspectProperties(visitor);
+                    }
+                    else if (typeName == RigidBodyComponent::componentType)
+                    {
+                        if (auto* c = selectedNode->GetComponent<RigidBodyComponent>())
+                            c->InspectProperties(visitor);
+                    }
+                    else if (typeName == SoftBodyComponent::componentType)
+                    {
+                        if (auto* c = selectedNode->GetComponent<SoftBodyComponent>())
+                            c->InspectProperties(visitor);
+                    }
+                    else if (typeName == AudioSourceComponent::componentType)
+                    {
+                        if (auto* c = selectedNode->GetComponent<AudioSourceComponent>())
+                            c->InspectProperties(visitor);
+                    }
+                    else if (typeName == AudioListenerComponent::componentType)
+                    {
+                        if (auto* c = selectedNode->GetComponent<AudioListenerComponent>())
+                            c->InspectProperties(visitor);
+                    }
+                    else if (typeName == NetworkComponent::componentType)
+                    {
+                        if (auto* c = selectedNode->GetComponent<NetworkComponent>())
+                            c->InspectProperties(visitor);
+                    }
 
                     if (visitor.propertyCount == 0)
                         ImGui::TextDisabled("No exposed properties");
@@ -1132,7 +1162,7 @@ namespace ettycc
             ImGui::BeginChild("##folder_tree", ImVec2(folderPanelW, totalH), true);
             {
                 // Root entry (clicking goes back to root)
-                const std::string root = engineInstance_->engineResources_->GetWorkingFolder();
+                const std::string root = engineInstance_->globals_->GetWorkingFolder();
                 ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_OpenOnArrow
                                             | ImGuiTreeNodeFlags_DefaultOpen
                                             | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -1156,7 +1186,7 @@ namespace ettycc
             ImGui::BeginChild("##file_grid", ImVec2(filePanelW, totalH), false);
             {
                 // Breadcrumb path relative to root
-                const std::string root = engineInstance_->engineResources_->GetWorkingFolder();
+                const std::string root = engineInstance_->globals_->GetWorkingFolder();
                 std::string rel = currentFolder_.size() > root.size()
                                 ? currentFolder_.substr(root.size() + 1)
                                 : "[root]";
@@ -1237,7 +1267,7 @@ namespace ettycc
         {
             auto notFoundSprite = std::make_shared<Sprite>(notFoundTexturePath);
             notFoundSprite->underylingTransform.setGlobalPosition({(float)positionIndex, (float)positionIndex, -5.f});
-            selectedNode->AddComponent(std::make_shared<RenderableNode>(notFoundSprite));
+            selectedNode->AddComponent<RenderableNode>(RenderableNode(notFoundSprite));
         }
 
         positionIndex += positionIndex;
@@ -1831,7 +1861,7 @@ namespace ettycc
         pickerBuffer_->Init();
 
         auto resources   = GetDependency(Globals);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
+        auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
         pickerBuffer_->InitShader(shadersPath);
     }
 

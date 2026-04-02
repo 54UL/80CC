@@ -26,7 +26,7 @@ namespace ettycc
         if (initialized) return;
 
         auto resources   = GetDependency(Globals);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
+        auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
 
         auto vert = LoadShaderFile(shadersPath + "grid.vert");
         auto frag = LoadShaderFile(shadersPath + "grid.frag");

@@ -1,9 +1,7 @@
 #include <Networking/NetworkComponent.hpp>
 #include <Networking/NetworkManager.hpp>
-#include <Scene/Components/RenderableNode.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
-#include <Scene/SceneNode.hpp>
-#include <Engine.hpp>
+#include <ECS/Registry.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 #include <spdlog/spdlog.h>
 
@@ -11,69 +9,84 @@ namespace ettycc
 {
     NetworkComponent::NetworkComponent(uint32_t networkId)
         : networkId_(networkId)
+    {}
+
+    NetworkComponent::NetworkComponent(NetworkComponent&& o) noexcept
+        : networkId_(o.networkId_)
+        , networkManager_(o.networkManager_)
+        , syncTransform_(o.syncTransform_)
+        , entity_(o.entity_)
+        , registry_(o.registry_)
+        , physicsLocked_(o.physicsLocked_)
     {
-        componentId_ = Utils::GetNextIncrementalId();
+        // Null source so its destructor won't Unregister/ReleasePhysics.
+        o.networkManager_ = nullptr;
+        o.syncTransform_  = nullptr;
+        o.registry_       = nullptr;
+    }
+
+    NetworkComponent& NetworkComponent::operator=(NetworkComponent&& o) noexcept
+    {
+        if (this == &o) return *this;
+
+        // Clean up current state.
+        if (physicsLocked_) physicsLocked_ = false;  // skip ReleasePhysics lookup
+        if (networkManager_) networkManager_->Unregister(networkId_);
+
+        networkId_       = o.networkId_;
+        networkManager_  = o.networkManager_;
+        syncTransform_   = o.syncTransform_;
+        entity_          = o.entity_;
+        registry_        = o.registry_;
+        physicsLocked_   = o.physicsLocked_;
+
+        o.networkManager_ = nullptr;
+        o.syncTransform_  = nullptr;
+        o.registry_       = nullptr;
+        return *this;
     }
 
     NetworkComponent::~NetworkComponent()
     {
-        ReleasePhysics();
+        // During scene teardown the RigidBody pool may already be destroyed,
+        // so skip the registry lookup — just clear the lock flag.
+        physicsLocked_ = false;
         if (networkManager_)
             networkManager_->Unregister(networkId_);
     }
 
-    NodeComponentInfo NetworkComponent::GetComponentInfo()
+    // ── Look up sibling RigidBodyComponent from the registry on demand ─────
+    // Never cache this pointer — pool reallocations invalidate it.
+    RigidBodyComponent* NetworkComponent::GetRigidBody() const
     {
-        return { componentId_, componentType, true, ProcessingChannel::MAIN };
+        if (!registry_ || entity_ == ecs::NullEntity) return nullptr;
+        return registry_->Get<RigidBodyComponent>(entity_);
     }
 
-    void NetworkComponent::OnStart(std::shared_ptr<Engine> engineInstance)
+    // ── System-facing: initialize networking ──────────────────────────────────
+    void NetworkComponent::Init(NetworkManager& mgr,
+                                Transform& syncTransform,
+                                ecs::Entity entity,
+                                ecs::Registry& registry)
     {
-        networkManager_ = &engineInstance->networkManager_;
-
-        if (!ownerNode_) return;
-
-        // Find sibling RenderableNode -> grab transform
-        auto renderIt = ownerNode_->components_.find(ProcessingChannel::RENDERING);
-        if (renderIt != ownerNode_->components_.end())
-        {
-            for (auto& comp : renderIt->second)
-            {
-                auto* rn = dynamic_cast<RenderableNode*>(comp.get());
-                if (rn && rn->renderable_)
-                {
-                    syncTransform_ = &rn->renderable_->underylingTransform;
-                    break;
-                }
-            }
-        }
-
-        // Find sibling RigidBodyComponent so we can freeze it on the client
-        auto mainIt = ownerNode_->components_.find(ProcessingChannel::MAIN);
-        if (mainIt != ownerNode_->components_.end())
-        {
-            for (auto& comp : mainIt->second)
-            {
-                auto* rb = dynamic_cast<RigidBodyComponent*>(comp.get());
-                if (rb) { rigidBody_ = rb; break; }
-            }
-        }
+        networkManager_ = &mgr;
+        syncTransform_  = &syncTransform;
+        entity_         = entity;
+        registry_       = &registry;
 
         if (!syncTransform_)
-            spdlog::warn("[NetworkComponent] id={} — no sibling RenderableNode", networkId_);
-        if (!rigidBody_)
-            spdlog::warn("[NetworkComponent] id={} — no sibling RigidBodyComponent, "
-                         "physics won't be suppressed on client", networkId_);
+            spdlog::warn("[NetworkComponent] id={} — no transform found", networkId_);
+        if (!GetRigidBody())
+            spdlog::warn("[NetworkComponent] id={} — no sibling RigidBodyComponent", networkId_);
 
         networkManager_->Register(networkId_, this);
     }
 
-    void NetworkComponent::OnUpdate(float /*deltaTime*/)
+    // ── System-facing: broadcast transform (host only) ────────────────────────
+    void NetworkComponent::BroadcastUpdate()
     {
-        // Only the authoritative host broadcasts transforms
         if (!networkManager_ || !networkManager_->IsActive() || !networkManager_->IsHost())
             return;
-
         if (!syncTransform_) return;
 
         const glm::vec3 pos      = syncTransform_->getGlobalPosition();
@@ -84,47 +97,41 @@ namespace ettycc
         networkManager_->BroadcastTransform(networkId_, pos, rot, scale);
     }
 
-    // ── ApplyRemoteTransform ─────────────────────────────────────────────────
-    // Called by NetworkManager when a packet for our networkId arrives.
-    // First call freezes the sibling RigidBody into kinematic mode so the
-    // local physics simulation doesn't fight the authoritative server data.
+    // ── Called by NetworkManager on packet receive ─────────────────────────────
     void NetworkComponent::ApplyRemoteTransform(const glm::vec3& pos,
                                                 const glm::quat& rot,
                                                 const glm::vec3& scale)
     {
         if (!syncTransform_) return;
 
-        // Freeze physics on first received packet (lazy — only when server is live)
-        if (rigidBody_ && !physicsLocked_)
+        auto* rb = GetRigidBody();
+        if (rb && !physicsLocked_)
         {
-            rigidBody_->BeginManipulation();
+            rb->BeginManipulation();
             physicsLocked_ = true;
         }
 
-        // Apply authoritative world transform
         syncTransform_->SetFromTRS(pos, rot, scale);
 
-        // Push it into Bullet so collision detection stays in sync
-        if (rigidBody_ && physicsLocked_)
-            rigidBody_->SyncFromRenderable();
-    }
-
-    // ── ReleasePhysics ────────────────────────────────────────────────────────
-    // Called by NetworkManager on disconnect, or from the dtor.
-    // Hands physics back to Bullet so the local simulation resumes.
-    void NetworkComponent::InspectProperties(EditorPropertyVisitor& v)
-    {
-        PROP_RO(networkId_,     "Network ID");
-        PROP_F (physicsLocked_, "Physics Frozen", ettycc::PROP_READ_ONLY | ettycc::PROP_NO_SERIAL);
+        if (rb && physicsLocked_)
+            rb->SyncFromRenderable();
     }
 
     void NetworkComponent::ReleasePhysics()
     {
-        if (rigidBody_ && physicsLocked_)
+        auto* rb = GetRigidBody();
+        if (rb && physicsLocked_)
         {
-            rigidBody_->EndManipulation();
+            rb->EndManipulation();
             physicsLocked_ = false;
         }
+    }
+
+    // ── Editor inspector ──────────────────────────────────────────────────────
+    void NetworkComponent::InspectProperties(EditorPropertyVisitor& v)
+    {
+        PROP_RO(networkId_,     "Network ID");
+        PROP_F (physicsLocked_, "Physics Frozen", ettycc::PROP_READ_ONLY | ettycc::PROP_NO_SERIAL);
     }
 
 } // namespace ettycc

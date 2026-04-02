@@ -1,17 +1,14 @@
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/RenderableNode.hpp>
-#include <Scene/SceneNode.hpp>
-#include <Engine.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 #include <spdlog/spdlog.h>
 
 namespace ettycc
 {
-    RigidBodyComponent::RigidBodyComponent(float mass, glm::vec3 halfExtents, glm::vec3 initialPosition)
+    RigidBodyComponent::RigidBodyComponent(float mass, glm::vec3 halfExtents,
+                                           glm::vec3 initialPosition)
         : mass_(mass), halfExtents_(halfExtents), initialPosition_(initialPosition)
-    {
-        rigidBodyId_ = Utils::GetNextIncrementalId();
-    }
+    {}
 
     RigidBodyComponent::~RigidBodyComponent()
     {
@@ -23,84 +20,49 @@ namespace ettycc
         delete shape_;
     }
 
-    NodeComponentInfo RigidBodyComponent::GetComponentInfo()
+    // ── System-facing: initialize Bullet rigid body ───────────────────────────
+    void RigidBodyComponent::InitBody(btDiscreteDynamicsWorld* world,
+                                      Transform& syncTransform,
+                                      const Transform* seedTransform)
     {
-        return { rigidBodyId_, componentType, true, ProcessingChannel::MAIN };
-    }
-
-    void RigidBodyComponent::OnStart(std::shared_ptr<Engine> engineInstance)
-    {
-        physWorld_ = engineInstance->physicsWorld_.GetWorld();
+        physWorld_ = world;
         if (!physWorld_)
         {
             spdlog::error("[RigidBodyComponent] physics world not initialized");
             return;
         }
 
-        // Bootstrap the node's transform from the sibling renderable (set at creation time
-        // or via deserialization), then use the node transform as the single sync target.
-        // RenderableNode::OnUpdate will copy it back to the renderable each frame for rendering.
-        if (ownerNode_)
-        {
-            auto it = ownerNode_->components_.find(ProcessingChannel::RENDERING);
-            if (it != ownerNode_->components_.end())
-            {
-                for (auto& comp : it->second)
-                {
-                    auto* rn = dynamic_cast<RenderableNode*>(comp.get());
-                    if (rn && rn->renderable_)
-                    {
-                        ownerNode_->transform_ = rn->renderable_->underylingTransform;
-                        break;
-                    }
-                }
-            }
-            syncTransform_ = &ownerNode_->transform_;
-        }
+        // Seed the node transform from the sibling renderable when provided.
+        if (seedTransform)
+            syncTransform = *seedTransform;
 
-        if (!syncTransform_)
-            spdlog::warn("[RigidBodyComponent] no owner node — physics won't drive visuals");
+        syncTransform_ = &syncTransform;
 
-        // Use initial position from the shared transform if we have one, otherwise fall back to stored value
-        glm::vec3 spawnPos = syncTransform_
-            ? syncTransform_->getGlobalPosition()
-            : initialPosition_;
+        const glm::vec3 spawnPos = syncTransform_->getGlobalPosition();
+        const glm::vec3 h        = syncTransform_->getGlobalScale();
 
-        // Derive collision shape from the sprite's actual scale so it always
-        // matches what is visible.  The sprite quad spans ±1 in local space;
-        // after scale that becomes ±scale in world space — identical to the
-        // half-extent of a box.
-        // btBoxShape is preferred over btConvexHullShape for SDF_RS soft-rigid
-        // contact: it uses an analytical SDF (exact distance-to-surface) rather
-        // than the GJK approximation used by hull shapes.  This removes the
-        // contact-position error that caused visible gaps with soft bodies.
-        // btBoxShape absorbs its margin inward, so the outer collision surface
-        // is exactly at ±halfExtents as specified.
-        const glm::vec3 h = syncTransform_ ? syncTransform_->getGlobalScale() : halfExtents_;
-        const btScalar  hx = btScalar(h.x);
-        const btScalar  hy = btScalar(h.y);
-        const btScalar  hz = btScalar(h.z > 0.05f ? h.z : 0.05f); // never degenerate
+        const btScalar hx = btScalar(h.x > 0.05f ? h.x : 0.05f);
+        const btScalar hy = btScalar(h.y > 0.05f ? h.y : 0.05f);
+        const btScalar hz = btScalar(h.z > 0.05f ? h.z : 0.05f);
         shape_ = new btBoxShape(btVector3(hx, hy, hz));
 
-        btTransform startTransform;
-        startTransform.setIdentity();
-        startTransform.setOrigin(btVector3(spawnPos.x, spawnPos.y, spawnPos.z));
+        btTransform startXf;
+        startXf.setIdentity();
+        startXf.setOrigin(btVector3(spawnPos.x, spawnPos.y, spawnPos.z));
 
-        btVector3 localInertia(0.0f, 0.0f, 0.0f);
-        if (mass_ > 0.0f)
+        btVector3 localInertia(0.f, 0.f, 0.f);
+        if (mass_ > 0.f)
             shape_->calculateLocalInertia(mass_, localInertia);
 
-        motionState_ = new btDefaultMotionState(startTransform);
+        motionState_ = new btDefaultMotionState(startXf);
         btRigidBody::btRigidBodyConstructionInfo ci(mass_, motionState_, shape_, localInertia);
         body_ = new btRigidBody(ci);
 
-        // ── 2-D constraint: lock Z translation and X/Y rotation ──────────────
-        // This keeps the simulation fully planar (XY plane) even though Bullet
-        // is a 3-D engine, avoiding drift into/out of the screen.
-        if (mass_ > 0.0f)
+        // 2-D constraint: lock Z translation and X/Y rotation.
+        if (mass_ > 0.f)
         {
-            body_->setLinearFactor (btVector3(1.f, 1.f, 0.f)); // allow X,Y  — lock Z
-            body_->setAngularFactor(btVector3(0.f, 0.f, 1.f)); // allow Z rot — lock X,Y
+            body_->setLinearFactor (btVector3(1.f, 1.f, 0.f));
+            body_->setAngularFactor(btVector3(0.f, 0.f, 1.f));
         }
 
         physWorld_->addRigidBody(body_);
@@ -109,11 +71,10 @@ namespace ettycc
                      mass_, spawnPos.x, spawnPos.y, spawnPos.z);
     }
 
-    void RigidBodyComponent::OnUpdate(float /*deltaTime*/)
+    // ── System-facing: pull physics result into node transform ────────────────
+    void RigidBodyComponent::SyncToTransform(Transform& t) const
     {
-        // Skip physics->visual sync while the editor gizmo is manipulating this body
-        if (!body_ || !syncTransform_ || mass_ == 0.0f || isManipulated_)
-            return;
+        if (!body_ || !syncTransform_ || mass_ == 0.f || isManipulated_) return;
 
         btTransform trans;
         body_->getMotionState()->getWorldTransform(trans);
@@ -121,26 +82,22 @@ namespace ettycc
         const btVector3&    btPos = trans.getOrigin();
         const btQuaternion& btQ   = trans.getRotation();
 
-        glm::vec3 pos  (btPos.getX(), btPos.getY(), btPos.getZ());
-        glm::quat rot  (btQ.getW(),   btQ.getX(),   btQ.getY(),   btQ.getZ());
+        glm::vec3 pos  (btPos.getX(),  btPos.getY(),  btPos.getZ());
+        glm::quat rot  (btQ.getW(),    btQ.getX(),    btQ.getY(),    btQ.getZ());
         glm::vec3 scale = syncTransform_->getGlobalScale();
 
-        // SetFromTRS builds a correct T*R*S matrix — avoids the broken
-        // order-dependency in the individual setter chain.
-        syncTransform_->SetFromTRS(pos, rot, scale);
+        t.SetFromTRS(pos, rot, scale);
     }
 
-    // -------------------------------------------------------------------------
-
+    // ── Editor gizmo API ──────────────────────────────────────────────────────
     void RigidBodyComponent::BeginManipulation()
     {
         if (!body_) return;
         isManipulated_ = true;
 
-        // Switch to kinematic: Bullet no longer drives this body; we push transforms to it
         body_->setCollisionFlags(body_->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
         body_->setActivationState(DISABLE_DEACTIVATION);
-        body_->setLinearVelocity(btVector3(0.f, 0.f, 0.f));
+        body_->setLinearVelocity (btVector3(0.f, 0.f, 0.f));
         body_->setAngularVelocity(btVector3(0.f, 0.f, 0.f));
     }
 
@@ -148,25 +105,15 @@ namespace ettycc
     {
         if (!body_) return;
 
-        // Push final transform one last time before handing control back to physics
         SyncFromRenderable();
 
-        // Restore dynamic mode — clear kinematic flag and wake the body
         body_->setCollisionFlags(body_->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
-        body_->setLinearVelocity(btVector3(0.f, 0.f, 0.f));
+        body_->setLinearVelocity (btVector3(0.f, 0.f, 0.f));
         body_->setAngularVelocity(btVector3(0.f, 0.f, 0.f));
         body_->setActivationState(ACTIVE_TAG);
         body_->activate(true);
 
         isManipulated_ = false;
-    }
-
-    void RigidBodyComponent::InspectProperties(EditorPropertyVisitor& v)
-    {
-        PROP  (mass_,            "Mass");
-        PROP  (halfExtents_,     "Half Extents");
-        PROP  (initialPosition_, "Initial Position");
-        PROP_F(rigidBodyId_,     "ID", ettycc::PROP_READ_ONLY | ettycc::PROP_NO_SERIAL);
     }
 
     void RigidBodyComponent::SyncFromRenderable()
@@ -181,9 +128,16 @@ namespace ettycc
         t.setOrigin  (btVector3(pos.x, pos.y, pos.z));
         t.setRotation(btQuaternion(q.x, q.y, q.z, q.w));
 
-        // For kinematic bodies Bullet polls the motion state each sub-step;
-        // also set it directly on the body so it takes effect immediately.
         motionState_->setWorldTransform(t);
         body_->setWorldTransform(t);
     }
-}
+
+    // ── Editor inspector ──────────────────────────────────────────────────────
+    void RigidBodyComponent::InspectProperties(EditorPropertyVisitor& v)
+    {
+        PROP  (mass_,            "Mass");
+        PROP  (halfExtents_,     "Half Extents");
+        PROP  (initialPosition_, "Initial Position");
+    }
+
+} // namespace ettycc

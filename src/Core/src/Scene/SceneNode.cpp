@@ -1,209 +1,113 @@
 #include <Scene/SceneNode.hpp>
+#include <Scene/Scene.hpp>
 #include <Dependency.hpp>
 
-namespace ettycc 
+namespace ettycc
 {
     SceneNode::SceneNode()
     {
         InitNode();
     }
 
-    SceneNode::SceneNode(const std::string &name) : name_(name)
+    SceneNode::SceneNode(const std::string& name) : name_(name)
     {
         InitNode();
     }
 
-    SceneNode::SceneNode(const std::vector<std::shared_ptr<SceneNode>> &children)
-        : id_(0), sceneId_(0), name_("unnamed"), enabled_(true), initialized(false), isSelected_(false), parent_(nullptr), children_(children)
-    {
-        // check if needs to generate an sepecific id here...
-    }
+    SceneNode::SceneNode(const std::vector<std::shared_ptr<SceneNode>>& children)
+        : id_(Utils::GetNextEntityId()), sceneId_(0), name_("unnamed"), enabled_(true),
+          parent_(nullptr), children_(children)
+    {}
 
-    SceneNode::~SceneNode()
-    {
-
-    }
+    SceneNode::~SceneNode() {}
 
     auto SceneNode::InitNode() -> void
     {
-        id_ = 0;
+        id_      = Utils::GetNextEntityId();
         sceneId_ = 0;
         enabled_ = true;
-        
-        if (name_.empty())
-        {
-            name_ = "unnamed";
-        }
 
-        parent_ = std::shared_ptr<SceneNode>();
-        children_ = std::vector<std::shared_ptr<SceneNode>>();
+        if (name_.empty()) name_ = "unnamed";
 
-        // if no compoments already initialize!
-        if (components_.size () <= 0 )
-        {
-            components_ = std::map<ProcessingChannel, std::vector<std::shared_ptr<NodeComponent>>>();    
-            return;
-        }   
-
-        // Execute component initialization
-        for (const auto &kvp : components_)
-        {
-            const std::vector<std::shared_ptr<NodeComponent>> &channelValues = kvp.second;
-
-            // after added to the exec map initialize them...
-            for (const auto &component : components_[kvp.first])
-            {
-                component->OnStart(GetDependency(Engine));
-            }
-        }
+        parent_   = nullptr;
+        children_ = {};
     }
 
-    auto SceneNode::GetId() -> uint64_t
+    auto SceneNode::SetParent(const std::shared_ptr<SceneNode>& node) -> bool
     {
-        return id_;
-    }
-
-    auto SceneNode::GetName() -> std::string
-    {
-        return name_;
-    }
-
-    auto SceneNode::SetName(const std::string &name) -> void
-    {
-        name_ = name;
-    }
-
-    auto SceneNode::SetParent(const std::shared_ptr<SceneNode> &node) -> bool
-    {
-        // todo: implement case where the node has an parent and is gonna be unparented from some place... (swap nodes??)
         if (parent_ == node) return false;
-        
         parent_ = node;
-        
         return true;
     }
 
-    auto SceneNode::AddNode(const std::shared_ptr<SceneNode> &node) -> uint64_t
+    auto SceneNode::AddNode(const std::shared_ptr<SceneNode>& node) -> ecs::Entity
     {
         children_.emplace_back(node);
-        for (const auto &kvp : node->components_)
-        {
-            const std::vector<std::shared_ptr<NodeComponent>> &channelValues = kvp.second;
 
-            // after added to the exec map initialize them...
-            for (const auto &component : node->components_[kvp.first])
-            {
-                component->OnStart(GetDependency(Engine));
-            }
-        }
+        // Propagate scene pointer so template helpers (AddComponent etc.) work.
+        if (scene_) node->scene_ = scene_;
 
-        // todo: fix this with an internal scene state to avoid passing Scene * parentScene... with something like:
-        // SceneContext::RegisterNodes(nodes, sceneId);
-        auto mainScene = GetDependency(Engine)->mainScene_;
+        auto engine    = GetDependency(Engine);
+        auto mainScene = engine->mainScene_;
+
         mainScene->nodes_flat_.push_back(node);
+        mainScene->nodeIndex_[node->GetId()] = node.get();   // fast lookup
+        mainScene->registry_.Track(node->GetId());
+
+        // Flush components queued before this node had a scene pointer.
+        for (auto& fn : node->pendingComponents_)
+            fn(mainScene->registry_, node->GetId());
+        node->pendingComponents_.clear();
+
+        // Let all systems initialize this entity's components.
+        mainScene->NotifyEntityAdded(node->GetId(), *engine);
 
         return node->GetId();
     }
 
-    auto SceneNode::RemoveNode(uint64_t id) -> void
+    auto SceneNode::AddNodes(const std::vector<std::shared_ptr<SceneNode>>& nodes)
+        -> std::vector<ecs::Entity>
     {
-        auto it = std::remove_if(children_.begin(), children_.end(), [id](const std::shared_ptr<SceneNode>& child) {
-            return child && child->GetId() == id;
-        });
-
-        if (it != children_.end()) {
-            for (auto iter = it; iter != children_.end(); ++iter) {
-                if (*iter) {
-                    (*iter)->parent_ = nullptr;
-
-                    // GetDependency is an overhead here, optimize later...
-                    auto engine = GetDependency(Engine);
-                    if (engine && engine->mainScene_) {
-                        auto& flatNodes = engine->mainScene_->nodes_flat_;
-                        // TODO: ADD DESTROY CALLBACK FOR A NODE...
-                        // TODO: SCENE SHOULD HANDLE THIS, NOT THE NODE ITSELF...
-                        flatNodes.erase(std::remove(flatNodes.begin(), flatNodes.end(), *iter), flatNodes.end());
-                    }
-                }
-            }
-
-            children_.erase(it, children_.end());
-        }
-    }
-
-    auto SceneNode::AddNodes(const std::vector<std::shared_ptr<SceneNode>> &nodes) -> std::vector<uint64_t>
-    {
-        std::vector<uint64_t> ids;
-
-        for (auto &node : nodes)
-        {
-            auto id = AddNode(node);
-            ids.emplace_back(id);
-        }
-
+        std::vector<ecs::Entity> ids;
+        ids.reserve(nodes.size());
+        for (auto& n : nodes)
+            ids.push_back(AddNode(n));
         return ids;
     }
 
-    auto SceneNode::AddComponent(std::shared_ptr<NodeComponent> component) -> uint64_t
+    auto SceneNode::RemoveNode(ecs::Entity id) -> void
     {
-        component->ownerNode_ = this;
-        NodeComponentInfo info = component->GetComponentInfo();
-        components_[info.processingChannel].emplace_back(component);
-        return info.id;
+        auto it = std::remove_if(children_.begin(), children_.end(),
+            [id](const std::shared_ptr<SceneNode>& child)
+            { return child && child->GetId() == id; });
+
+        if (it == children_.end()) return;
+
+        for (auto iter = it; iter != children_.end(); ++iter)
+        {
+            if (!*iter) continue;
+            (*iter)->parent_ = nullptr;
+
+            auto engine = GetDependency(Engine);
+            if (engine && engine->mainScene_)
+            {
+                auto& flat = engine->mainScene_->nodes_flat_;
+                flat.erase(std::remove(flat.begin(), flat.end(), *iter), flat.end());
+                engine->mainScene_->nodeIndex_.erase(id);
+                engine->mainScene_->registry_.Destroy(id);
+            }
+        }
+
+        children_.erase(it, children_.end());
     }
 
-    auto SceneNode::AddChild(std::shared_ptr<SceneNode> childrenNode) -> void
+    auto SceneNode::AddChild(std::shared_ptr<SceneNode> childNode) -> void
     {
-        // TODO: THERE IS A ISSUE WHEN MANIPULATING SCENES, IF THEY ARE NOT THEY MAIN SCENE (WORKING SCENE), IT WILL NOT HAVE FLAT NODES POPULATED!!!
-        
-        // this* is the new parent of the nodeToBeChild if not setted
-        // add the node to be child to the parent node as child
-        if (childrenNode->SetParent(shared_from_this()))
-        {
-            // spdlog::info("Node [{}] is now parent of [{}]", shared_from_this()->name_, childrenNode->name_);
-            AddNode(childrenNode);
-        }
+        if (childNode->SetParent(shared_from_this()))
+            AddNode(childNode);
         else
-        {
-            spdlog::warn("Node [{}] cannot be parent of [{}], reason parent == child_node", shared_from_this()->name_, childrenNode->name_);
-        }
+            spdlog::warn("Node [{}] cannot be parent of [{}] (already same parent)",
+                         name_, childNode->GetName());
     }
 
-    auto SceneNode::GetComponentById(uint64_t componentId) -> std::shared_ptr<NodeComponent>
-    {
-        // Brute force search for now...
-        for (const auto& kvp : components_) {
-            for (const auto& component : kvp.second) {
-                if (component && component->GetComponentInfo().id == componentId) {
-                    return component;
-                }
-            }
-        }
-        return std::shared_ptr<NodeComponent>();
-    }
-
-    auto SceneNode::GetComponentByName(const std::string &name) -> std::shared_ptr<NodeComponent>
-    {
-        // Brute force search for now... (OPTIMIZE LATER)
-        for (const auto& kvp : components_) {
-            for (const auto& component : kvp.second) {
-                if (component->GetComponentInfo().name == name) {
-                    return component;
-                }
-            }
-        }
-        return std::shared_ptr<NodeComponent>();
-    }
-
-    auto SceneNode::ComputeComponents(float deltaTime, ProcessingChannel processingChannel) -> void
-    {
-        // Use find() not operator[] — operator[] inserts a default entry when the
-        // key is absent, which is a write and causes data races when two channels
-        // run concurrently on the same node.
-        auto it = components_.find(processingChannel);
-        if (it == components_.end()) return;
-
-        for (auto& component : it->second)
-            component->OnUpdate(deltaTime);
-    }
-}
+} // namespace ettycc

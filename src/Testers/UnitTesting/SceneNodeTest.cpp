@@ -30,7 +30,7 @@ protected:
 
         // Normal startup
         engineInstance_->mainScene_ = std::make_shared<Scene>(UNIT_TEST_SCENE_NAME);
-        engineInstance_->mainScene_->Init();
+        engineInstance_->mainScene_->Init(*engineInstance_);
 
         engineInstance_->ConfigResource();
     }
@@ -54,7 +54,7 @@ TEST_F(SceneNodeTestFixture, basic_scene)
 
     // const char* loonaImagePath = nullptr; // if null backend stuff wont be initialized and its fine for unit testing, TODO: create resource prefix handler (to retrive paths stored into resources.json)
     std::shared_ptr<Sprite> someSprite = std::make_shared<Sprite>("some_sprite_path.jpg", false);
-    sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
+    sprite1Node->AddComponent(RenderableNode(someSprite));
 
     // Add the node to the parent node...
     parentNode->AddChild(sprite1Node);
@@ -140,19 +140,19 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     // Configure parenting herarchy
     auto someParent = std::make_shared<SceneNode>("parent");
     auto sprite1Node = std::make_shared<SceneNode>("sprite node 1");
-    sprite1Node->AddComponent(std::make_shared<RenderableNode>(someSprite));
+    sprite1Node->AddComponent(RenderableNode(someSprite));
     someParent->AddChild(sprite1Node);
 
     auto childrenNode = std::make_shared<SceneNode>("child sprite");
-    childrenNode->AddComponent(std::make_shared<RenderableNode>(someSpriteChildren));
+    childrenNode->AddComponent(RenderableNode(someSpriteChildren));
     sprite1Node->AddChild(childrenNode);
 
     auto sprite2Node = std::make_shared<SceneNode>("sprite node 2");
-    sprite2Node->AddComponent(std::make_shared<RenderableNode>(someSprite2));
+    sprite2Node->AddComponent(RenderableNode(someSprite2));
     someParent->AddChild(sprite2Node);
 
     auto cameraNode = std::make_shared<SceneNode>("cameraNode");
-    cameraNode->AddComponent(std::make_shared<RenderableNode>(mainCamera));
+    cameraNode->AddComponent(RenderableNode(mainCamera));
     someParent->AddChild(cameraNode);
 
     engineInstance_->mainScene_->root_node_->AddChild(someParent);

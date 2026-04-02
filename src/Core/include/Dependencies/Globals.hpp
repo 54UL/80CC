@@ -9,6 +9,8 @@
 #include <spdlog/spdlog.h>
 
 #include <cereal/types/memory.hpp>
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/string.hpp>
 #include <cereal/archives/json.hpp>
 
 namespace ettycc
@@ -35,19 +37,29 @@ namespace ettycc
             const char* root = std::getenv(gk::ENV_ASSETS_ROOT);
             if (root == nullptr)
             {
-                spdlog::warn("'{}' not set — using default: {}", gk::ENV_ASSETS_ROOT, paths::CONFIG_DEFAULT);
-                SetWorkingFolder(paths::CONFIG_DEFAULT);
+                spdlog::warn("'{}' not set — using default: {}", gk::ENV_ASSETS_ROOT, paths::ASSETS_DEFAULT);
+                SetWorkingFolder(paths::ASSETS_DEFAULT);
             }
             else
             {
                 spdlog::info("Assets root: '{}'", root);
-                SetWorkingFolder(std::string(root) + "/config/");
+                SetWorkingFolder(std::string(root));
             }
         }
 
         // ── Working folder ─────────────────────────────────────────────────
-        void SetWorkingFolder(const std::string& path) { workingFolderPath_ = path; }
-        const std::string& GetWorkingFolder()          { return workingFolderPath_; }
+        // Always normalizes to end with '/' so callers can just concatenate.
+        void SetWorkingFolder(const std::string& path)
+        {
+            workingFolderPath_ = path;
+            if (!workingFolderPath_.empty())
+            {
+                char& last = workingFolderPath_.back();
+                if (last == '\\') last = '/';          // backslash → forward slash
+                else if (last != '/') workingFolderPath_ += '/';  // add if missing
+            }
+        }
+        const std::string& GetWorkingFolder() const { return workingFolderPath_; }
 
         void AutoSetWorkingFolder()
         {
@@ -64,32 +76,30 @@ namespace ettycc
             }
         }
 
-        // ── Persistence ────────────────────────────────────────────────────
-        void Load(const std::string& fileName)
+        // Populate structural defaults. Called before LoadGlobals so the engine
+        // keeps working even when the file is missing or corrupt. Values from the
+        // file will overwrite these after a successful load.
+        void SetupDefaults()
         {
-            const auto filePath = workingFolderPath_ + fileName;
-            std::ifstream file(filePath);
-            if (file.is_open())
+            auto set = [&](const char* prefix, const char* key, const char* val)
             {
-                cereal::JSONInputArchive ar(file);
-                ar(cereal::make_nvp(gk::JSON_ROOT, groups_));
-            }
-            else
-            {
-                spdlog::error("Globals file not found: '{}'", filePath);
-            }
+                groups_[prefix].resources.emplace(key, val);
+            };
+            set(gk::prefix::APP,     "title",              "80CC");
+            set(gk::prefix::APP,     "flags",              "WINDOWED");
+            set(gk::prefix::APP,     "resolution",         "800,600");
+            set(gk::prefix::PATHS,   gk::key::PATH_CONFIG,    "config/");
+            set(gk::prefix::PATHS,   gk::key::PATH_IMAGES,    "images/");
+            set(gk::prefix::PATHS,   gk::key::PATH_SCENES,    "scenes/");
+            set(gk::prefix::PATHS,   gk::key::PATH_TEMPLATES, "templates/");
+            set(gk::prefix::PATHS,   gk::key::PATH_SHADERS,   "shaders/");
+            set(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND, "images/not_found_texture.png");
+            set(gk::prefix::STATE,   gk::key::STATE_LAST_SCENE, "");
         }
 
-        void Store(const std::string& fileName)
+        template <class Archive>
+        void serialize(Archive& ar)
         {
-            const auto filePath = workingFolderPath_ + fileName;
-            std::ofstream file(filePath);
-            if (!file.is_open())
-            {
-                spdlog::warn("Cannot write globals file: '{}'", filePath);
-                return;
-            }
-            cereal::JSONOutputArchive ar(file);
             ar(cereal::make_nvp(gk::JSON_ROOT, groups_));
         }
 

@@ -89,7 +89,7 @@ namespace ettycc
     {
         // TODO: THIS OPERATION NEEDS TO BE EAGEAR INITIALIZED INSTEAD OF LAZY INIT...
         auto resources = GetDependency(Globals);
-        auto shadersPath = resources->GetWorkingFolder() + "/" + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
+        auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
 
         // TODO: Make shader types constants...
         auto vertexShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
@@ -153,7 +153,7 @@ namespace ettycc
             return;
 
         auto engineResources = GetDependency(Globals);
-        const auto fullPath = engineResources->GetWorkingFolder() + "\\" + spriteFilePath_;
+        const auto fullPath = engineResources->GetWorkingFolder() + spriteFilePath_;
 
         spdlog::info("Initializing sprite [{}]", fullPath);
         InitBackend(fullPath);

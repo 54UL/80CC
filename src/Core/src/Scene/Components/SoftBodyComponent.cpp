@@ -1,6 +1,5 @@
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Engine.hpp>
-#include <Dependency.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 
 #include <BulletSoftBody/btSoftBodyHelpers.h>
@@ -19,51 +18,38 @@
 
 namespace ettycc
 {
-    // -------------------------------------------------------------------------
-    // Local disc geometry builder
-    // -------------------------------------------------------------------------
+    // ── Local disc geometry builder (unchanged from original) ─────────────────
     struct DiscGeometry
     {
-        std::vector<float> positions;   // flat: x,y,z per vertex
-        std::vector<float> uvs;         // flat: u,v per vertex
-        std::vector<int>   indices;     // triangle list
+        std::vector<float> positions;
+        std::vector<float> uvs;
+        std::vector<int>   indices;
     };
 
     static DiscGeometry BuildDisc(float radius, int rings, int sectors)
     {
         DiscGeometry geo;
-
         const int numVerts = 1 + rings * sectors;
         geo.positions.reserve(numVerts * 3);
         geo.uvs.reserve(numVerts * 2);
 
-        // Center vertex
-        geo.positions.push_back(0.0f);
-        geo.positions.push_back(0.0f);
-        geo.positions.push_back(0.0f);
-        geo.uvs.push_back(0.5f);
-        geo.uvs.push_back(0.5f);
+        geo.positions.push_back(0.f); geo.positions.push_back(0.f); geo.positions.push_back(0.f);
+        geo.uvs.push_back(0.5f); geo.uvs.push_back(0.5f);
 
-        // Ring vertices
         for (int r = 0; r < rings; ++r)
         {
-            float t = static_cast<float>(r + 1) / static_cast<float>(rings);
+            float t = float(r + 1) / float(rings);
             for (int s = 0; s < sectors; ++s)
             {
-                float angle = static_cast<float>(s) * 2.0f * static_cast<float>(M_PI) / static_cast<float>(sectors);
-                float x = std::cos(angle) * t * radius;
-                float y = std::sin(angle) * t * radius;
-
-                geo.positions.push_back(x);
-                geo.positions.push_back(y);
-                geo.positions.push_back(0.0f);
-
+                float angle = float(s) * 2.f * float(M_PI) / float(sectors);
+                geo.positions.push_back(std::cos(angle) * t * radius);
+                geo.positions.push_back(std::sin(angle) * t * radius);
+                geo.positions.push_back(0.f);
                 geo.uvs.push_back(0.5f + std::cos(angle) * t * 0.5f);
                 geo.uvs.push_back(0.5f + std::sin(angle) * t * 0.5f);
             }
         }
 
-        // Center fan triangles
         for (int s = 0; s < sectors; ++s)
         {
             geo.indices.push_back(0);
@@ -71,41 +57,27 @@ namespace ettycc
             geo.indices.push_back(1 + (s + 1) % sectors);
         }
 
-        // Ring-to-ring quad triangles
         for (int r = 0; r < rings - 1; ++r)
         {
             int base0 = 1 + r * sectors;
             int base1 = 1 + (r + 1) * sectors;
             for (int s = 0; s < sectors; ++s)
             {
-                int a = base0 + s;
-                int b = base0 + (s + 1) % sectors;
-                int c = base1 + s;
-                int d = base1 + (s + 1) % sectors;
-                geo.indices.push_back(a);
-                geo.indices.push_back(c);
-                geo.indices.push_back(b);
-
-                geo.indices.push_back(b);
-                geo.indices.push_back(c);
-                geo.indices.push_back(d);
+                int a = base0 + s, b = base0 + (s + 1) % sectors;
+                int c = base1 + s, d = base1 + (s + 1) % sectors;
+                geo.indices.push_back(a); geo.indices.push_back(c); geo.indices.push_back(b);
+                geo.indices.push_back(b); geo.indices.push_back(c); geo.indices.push_back(d);
             }
         }
 
         return geo;
     }
 
-    // -------------------------------------------------------------------------
-    // Constructor / Destructor
-    // -------------------------------------------------------------------------
-    SoftBodyComponent::SoftBodyComponent(float radius, glm::vec3 pos, float mass, std::string texPath)
-        : radius_(radius)
-        , mass_(mass)
-        , initialPosition_(pos)
-        , texturePath_(std::move(texPath))
-    {
-        componentId_ = Utils::GetNextIncrementalId();
-    }
+    // ── Constructor / Destructor ──────────────────────────────────────────────
+    SoftBodyComponent::SoftBodyComponent(float radius, glm::vec3 pos, float mass,
+                                         std::string texPath)
+        : radius_(radius), mass_(mass), initialPosition_(pos), texturePath_(std::move(texPath))
+    {}
 
     SoftBodyComponent::~SoftBodyComponent()
     {
@@ -117,129 +89,117 @@ namespace ettycc
         }
     }
 
-    // -------------------------------------------------------------------------
-    // NodeComponent interface
-    // -------------------------------------------------------------------------
-    NodeComponentInfo SoftBodyComponent::GetComponentInfo()
+    // ── System-facing: initialize soft body ───────────────────────────────────
+    void SoftBodyComponent::InitBody(btSoftRigidDynamicsWorld* world, Engine& engine)
     {
-        return { componentId_, componentType, true, ProcessingChannel::MAIN };
-    }
-
-    void SoftBodyComponent::OnStart(std::shared_ptr<Engine> engineInstance)
-    {
-        softWorld_ = engineInstance->physicsWorld_.GetSoftWorld();
+        softWorld_ = world;
         if (!softWorld_)
         {
             spdlog::error("[SoftBodyComponent] soft physics world not initialized");
             return;
         }
 
-        // Build disc geometry
         DiscGeometry geo = BuildDisc(radius_, rings_, sectors_);
+        const int numVerts     = int(geo.positions.size()) / 3;
+        const int numTriangles = int(geo.indices.size())   / 3;
 
-        const int numVerts     = static_cast<int>(geo.positions.size()) / 3;
-        const int numTriangles = static_cast<int>(geo.indices.size())   / 3;
-
-        // Bullet wants a flat btScalar positions array
         std::vector<btScalar> btPos;
         btPos.reserve(geo.positions.size());
-        for (float f : geo.positions)
-            btPos.push_back(static_cast<btScalar>(f));
+        for (float f : geo.positions) btPos.push_back(btScalar(f));
 
-        // Create the soft body from triangle mesh
         btSoftBodyWorldInfo& worldInfo = softWorld_->getWorldInfo();
         body_ = btSoftBodyHelpers::CreateFromTriMesh(
-            worldInfo,
-            btPos.data(),
-            geo.indices.data(),
-            numTriangles,
-            false  // randomizeConstraints — we call it manually below
-        );
+            worldInfo, btPos.data(), geo.indices.data(), numTriangles, false);
 
         if (!body_)
         {
-            spdlog::error("[SoftBodyComponent] btSoftBodyHelpers::CreateFromTriMesh failed");
+            spdlog::error("[SoftBodyComponent] CreateFromTriMesh failed");
             return;
         }
 
-        // Material — plasticine/snot feel: very soft springs, slight area preservation
         btSoftBody::Material* mat = body_->m_materials[0];
-        mat->m_kLST = static_cast<btScalar>(stiffness_);             // user-tunable softness
-        mat->m_kAST = static_cast<btScalar>(stiffness_ * 2.0f);      // resists collapse but still stretches
-        mat->m_kVST = btScalar(0.0);                                  // flat mesh — no volume stiffness
+        mat->m_kLST = btScalar(stiffness_);
+        mat->m_kAST = btScalar(stiffness_ * 2.f);
+        mat->m_kVST = btScalar(0.0);
 
-        // Config — flat 2D disc: no pressure or volume conservation (those need a closed 3D volume)
-        body_->m_cfg.kDP         = btScalar(0.15);  // damp node velocity — prevents bounce-gap at rigid surfaces
-        body_->m_cfg.kDF         = btScalar(0.1);   // low surface friction
+        body_->m_cfg.kDP         = btScalar(0.3);    // damping — settles faster, reduces sliding
+        body_->m_cfg.kDF         = btScalar(0.8);    // dynamic friction — prevents spinning on surfaces
+        body_->m_cfg.kPR         = btScalar(pressure_);
         body_->m_cfg.piterations = 10;
-        // VF_SS = vertex-face soft-soft collision (no clusters required)
-        // SDF_RS is the default rigid-soft mode; leave it as-is
-        body_->m_cfg.collisions = btSoftBody::fCollision::SDF_RS
-                                | btSoftBody::fCollision::VF_SS;
+        // CL_RS: cluster-based rigid-soft collision — avoids btSparseSdf::Evaluate
+        // which has a floating-point OOB bug when a node lands exactly on a voxel
+        // cell boundary (Decompose() can return r.i == CELLSIZE == 3).
+        body_->m_cfg.collisions  = btSoftBody::fCollision::CL_RS
+                                 | btSoftBody::fCollision::VF_SS;
 
-        // Generate bending constraints for extra structural integrity
         body_->generateBendingConstraints(2, mat);
         body_->randomizeConstraints();
+        body_->setTotalMass(btScalar(mass_), true);
+        body_->getCollisionShape()->setMargin(btScalar(0.02));
 
-        // Set mass and finalize
-        body_->setTotalMass(static_cast<btScalar>(mass_), true);
-
-        // Move to initial world position
         btTransform startXf;
         startXf.setIdentity();
         startXf.setOrigin(btVector3(initialPosition_.x, initialPosition_.y, initialPosition_.z));
         body_->transform(startXf);
 
-        softWorld_->addSoftBody(body_);
-
-        if (ownerNode_)
+        // Break perfect coplanarity BEFORE generating clusters.  Coplanar nodes
+        // produce a rank-2 cluster shape matrix, and btMatrix3x3::inverse()
+        // asserts det != 0 during CL_RS collision resolution.
         {
-            ownerNode_->transform_.setGlobalPosition(initialPosition_);
-            lastTrackedCentroid_ = initialPosition_;
+            const btScalar zEps = btScalar(0.001);
+            for (int i = 0; i < body_->m_nodes.size(); ++i)
+                body_->m_nodes[i].m_x.setZ(
+                    body_->m_nodes[i].m_x.getZ() + zEps * ((i & 1) ? btScalar(1) : btScalar(-1)));
         }
 
-        spdlog::info("[SoftBodyComponent] soft body created — radius={:.2f} mass={:.2f} verts={} tris={}",
+        // generateClusters is required for CL_RS rigid-soft collision detection.
+        // 0 = auto-select cluster count based on mesh topology.
+        body_->generateClusters(0);
+        softWorld_->addSoftBody(body_);
+        lastTrackedCentroid_ = initialPosition_;
+
+        spdlog::info("[SoftBodyComponent] created — radius={:.2f} mass={:.2f} verts={} tris={}",
                      radius_, mass_, numVerts, numTriangles);
 
-        // Build and initialize renderable
         renderable_ = std::make_shared<SoftBodyRenderable>(
-            texturePath_,
-            body_,
-            geo.uvs,
-            geo.indices
-        );
-
-        renderable_->Init(engineInstance);
-        engineInstance->renderEngine_.AddRenderable(renderable_);
+            texturePath_, body_, geo.uvs, geo.indices);
+        renderable_->Init(GetDependency(Engine));
+        engine.renderEngine_.AddRenderable(renderable_);
     }
 
-    void SoftBodyComponent::OnUpdate(float /*deltaTime*/)
+    // ── System-facing: per-frame update ───────────────────────────────────────
+    void SoftBodyComponent::UpdateBody(Transform& t)
     {
-        if (!body_)
-            return;
+        if (!body_) return;
 
-        // Constrain all nodes to the 2D plane (Z = initialPosition_.z)
-        const btScalar targetZ = static_cast<btScalar>(initialPosition_.z);
+        // Constrain nodes near the 2D plane but allow a tiny Z spread so that
+        // cluster shape matrices stay full-rank.  A perfectly coplanar cluster
+        // has a rank-2 shape matrix whose inverse triggers btAssert(det != 0)
+        // inside btMatrix3x3::inverse() during CL_RS collision resolution.
+        const btScalar targetZ = btScalar(initialPosition_.z);
+        const btScalar zEps    = btScalar(0.001);   // small spread keeps clusters non-degenerate
         const int nodeCount = body_->m_nodes.size();
         for (int i = 0; i < nodeCount; ++i)
         {
-            body_->m_nodes[i].m_x.setZ(targetZ);
+            // Keep each node's Z within ±zEps of the target plane instead of
+            // forcing them all to the exact same value.
+            btScalar z = body_->m_nodes[i].m_x.getZ();
+            if (z < targetZ - zEps || z > targetZ + zEps)
+                body_->m_nodes[i].m_x.setZ(targetZ + zEps * ((i & 1) ? btScalar(1) : btScalar(-1)));
             body_->m_nodes[i].m_v.setZ(btScalar(0.0));
         }
 
-        if (!ownerNode_ || nodeCount == 0)
-            return;
+        if (nodeCount == 0) return;
 
-        // Compute current bullet centroid
+        // Compute centroid.
         btVector3 btCentroid(0, 0, 0);
         for (int i = 0; i < nodeCount; ++i)
             btCentroid += body_->m_nodes[i].m_x;
         btCentroid /= btScalar(nodeCount);
         glm::vec3 centroid(btCentroid.getX(), btCentroid.getY(), btCentroid.getZ());
 
-        // --- Apply: detect an external edit by comparing the node transform against
-        //     what WE wrote last frame. If they differ, the inspector/gizmo moved it. ---
-        const glm::vec3 nodePos = ownerNode_->transform_.getGlobalPosition();
+        // Apply any external (editor/gizmo) delta.
+        const glm::vec3 nodePos       = t.getGlobalPosition();
         const glm::vec3 externalDelta = nodePos - lastTrackedCentroid_;
 
         if (glm::length(externalDelta) > 0.001f)
@@ -248,18 +208,32 @@ namespace ettycc
             for (int i = 0; i < nodeCount; ++i)
             {
                 body_->m_nodes[i].m_x += btDelta;
-                body_->m_nodes[i].m_q += btDelta; // shift Verlet previous pos to avoid snap-back
+                body_->m_nodes[i].m_q += btDelta;
                 body_->m_nodes[i].m_v  = btVector3(0, 0, 0);
             }
             body_->updateBounds();
             centroid += externalDelta;
         }
 
-        // --- Track: write current centroid back to the node transform. ---
-        ownerNode_->transform_.setGlobalPosition(centroid);
+        t.setGlobalPosition(centroid);
         lastTrackedCentroid_ = centroid;
     }
 
+    // ── Centroid query ────────────────────────────────────────────────────
+    glm::vec3 SoftBodyComponent::GetCentroid() const
+    {
+        if (!body_ || body_->m_nodes.size() == 0)
+            return initialPosition_;
+
+        btVector3 sum(0, 0, 0);
+        const int n = body_->m_nodes.size();
+        for (int i = 0; i < n; ++i)
+            sum += body_->m_nodes[i].m_x;
+        sum /= btScalar(n);
+        return {sum.getX(), sum.getY(), sum.getZ()};
+    }
+
+    // ── Editor inspector ──────────────────────────────────────────────────────
     void SoftBodyComponent::InspectProperties(EditorPropertyVisitor& v)
     {
         Inspect(v);

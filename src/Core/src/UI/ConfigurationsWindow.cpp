@@ -224,6 +224,8 @@ namespace ettycc
         ImGui::Spacing();
 
         auto resources = GetDependency(Globals);
+        auto engine = GetDependency(Engine);
+
         if (!resources)
         {
             ImGui::TextDisabled("Resources not available");
@@ -287,7 +289,7 @@ namespace ettycc
         }
 
         if (ImGui::Button(build::str::BTN_SAVE_GLOBALS))
-            resources->Store(gk::JSON_FILENAME);
+            engine->StoreGlobals(gk::JSON_FILENAME);
     }
 
     // -------------------------------------------------------------------------
