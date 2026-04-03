@@ -60,6 +60,7 @@ set(80CC_CORE_HEADERS
     include/Dependencies/Resources.hpp
     include/Networking/NetworkManager.hpp
     include/Networking/NetworkComponent.hpp
+    include/Benchmark/Benchmark.hpp
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
     external/imgui/imgui_internal.h

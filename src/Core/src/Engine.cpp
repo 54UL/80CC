@@ -1,5 +1,6 @@
 #include <Engine.hpp>
 #include <Dependency.hpp>
+#include <Benchmark/Benchmark.hpp>
 #include <future>
 #include <chrono>
 
@@ -127,7 +128,7 @@ namespace ettycc
         createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3( 9.3f,  0.0f, 0.0f)); // right wall
 
         // ── Two staggered columns of dynamic rigid boxes ──────────────────────
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 1000; ++i)
         {
             createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
                              glm::vec3(-1.1f, -3.8f + i * 1.15f, 0.0f));
@@ -380,9 +381,17 @@ namespace ettycc
 
     void Engine::Init()
     {
+        Benchmark bench;
+        bench.Begin();
+
         ConfigResource();
+        bench.Mark("config_resources");
+
         physicsWorld_.Init();
+        bench.Mark("physics_init");
+
         audioManager_.Init();
+        bench.Mark("audio_init");
 
         if (isEditorMode_)
             audioManager_.PlayStartupChime();
@@ -402,6 +411,7 @@ namespace ettycc
                 module->OnStart(this);
                 spdlog::info("Game module initialized [{}]", module->name_);
             }
+            bench.Mark("game_modules_init");
         }
         else
         {
@@ -409,12 +419,17 @@ namespace ettycc
                 spdlog::warn("[Engine] No game modules registered — loading last scene");
 
             LoadLastScene();
+            bench.Mark("scene_load");
         }
 
         if (mainScene_)
             spdlog::info("[Engine] Active scene [{}]", mainScene_->sceneName_);
         else
             spdlog::error("[Engine] No scene available after Init");
+
+        // Write benchmark results — file lives next to the engine config.
+        const std::string benchPath = globals_->GetWorkingFolder() + "config/startup_benchmark.csv";
+        bench.WriteToFile(benchPath);
     }
 
     void Engine::Update()

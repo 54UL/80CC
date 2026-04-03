@@ -32,6 +32,9 @@ namespace ettycc
         worldInfo.water_normal        = btVector3(0.0f, 0.0f, 0.0f);
         worldInfo.m_sparsesdf.Initialize();
 
+        // Skip AABB recalculation for sleeping/static bodies — big win with many boxes.
+        world_->setForceUpdateAllAabbs(false);
+
         spdlog::info("[PhysicsWorld] initialized (soft+rigid) — gravity (0, -9.81, 0)");
     }
 
@@ -41,7 +44,7 @@ namespace ettycc
         // Guard against degenerate delta (first frame, minimized window, breakpoint, etc.).
         if (deltaTime <= 0.f || deltaTime > 0.25f)
             deltaTime = 1.f / 60.f;
-        world_->stepSimulation(deltaTime, 16);
+        world_->stepSimulation(deltaTime, 8);
     }
 
     btDiscreteDynamicsWorld* PhysicsWorld::GetWorld()

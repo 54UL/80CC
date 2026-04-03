@@ -89,14 +89,8 @@ namespace ettycc
 
 } // namespace ettycc
 
-// Editor is always enabled for now (no separate game target yet).
-// Remove the override below once the build system defines EDITOR_BUILD properly.
-#ifndef EDITOR_BUILD
-#  define EDITOR_BUILD
-#endif
-
 // ── Macros ────────────────────────────────────────────────────────────────────
-#ifdef EDITOR_BUILD
+#ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
 #  define PROP(field, label)           v.Property(label, field)
 #  define PROP_RO(field, label)        v.Property(label, field, ettycc::PROP_READ_ONLY)
 #  define PROP_NS(field, label)        v.Property(label, field, ettycc::PROP_NO_SERIAL)
