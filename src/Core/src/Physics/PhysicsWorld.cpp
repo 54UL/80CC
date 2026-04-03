@@ -5,26 +5,28 @@ namespace ettycc
 {
     PhysicsWorld::~PhysicsWorld()
     {
-        delete world_;
-        delete solver_;
-        delete broadphase_;
-        delete dispatcher_;
-        delete config_;
+        // Explicit teardown order: world first, then its dependencies.
+        world_.reset();
+        solver_.reset();
+        broadphase_.reset();
+        dispatcher_.reset();
+        config_.reset();
     }
 
     void PhysicsWorld::Init()
     {
-        config_     = new btSoftBodyRigidBodyCollisionConfiguration();
-        dispatcher_ = new btCollisionDispatcher(config_);
-        broadphase_ = new btDbvtBroadphase();
-        solver_     = new btSequentialImpulseConstraintSolver();
-        world_      = new btSoftRigidDynamicsWorld(dispatcher_, broadphase_, solver_, config_);
+        config_     = std::make_unique<btSoftBodyRigidBodyCollisionConfiguration>();
+        dispatcher_ = std::make_unique<btCollisionDispatcher>(config_.get());
+        broadphase_ = std::make_unique<btDbvtBroadphase>();
+        solver_     = std::make_unique<btSequentialImpulseConstraintSolver>();
+        world_      = std::make_unique<btSoftRigidDynamicsWorld>(
+                          dispatcher_.get(), broadphase_.get(), solver_.get(), config_.get());
         world_->setGravity(btVector3(0.0f, -9.81f, 0.0f));
 
         // Configure the soft-body world info
         btSoftBodyWorldInfo& worldInfo = world_->getWorldInfo();
-        worldInfo.m_dispatcher        = dispatcher_;
-        worldInfo.m_broadphase        = broadphase_;
+        worldInfo.m_dispatcher        = dispatcher_.get();
+        worldInfo.m_broadphase        = broadphase_.get();
         worldInfo.m_gravity           = btVector3(0.0f, -9.81f, 0.0f);
         worldInfo.air_density         = btScalar(1.2);
         worldInfo.water_density       = btScalar(0.0);
@@ -49,10 +51,10 @@ namespace ettycc
 
     btDiscreteDynamicsWorld* PhysicsWorld::GetWorld()
     {
-        return world_;   // implicit upcast — btSoftRigidDynamicsWorld IS-A btDiscreteDynamicsWorld
+        return world_.get();   // implicit upcast — btSoftRigidDynamicsWorld IS-A btDiscreteDynamicsWorld
     }
     btSoftRigidDynamicsWorld* PhysicsWorld::GetSoftWorld()
     {
-        return world_;
+        return world_.get();
     }
 }

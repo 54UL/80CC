@@ -82,11 +82,7 @@ namespace ettycc
     SoftBodyComponent::~SoftBodyComponent()
     {
         if (body_ && softWorld_)
-        {
-            softWorld_->removeSoftBody(body_);
-            delete body_;
-            body_ = nullptr;
-        }
+            softWorld_->removeSoftBody(body_.get());
     }
 
     // ── System-facing: initialize soft body ───────────────────────────────────
@@ -108,8 +104,8 @@ namespace ettycc
         for (float f : geo.positions) btPos.push_back(btScalar(f));
 
         btSoftBodyWorldInfo& worldInfo = softWorld_->getWorldInfo();
-        body_ = btSoftBodyHelpers::CreateFromTriMesh(
-            worldInfo, btPos.data(), geo.indices.data(), numTriangles, false);
+        body_.reset(btSoftBodyHelpers::CreateFromTriMesh(
+            worldInfo, btPos.data(), geo.indices.data(), numTriangles, false));
 
         if (!body_)
         {
@@ -155,14 +151,14 @@ namespace ettycc
         // generateClusters is required for CL_RS rigid-soft collision detection.
         // 0 = auto-select cluster count based on mesh topology.
         body_->generateClusters(0);
-        softWorld_->addSoftBody(body_);
+        softWorld_->addSoftBody(body_.get());
         lastTrackedCentroid_ = initialPosition_;
 
         spdlog::info("[SoftBodyComponent] created — radius={:.2f} mass={:.2f} verts={} tris={}",
                      radius_, mass_, numVerts, numTriangles);
 
         renderable_ = std::make_shared<SoftBodyRenderable>(
-            texturePath_, body_, geo.uvs, geo.indices);
+            texturePath_, body_.get(), geo.uvs, geo.indices);
         renderable_->Init(GetDependency(Engine));
         engine.renderEngine_.AddRenderable(renderable_);
     }

@@ -7,6 +7,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <glm/glm.hpp>
 #include <cereal/archives/json.hpp>
+#include <memory>
 
 namespace ettycc
 {
@@ -35,39 +36,32 @@ namespace ettycc
             , initialPosition_(o.initialPosition_)
             , syncTransform_(o.syncTransform_)
             , physWorld_(o.physWorld_)
-            , shape_(o.shape_), motionState_(o.motionState_), body_(o.body_)
+            , shape_(std::move(o.shape_))
+            , motionState_(std::move(o.motionState_))
+            , body_(std::move(o.body_))
             , isManipulated_(o.isManipulated_)
         {
             o.syncTransform_ = nullptr;
             o.physWorld_     = nullptr;
-            o.shape_         = nullptr;
-            o.motionState_   = nullptr;
-            o.body_          = nullptr;
         }
 
         RigidBodyComponent& operator=(RigidBodyComponent&& o) noexcept
         {
             if (this == &o) return *this;
-            if (body_ && physWorld_) physWorld_->removeRigidBody(body_);
-            delete motionState_; motionState_ = nullptr;
-            delete body_;        body_        = nullptr;
-            delete shape_;       shape_       = nullptr;
+            if (body_ && physWorld_) physWorld_->removeRigidBody(body_.get());
 
             mass_            = o.mass_;
             halfExtents_     = o.halfExtents_;
             initialPosition_ = o.initialPosition_;
             syncTransform_   = o.syncTransform_;
             physWorld_       = o.physWorld_;
-            shape_           = o.shape_;
-            motionState_     = o.motionState_;
-            body_            = o.body_;
+            shape_           = std::move(o.shape_);
+            motionState_     = std::move(o.motionState_);
+            body_            = std::move(o.body_);
             isManipulated_   = o.isManipulated_;
 
             o.syncTransform_ = nullptr;
             o.physWorld_     = nullptr;
-            o.shape_         = nullptr;
-            o.motionState_   = nullptr;
-            o.body_          = nullptr;
             return *this;
         }
 
@@ -112,12 +106,12 @@ namespace ettycc
         glm::vec3 initialPosition_ = { 0.0f, 0.0f, 0.0f };
 
         // ── Runtime (not serialized, set by PhysicsSystem::InitBody) ─────────
-        Transform*               syncTransform_ = nullptr;
-        btDiscreteDynamicsWorld* physWorld_      = nullptr;
-        btCollisionShape*        shape_          = nullptr;
-        btDefaultMotionState*    motionState_    = nullptr;
-        btRigidBody*             body_           = nullptr;
-        bool                     isManipulated_  = false;
+        Transform*                           syncTransform_  = nullptr;  // non-owning
+        btDiscreteDynamicsWorld*             physWorld_      = nullptr;  // non-owning
+        std::unique_ptr<btCollisionShape>    shape_;
+        std::unique_ptr<btDefaultMotionState> motionState_;
+        std::unique_ptr<btRigidBody>         body_;
+        bool                                 isManipulated_  = false;
     };
 }
 

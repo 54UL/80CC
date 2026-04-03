@@ -13,11 +13,7 @@ namespace ettycc
     RigidBodyComponent::~RigidBodyComponent()
     {
         if (body_ && physWorld_)
-            physWorld_->removeRigidBody(body_);
-
-        delete motionState_;
-        delete body_;
-        delete shape_;
+            physWorld_->removeRigidBody(body_.get());
     }
 
     // ── System-facing: initialize Bullet rigid body ───────────────────────────
@@ -44,7 +40,8 @@ namespace ettycc
         const btScalar hx = btScalar(h.x > 0.05f ? h.x : 0.05f);
         const btScalar hy = btScalar(h.y > 0.05f ? h.y : 0.05f);
         const btScalar hz = btScalar(h.z > 0.05f ? h.z : 0.05f);
-        shape_ = new btBoxShape(btVector3(hx, hy, hz));
+
+        shape_ = std::make_unique<btBoxShape>(btVector3(hx, hy, hz));
 
         btTransform startXf;
         startXf.setIdentity();
@@ -54,10 +51,10 @@ namespace ettycc
         if (mass_ > 0.f)
             shape_->calculateLocalInertia(mass_, localInertia);
 
-        motionState_ = new btDefaultMotionState(startXf);
-        btRigidBody::btRigidBodyConstructionInfo ci(mass_, motionState_, shape_, localInertia);
-        body_ = new btRigidBody(ci);
+        motionState_ = std::make_unique<btDefaultMotionState>(startXf);
+        btRigidBody::btRigidBodyConstructionInfo ci(mass_, motionState_.get(), shape_.get(), localInertia);
 
+        body_ = std::make_unique<btRigidBody>(ci);
         // 2-D constraint: lock Z translation and X/Y rotation.
         if (mass_ > 0.f)
         {
@@ -65,7 +62,7 @@ namespace ettycc
             body_->setAngularFactor(btVector3(0.f, 0.f, 1.f));
         }
 
-        physWorld_->addRigidBody(body_);
+        physWorld_->addRigidBody(body_.get());
 
         spdlog::info("[RigidBodyComponent] body created — mass={:.1f}  pos=({:.2f},{:.2f},{:.2f})",
                      mass_, spawnPos.x, spawnPos.y, spawnPos.z);

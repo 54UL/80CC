@@ -44,21 +44,17 @@ namespace ettycc
             , mass_(o.mass_), initialPosition_(o.initialPosition_)
             , stiffness_(o.stiffness_), pressure_(o.pressure_)
             , texturePath_(std::move(o.texturePath_))
-            , body_(o.body_), softWorld_(o.softWorld_)
+            , body_(std::move(o.body_)), softWorld_(o.softWorld_)
             , renderable_(std::move(o.renderable_))
             , lastTrackedCentroid_(o.lastTrackedCentroid_)
         {
-            o.body_      = nullptr;
             o.softWorld_ = nullptr;
         }
 
         SoftBodyComponent& operator=(SoftBodyComponent&& o) noexcept
         {
             if (this == &o) return *this;
-            if (body_ && softWorld_) softWorld_->removeSoftBody(body_);
-            // btSoftBody is owned by the world; do NOT delete it directly.
-            body_      = nullptr;
-            softWorld_ = nullptr;
+            if (body_ && softWorld_) softWorld_->removeSoftBody(body_.get());
 
             radius_               = o.radius_;
             rings_                = o.rings_;
@@ -68,12 +64,11 @@ namespace ettycc
             stiffness_            = o.stiffness_;
             pressure_             = o.pressure_;
             texturePath_          = std::move(o.texturePath_);
-            body_                 = o.body_;
+            body_                 = std::move(o.body_);
             softWorld_            = o.softWorld_;
             renderable_           = std::move(o.renderable_);
             lastTrackedCentroid_  = o.lastTrackedCentroid_;
 
-            o.body_      = nullptr;
             o.softWorld_ = nullptr;
             return *this;
         }
@@ -133,8 +128,8 @@ namespace ettycc
         std::string texturePath_;
 
         // ── Runtime (not serialized, set by PhysicsSystem) ────────────────────
-        btSoftBody*                         body_       = nullptr;
-        btSoftRigidDynamicsWorld*           softWorld_  = nullptr;
+        std::unique_ptr<btSoftBody>         body_;
+        btSoftRigidDynamicsWorld*           softWorld_  = nullptr;  // non-owning
         std::shared_ptr<SoftBodyRenderable> renderable_;
         glm::vec3 lastTrackedCentroid_ = {0.f, 0.f, 0.f};
     };

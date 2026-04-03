@@ -4,6 +4,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
+#include <memory>
 
 namespace ettycc
 {
@@ -23,11 +24,13 @@ namespace ettycc
         btSoftRigidDynamicsWorld* GetSoftWorld();
 
     private:
-        btSoftBodyRigidBodyCollisionConfiguration* config_     = nullptr;
-        btCollisionDispatcher*                     dispatcher_ = nullptr;
-        btBroadphaseInterface*                     broadphase_ = nullptr;
-        btSequentialImpulseConstraintSolver*       solver_     = nullptr;
-        btSoftRigidDynamicsWorld*                  world_      = nullptr;
+        // Declared in destruction-safe order (reverse of construction).
+        // world_ depends on all others, so it must be destroyed first.
+        std::unique_ptr<btSoftBodyRigidBodyCollisionConfiguration> config_;
+        std::unique_ptr<btCollisionDispatcher>                     dispatcher_;
+        std::unique_ptr<btBroadphaseInterface>                     broadphase_;
+        std::unique_ptr<btSequentialImpulseConstraintSolver>       solver_;
+        std::unique_ptr<btSoftRigidDynamicsWorld>                  world_;
     };
 }
 

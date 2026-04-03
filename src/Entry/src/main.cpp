@@ -17,7 +17,6 @@ int main(int argc, char* argv[])
     _80CC_ASSET_INIT;
 
 #ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
-    // Editor build: tell the engine so Init() restores the last scene instead of running modules.
     engineInstance->SetEditorMode(true);
     auto developmentEditor = std::make_shared<DevEditor>(engineInstance);
     app->AddExecutionPipeline(developmentEditor);
@@ -34,10 +33,6 @@ int main(int argc, char* argv[])
 
     int exitCode = app->Exec();
 
-    // Release all dependency-injected shared_ptrs before the static Dependency
-    // singleton is torn down.  Without this, Engine/Globals destructors would
-    // fire in the static cleanup phase — after SDL2App and spdlog statics are
-    // potentially already gone — causing crashes in their destructors.
     Dependency::getInstance().Clear();
 
     return exitCode;
