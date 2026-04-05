@@ -76,6 +76,23 @@ namespace ettycc
         void SyncToTransform(Transform& t) const;
 
         bool IsInitialized() const { return body_ != nullptr; }
+        bool IsDynamic()     const { return mass_ > 0.f; }
+        float GetMass()      const { return mass_; }
+
+        // Fusion cooldown — prevents chain reactions.
+        bool  CanFuse()  const { return fusionCooldown_ <= 0.f; }
+        void  SetFusionCooldown(float seconds) { fusionCooldown_ = seconds; }
+        void  TickCooldown(float dt) { if (fusionCooldown_ > 0.f) fusionCooldown_ -= dt; }
+
+        void ApplyCentralForce(const glm::vec3& f);
+        void SetLinearVelocity(const glm::vec3& v);
+        glm::vec3 GetPosition() const;
+        glm::vec3 GetLinearVelocity() const;
+        glm::vec3 GetHalfExtents() const { return halfExtents_; }
+
+        // Recreate the Bullet body with new mass / half-extents at the current
+        // position.  Used by the fusion system after merging two bodies.
+        void Reinitialize(float newMass, const glm::vec3& newHalfExtents);
 
         // ── Editor gizmo API ──────────────────────────────────────────────────
         void BeginManipulation();
@@ -112,6 +129,7 @@ namespace ettycc
         std::unique_ptr<btDefaultMotionState> motionState_;
         std::unique_ptr<btRigidBody>         body_;
         bool                                 isManipulated_  = false;
+        float                                fusionCooldown_ = 0.f;
     };
 }
 

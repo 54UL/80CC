@@ -98,6 +98,8 @@ namespace ettycc
         void createSoftBody(std::shared_ptr<SceneNode> rootSceneNode, std::string texPath,
                             float radius, glm::vec3 pos, float mass = 1.0f) const;
 
+        void BoxesScene();
+
 
         // Engine front-end API
         void InitEditorCamera();
@@ -105,6 +107,9 @@ namespace ettycc
         // camera if none exists. Ensures the camera is first in the render list.
         // Called automatically after every scene load in standalone mode.
         void EnsureGameCamera();
+
+        void GravityScene();
+
         void LoadDefaultScene();
         // Engine front-end API
         void LoadLastScene();

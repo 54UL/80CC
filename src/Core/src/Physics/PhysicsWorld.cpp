@@ -40,6 +40,11 @@ namespace ettycc
         spdlog::info("[PhysicsWorld] initialized (soft+rigid) — gravity (0, -9.81, 0)");
     }
 
+    void PhysicsWorld::SetGravity(const btVector3& g)
+    {
+        if (world_) world_->setGravity(g);
+    }
+
     void PhysicsWorld::Step(float deltaTime)
     {
         if (!world_) return;

@@ -30,7 +30,7 @@ namespace ettycc
 
         // Create SDL window and OpenGL context
         // todo: get the size from a config or idk lol...
-        window_ = SDL_CreateWindow(windowTitle_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_RENDERER_PRESENTVSYNC);
+        window_ = SDL_CreateWindow(windowTitle_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1200, 800, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE /*| SDL_RENDERER_PRESENTVSYNC*/);
         if (!window_)
         {
             // Handle window creation error
@@ -39,13 +39,14 @@ namespace ettycc
         }
 
         // Set OpenGL attributes
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_EGL);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_EGL); //TODO: EGL??? LOL I FORGOT TO CHANGE THIS, BUT KEEPING IT UNTIL WE NEED DESKTOP GL
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
-        // Create OpenGL context and make it the current context
+        // Open GL initialization
         glContext_ = SDL_GL_CreateContext(window_);
         SDL_GL_MakeCurrent(window_, glContext_);
+        SDL_GL_SetSwapInterval(0);   // disable vsync
 
         if (!glContext_)
         {

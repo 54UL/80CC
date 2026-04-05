@@ -84,6 +84,7 @@ set(80CC_CORE_SOURCES
     src/Scene/Components/RenderableNode.cpp
     src/Scene/Components/RigidBodyComponent.cpp
     src/Scene/Components/SoftBodyComponent.cpp
+    src/Scene/Components/GravityAttractorComponent.cpp
     src/Scene/Components/AudioSourceComponent.cpp
     src/Scene/Components/AudioListenerComponent.cpp
     src/Scene/Systems/PhysicsSystem.cpp

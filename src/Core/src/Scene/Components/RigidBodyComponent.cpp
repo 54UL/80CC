@@ -86,6 +86,90 @@ namespace ettycc
         t.SetFromTRS(pos, rot, scale);
     }
 
+    // ── Force / velocity helpers ────────────────────────────────────────────────
+    void RigidBodyComponent::ApplyCentralForce(const glm::vec3& f)
+    {
+        if (!body_) return;
+        body_->activate(true);
+        body_->applyCentralForce(btVector3(f.x, f.y, f.z));
+    }
+
+    void RigidBodyComponent::SetLinearVelocity(const glm::vec3& v)
+    {
+        if (!body_) return;
+        body_->activate(true);
+        body_->setLinearVelocity(btVector3(v.x, v.y, v.z));
+    }
+
+    glm::vec3 RigidBodyComponent::GetPosition() const
+    {
+        if (!body_) return {};
+        btTransform t;
+        body_->getMotionState()->getWorldTransform(t);
+        const btVector3& p = t.getOrigin();
+        return { p.getX(), p.getY(), p.getZ() };
+    }
+
+    glm::vec3 RigidBodyComponent::GetLinearVelocity() const
+    {
+        if (!body_) return {};
+        const btVector3& v = body_->getLinearVelocity();
+        return { v.getX(), v.getY(), v.getZ() };
+    }
+
+    void RigidBodyComponent::Reinitialize(float newMass, const glm::vec3& newHalfExtents)
+    {
+        if (!body_ || !physWorld_) return;
+
+        // Capture current state before tearing down.
+        const glm::vec3 pos = GetPosition();
+        const glm::vec3 vel = GetLinearVelocity();
+
+        // Remove old body from the world.
+        physWorld_->removeRigidBody(body_.get());
+        body_.reset();
+        motionState_.reset();
+        shape_.reset();
+
+        // Update stored fields.
+        mass_        = newMass;
+        halfExtents_ = newHalfExtents;
+
+        const btScalar hx = btScalar(newHalfExtents.x > 0.05f ? newHalfExtents.x : 0.05f);
+        const btScalar hy = btScalar(newHalfExtents.y > 0.05f ? newHalfExtents.y : 0.05f);
+        const btScalar hz = btScalar(newHalfExtents.z > 0.05f ? newHalfExtents.z : 0.05f);
+
+        shape_ = std::make_unique<btBoxShape>(btVector3(hx, hy, hz));
+
+        btTransform startXf;
+        startXf.setIdentity();
+        startXf.setOrigin(btVector3(pos.x, pos.y, pos.z));
+
+        btVector3 localInertia(0.f, 0.f, 0.f);
+        if (newMass > 0.f)
+            shape_->calculateLocalInertia(newMass, localInertia);
+
+        motionState_ = std::make_unique<btDefaultMotionState>(startXf);
+        btRigidBody::btRigidBodyConstructionInfo ci(newMass, motionState_.get(), shape_.get(), localInertia);
+        body_ = std::make_unique<btRigidBody>(ci);
+
+        if (newMass > 0.f)
+        {
+            body_->setLinearFactor (btVector3(1.f, 1.f, 0.f));
+            body_->setAngularFactor(btVector3(0.f, 0.f, 1.f));
+        }
+
+        physWorld_->addRigidBody(body_.get());
+
+        // Restore velocity (momentum-conserved value set by caller).
+        body_->setLinearVelocity(btVector3(vel.x, vel.y, vel.z));
+        body_->activate(true);
+
+        // Update the sync transform scale so the visual matches.
+        if (syncTransform_)
+            syncTransform_->setGlobalScale(newHalfExtents);
+    }
+
     // ── Editor gizmo API ──────────────────────────────────────────────────────
     void RigidBodyComponent::BeginManipulation()
     {

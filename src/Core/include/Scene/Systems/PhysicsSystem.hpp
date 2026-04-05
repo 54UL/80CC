@@ -1,5 +1,7 @@
 #pragma once
 #include <ECS/ISystem.hpp>
+#include <ECS/Entity.hpp>
+#include <vector>
 
 namespace ettycc
 {
@@ -8,6 +10,9 @@ namespace ettycc
     // Owns initialization and per-frame update for:
     //   • RigidBodyComponent (Bullet btRigidBody)
     //   • SoftBodyComponent  (Bullet btSoftBody)
+    //   • GravityAttractorComponent (radial force field)
+    // Also handles planetary fusion: when two dynamic bodies overlap they
+    // merge into one with conserved momentum and combined volume.
     class PhysicsSystem : public ISystem
     {
     public:
@@ -20,5 +25,10 @@ namespace ettycc
     private:
         void InitRigidBody(Scene& scene, Engine& engine, ecs::Entity e);
         void InitSoftBody (Scene& scene, Engine& engine, ecs::Entity e);
+
+        // Checks all dynamic body pairs and fuses overlapping ones.
+        void ProcessFusions(Scene& scene);
+
+        Engine* engine_ = nullptr;
     };
 }

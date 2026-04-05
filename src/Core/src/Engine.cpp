@@ -3,10 +3,12 @@
 #include <Benchmark/Benchmark.hpp>
 #include <future>
 #include <chrono>
+#include <cmath>
 
 #include <Scene/Components/RenderableNode.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
+#include <Scene/Components/GravityAttractorComponent.hpp>
 #include <Networking/NetworkComponent.hpp>
 #include <Scene/Systems/PhysicsSystem.hpp>
 #include <Scene/Systems/RenderSystem.hpp>
@@ -111,17 +113,12 @@ namespace ettycc
         rootSceneNode->AddChild(node);
     }
 
-    void Engine::LoadDefaultScene()
+    void Engine::BoxesScene()
     {
-        spdlog::warn("[Engine] loading built-in fallback scene...");
-
-        renderEngine_.ClearRenderables();
-        mainScene_ = std::make_shared<Scene>("default-scene");
-        SetupSceneSystems(*mainScene_, *this);
+        physicsWorld_.SetGravity(btVector3(0.f, -9.81, 0.f));
 
         const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;
-
         // ── Static boundaries ─────────────────────────────────────────────────
         createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3( 0.0f, -5.0f, 0.0f)); // ground
         createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f,  0.0f, 0.0f)); // left wall
@@ -140,6 +137,61 @@ namespace ettycc
         createSoftBody(root, tex, 0.7f, glm::vec3(-2.5f, 3.5f, 0.0f), 1.0f);
         createSoftBody(root, tex, 0.5f, glm::vec3( 0.0f, 4.5f, 0.0f), 1.0f);
         createSoftBody(root, tex, 0.9f, glm::vec3( 2.5f, 3.5f, 0.0f), 1.5f);
+
+    }
+
+    void Engine::GravityScene()
+    {
+        physicsWorld_.SetGravity(btVector3(0.f, 0.0f, 0.f));
+
+        const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+        auto root = mainScene_->root_node_;
+
+        // ── Gravity attractor at the origin ───────────────────────────────────
+        constexpr float attractorStrength = 60.0f;
+        {
+            auto attractorNode = std::make_shared<SceneNode>("gravity-attractor");
+            mainScene_->registry_.Add<GravityAttractorComponent>(
+                attractorNode->GetId(),
+                GravityAttractorComponent{glm::vec3(0.f, 0.f, 0.f), attractorStrength});
+            root->AddChild(attractorNode);
+        }
+
+        // ── Orbiting boxes ────────────────────────────────────────────────────
+        // Spawn boxes in a ring and give each a tangential velocity for a
+        // roughly circular orbit:  v = sqrt(strength / radius)
+        constexpr int   boxCount = 500;
+        constexpr float orbitRadius = 10.0f;
+
+        for (int i = 0; i < boxCount; ++i)
+        {
+            const float angle = (2.0f * 3.14159265f * i) / boxCount;
+            const glm::vec3 pos(std::cos(angle) * orbitRadius,
+                                std::sin(angle) * orbitRadius,
+                                0.0f);
+
+            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.3f, 0.3f, 0.3f), pos);
+
+            // The body is now initialized (OnEntityAdded fired during AddChild).
+            // Set tangential velocity for circular orbit.
+            const float orbitalSpeed = std::sqrt(attractorStrength / orbitRadius);
+            const glm::vec3 tangent(-std::sin(angle), std::cos(angle), 0.0f);
+
+            auto* rb = mainScene_->registry_.Get<RigidBodyComponent>(
+                root->children_.back()->GetId());
+            if (rb) rb->SetLinearVelocity(tangent * orbitalSpeed);
+        }
+    }
+
+    void Engine::LoadDefaultScene()
+    {
+        spdlog::warn("[Engine] loading built-in fallback scene...");
+
+        renderEngine_.ClearRenderables();
+        mainScene_ = std::make_shared<Scene>("default-scene");
+        SetupSceneSystems(*mainScene_, *this);
+
+        GravityScene();
 
         if (!isEditorMode_)
             EnsureGameCamera();

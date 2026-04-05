@@ -16,6 +16,7 @@ namespace ettycc
 
         void Init();
         void Step(float deltaTime);
+        void SetGravity(const btVector3& g);
 
         // Backward-compat accessor — btSoftRigidDynamicsWorld IS-A btDiscreteDynamicsWorld
         btDiscreteDynamicsWorld* GetWorld();
