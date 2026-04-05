@@ -2,10 +2,10 @@
 #define SOFT_BODY_RENDERABLE_HPP
 
 #include <Graphics/Rendering/Renderable.hpp>
-#include <Graphics/Shading/ShaderPipeline.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
+#include <Scene/Assets/ResourceCache.hpp>
 
 #include <glm/glm.hpp>
 #include <memory>
@@ -23,7 +23,7 @@ namespace ettycc
 {
     class SoftBodyRenderable : public Renderable
     {
-        const std::string shaderBaseName_ = "softbody";
+        static constexpr const char* kShaderName = "softbody";
 
     public:
         SoftBodyRenderable(std::string texPath,
@@ -42,9 +42,6 @@ namespace ettycc
                            GLuint program, uint32_t id) override;
 
     public:
-        ShaderPipeline shader_;
-
-    public:
         // Soft bodies don't have a rigid transform so tiling is set manually.
         // (1,1) = texture maps once across the UV range; increase to tile more densely.
         glm::vec2 tiling { 1.0f, 1.0f };
@@ -53,16 +50,15 @@ namespace ettycc
         GLuint VAO_     = 0;
         GLuint VBO_     = 0;
         GLuint EBO_     = 0;
-        GLuint TEXTURE_ = 0;
+        GLuint TEXTURE_ = 0;     // cached GL handle (owned by ResourceCache)
+
+        std::shared_ptr<CachedShader> cachedShader_;
 
         std::string         texturePath_;
         btSoftBody*         body_       = nullptr;  // non-owning
         std::vector<float>  vertexBuffer_;           // x,y,z,u,v per vertex
         std::vector<int>    indices_;
         int                 numVerts_   = 0;
-        std::string LoadShaderFile(const std::string& path);
-        void        LoadShaders();
-        void        LoadTexture();
     };
 
 } // namespace ettycc

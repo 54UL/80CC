@@ -81,6 +81,8 @@ namespace ettycc
         // Add a component of type T. If the node is not yet in a scene the
         // component is queued and flushed into the registry when the node enters.
         template<typename T>  void AddComponent(T comp);
+        // Remove component T from this entity.
+        template<typename T>  void RemoveComponent();
         // Get a pointer to component T on this entity (nullptr if absent).
         template<typename T>  T* GetComponent();
         template<typename T>  bool HasComponent() const;

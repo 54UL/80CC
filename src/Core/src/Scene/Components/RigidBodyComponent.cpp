@@ -110,6 +110,15 @@ namespace ettycc
         return { p.getX(), p.getY(), p.getZ() };
     }
 
+    glm::quat RigidBodyComponent::GetRotation() const
+    {
+        if (!body_) return glm::quat(1.f, 0.f, 0.f, 0.f);
+        btTransform t;
+        body_->getMotionState()->getWorldTransform(t);
+        const btQuaternion& q = t.getRotation();
+        return glm::quat(q.getW(), q.getX(), q.getY(), q.getZ());
+    }
+
     glm::vec3 RigidBodyComponent::GetLinearVelocity() const
     {
         if (!body_) return {};

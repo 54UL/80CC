@@ -31,6 +31,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Rendering/Entities/SoftBodyRenderable.hpp
     include/Scene/Assets/AssetLoader.hpp
     include/Scene/Assets/AssetBuilder.hpp
+    include/Scene/Assets/ResourceCache.hpp
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
     include/Graphics/Rendering/Renderable.hpp
@@ -81,6 +82,7 @@ set(80CC_CORE_SOURCES
     src/Scene/SceneNode.cpp
     src/Scene/Assets/AssetLoader.cpp
     src/Scene/Assets/AssetBuilder.cpp
+    src/Scene/Assets/ResourceCache.cpp
     src/Scene/Components/RenderableNode.cpp
     src/Scene/Components/RigidBodyComponent.cpp
     src/Scene/Components/SoftBodyComponent.cpp

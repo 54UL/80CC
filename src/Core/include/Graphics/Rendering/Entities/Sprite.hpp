@@ -1,11 +1,11 @@
 #ifndef RENDERING_MESH_HPP
 #define RENDERING_MESH_HPP
 
-#include "../../Shading/ShaderPipeline.hpp"
 #include "../Renderable.hpp"
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
+#include <Scene/Assets/ResourceCache.hpp>
 
 #include <memory>
 #include <string>
@@ -18,10 +18,11 @@ namespace ettycc
 {
     class Sprite : public Renderable
     {
-        const std::string shaderBaseName_ = "sprite";
+        static constexpr const char* kShaderName = "sprite";
 
     private:
-        GLuint VAO, VBO, EBO, TEXTURE;
+        GLuint VAO = 0, VBO = 0, EBO = 0;
+        GLuint TEXTURE = 0;            // cached GL handle (owned by ResourceCache)
         std::string spriteFilePath_;
 
         // Tiling multiplier applied on top of the scale-relative tiling.
@@ -29,8 +30,8 @@ namespace ettycc
         // 2.0 = twice as dense, 0.5 = half as dense, etc.
         float tilingMultiplier_ = 1.0f;
 
-    public:
-        ShaderPipeline underlyingShader;
+        // Shared shader program from ResourceCache (not owned by this instance)
+        std::shared_ptr<CachedShader> cachedShader_;
 
     public:
         Sprite();
@@ -40,8 +41,6 @@ namespace ettycc
         ~Sprite();
 
         void InitBackend(const std::string &spritePath);
-        void LoadShaders();
-        void LoadTextures(const std::string &spritePath);
 
         // Renderable
     public:
@@ -51,6 +50,9 @@ namespace ettycc
                            GLuint program, uint32_t id) override;
         void Inspect(EditorPropertyVisitor& v) override;
 
+        GLuint GetShaderProgramId() const;
+        const std::string& GetTexturePath() const { return spriteFilePath_; }
+
         // Serialization/Deserialziation
         template <class Archive>
         void serialize(Archive &ar)
@@ -59,10 +61,6 @@ namespace ettycc
                CEREAL_NVP(spriteFilePath_),
                CEREAL_NVP(tilingMultiplier_));
         }
-
-        // Internal usage
-    private:
-        std::string LoadShaderFile(const std::string &shaderPath);
     };
 
 } // namespace ettycc

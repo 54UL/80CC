@@ -36,6 +36,7 @@ namespace ettycc
         void Pass(float deltaTime);
         auto AddRenderable(std::shared_ptr<Renderable> renderable) -> void;
         void AddRenderables(const std::vector<std::shared_ptr<Renderable>>& renderables);
+        void RemoveRenderable(const std::shared_ptr<Renderable>& renderable);
         void ClearRenderables();
         // Move renderable to position 0 so it runs before all others (e.g. camera).
         // If not already in the list it is inserted at the front.

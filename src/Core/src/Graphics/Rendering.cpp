@@ -1,6 +1,7 @@
 
 #include <Graphics/Rendering.hpp>
 #include <spdlog/spdlog.h>
+#include <algorithm>
 
 namespace ettycc
 {
@@ -44,8 +45,9 @@ namespace ettycc
         if (sceneFrameBuffer_)
             sceneFrameBuffer_->BeginFrame();
 
-        for (auto renderable : renderables_)
-            renderable->Pass(this->renderingCtx_, deltaTime);
+        for (auto& renderable : renderables_)
+            if (renderable->enabled)
+                renderable->Pass(this->renderingCtx_, deltaTime);
 
         if (sceneFrameBuffer_)
             sceneFrameBuffer_->EndFrame();
@@ -86,6 +88,13 @@ namespace ettycc
     void Rendering::AddRenderables(const std::vector<std::shared_ptr<Renderable>> &renderables)
     {
         renderables_.insert(renderables_.end(), renderables.begin(), renderables.end());
+    }
+
+    void Rendering::RemoveRenderable(const std::shared_ptr<Renderable>& renderable)
+    {
+        renderables_.erase(
+            std::remove(renderables_.begin(), renderables_.end(), renderable),
+            renderables_.end());
     }
 
     void Rendering::ClearRenderables()

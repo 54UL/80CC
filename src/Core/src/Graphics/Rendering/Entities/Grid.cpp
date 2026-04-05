@@ -1,15 +1,15 @@
 #include <Engine.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
-#include <Graphics/Shading/Shader.hpp>
+#include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
-#include <Dependency.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <spdlog/spdlog.h>
-#include <fstream>
-#include <sstream>
+
+#undef min
+#undef max
 
 namespace ettycc
 {
@@ -25,21 +25,18 @@ namespace ettycc
     {
         if (initialized) return;
 
-        auto resources   = GetDependency(Globals);
-        auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
+        // ── Shader via ResourceCache ─────────────────────────────────────────
+        auto cache = GetDependency(ResourceCache);
+        cachedShader_ = cache->GetShader(kShaderName);
 
-        auto vert = LoadShaderFile(shadersPath + "grid.vert");
-        auto frag = LoadShaderFile(shadersPath + "grid.frag");
-
-        shader_.AddShaders({
-            std::make_shared<Shader>(vert.c_str(), GL_VERTEX_SHADER),
-            std::make_shared<Shader>(frag.c_str(), GL_FRAGMENT_SHADER)
-        });
-        shader_.Create();
-
-        pvmLoc_    = glGetUniformLocation(shader_.GetProgramId(), "PVM");
-        modelLoc_  = glGetUniformLocation(shader_.GetProgramId(), "model");
-        camPosLoc_ = glGetUniformLocation(shader_.GetProgramId(), "camPos");
+        if (cachedShader_)
+        {
+            const GLuint prog = cachedShader_->programId;
+            pvmLoc_      = glGetUniformLocation(prog, "PVM");
+            modelLoc_    = glGetUniformLocation(prog, "model");
+            camPosLoc_   = glGetUniformLocation(prog, "camPos");
+            viewSizeLoc_ = glGetUniformLocation(prog, "viewSize");
+        }
 
         BuildGeometry();
         initialized = true;
@@ -74,21 +71,36 @@ namespace ettycc
 
     void Grid::Pass(const std::shared_ptr<RenderingContext>& ctx, float /*deltaTime*/)
     {
+        if (!cachedShader_) return;
+
         // Extract camera world-space XY from the inverse view matrix
         glm::vec3 camWorld = glm::vec3(glm::inverse(ctx->View)[3]);
+
+        // Derive the visible half-height from the orthographic projection.
+        // For glm::ortho(-w, w, -h, h, ...) : Projection[1][1] == 1/h
+        const float projHalfH = (ctx->Projection[1][1] != 0.f)
+                               ? 1.0f / ctx->Projection[1][1]
+                               : 5.0f;
+        // viewSize = diagonal of the visible rectangle (generous margin)
+        const float viewSize = projHalfH * 3.0f;
+
+        // Scale the base 100-unit quad so it always covers the visible area
+        const float quadScale = glm::max(1.0f, viewSize / 100.0f);
 
         // Snap the quad to integer grid units so it always covers the camera
         // while grid lines stay fixed in world space (no swimming)
         glm::mat4 model = glm::translate(
             glm::mat4(1.0f),
             glm::vec3(glm::floor(camWorld.x), glm::floor(camWorld.y), 0.0f));
+        model = glm::scale(model, glm::vec3(quadScale, quadScale, 1.0f));
 
         glm::mat4 PVM = ctx->Projection * ctx->View * model;
 
-        shader_.Bind();
+        cachedShader_->pipeline.Bind();
         glUniformMatrix4fv(pvmLoc_,   1, GL_FALSE, glm::value_ptr(PVM));
         glUniformMatrix4fv(modelLoc_, 1, GL_FALSE, glm::value_ptr(model));
         glUniform2f(camPosLoc_, camWorld.x, camWorld.y);
+        glUniform1f(viewSizeLoc_, viewSize);
 
         // Alpha blending for the glow/fade effect
         glEnable(GL_BLEND);
@@ -99,19 +111,6 @@ namespace ettycc
         glBindVertexArray(0);
 
         glDisable(GL_BLEND);
-        shader_.Unbind();
-    }
-
-    std::string Grid::LoadShaderFile(const std::string& path)
-    {
-        std::ifstream file(path);
-        if (!file.is_open())
-        {
-            spdlog::error("[Grid] Failed to open shader: {}", path);
-            return {};
-        }
-        std::stringstream buf;
-        buf << file.rdbuf();
-        return buf.str();
+        cachedShader_->pipeline.Unbind();
     }
 } // namespace ettycc

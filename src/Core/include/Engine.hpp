@@ -7,6 +7,7 @@
 #include <Graphics/Rendering.hpp>
 #include <Graphics/Rendering/Entities/Camera.hpp>
 #include <Graphics/Rendering/Entities/Sprite.hpp>
+#include <Graphics/Rendering/Entities/Grid.hpp>
 #include <Input/Controls/GhostCamera.hpp>
 #include <Input/PlayerInput.hpp>
 #include <Scene/Scene.hpp>
@@ -15,6 +16,8 @@
 #include <Physics/PhysicsWorld.hpp>
 #include <Networking/NetworkManager.hpp>
 #include <Audio/AudioManager.hpp>
+
+#include <Scene/Assets/ResourceCache.hpp>
 
 #include <memory>
 #include <vector>
@@ -70,10 +73,13 @@ namespace ettycc
         std::shared_ptr<Globals>                    globals_;
         std::vector<std::shared_ptr<GameModule>>    gameModules_;
         std::shared_ptr<Camera>                     editorCamera_;
+        std::shared_ptr<Grid>                       editorGrid_;
 
         Rendering              renderEngine_;
         PhysicsWorld           physicsWorld_;
+        bool                   simulationPaused_ = false;
         AudioManager           audioManager_;
+        std::shared_ptr<ResourceCache> resourceCache_;
         PlayerInput            inputSystem_;
         NetworkManager         networkManager_;
         std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
@@ -88,10 +94,11 @@ namespace ettycc
 
         // Call before Init(). True = running inside DevEditor, False = standalone game executable.
         // This is the single source of truth for editor/game mode at runtime.
-        void SetEditorMode(bool isEditor) { isEditorMode_ = isEditor; }
+        void SetEditorMode(bool isEditor) { isEditorMode_ = isEditor; if (isEditor) simulationPaused_ = true; }
         bool IsEditorMode()         const { return isEditorMode_; }
 
         // TODO: Implement some pattern to create this from other place
+        // ALL THIS STUFF BELOW IS ONLY FOR TESTING...
         void createSprite(const std::shared_ptr<SceneNode>& rootSceneNode, std::string spriteTexturePath, const glm::vec3& pos);
         void createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
                               float mass, glm::vec3 halfExtents, glm::vec3 pos) const;
@@ -118,12 +125,8 @@ namespace ettycc
 
 
         void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
-
         void LoadGlobals(const std::string &fileName);
-
         void StoreGlobals(const std::string &fileName) const;
-
-        void BuildExecutable(const std::string& outputPath);
         void ConfigResource();
 
         // Networking helpers — call before Init() if you want a networked scene
@@ -131,6 +134,11 @@ namespace ettycc
                          const std::string& serverAddress = "127.0.0.1");
         void LoadNetworkScene();
         
+        // Async asset preloading — reads images/shaders on a worker thread,
+        // then uploads GL objects on the main thread.  Call after scene
+        // deserialization but before SetupSceneSystems().
+        void PreloadSceneAssets();
+
         // Engine pipeline API (backend)
         void Init() override;
         void Update() override;

@@ -89,6 +89,7 @@ namespace ettycc
         glm::vec3 GetPosition() const;
         glm::vec3 GetLinearVelocity() const;
         glm::vec3 GetHalfExtents() const { return halfExtents_; }
+        glm::quat GetRotation() const;
 
         // Recreate the Bullet body with new mass / half-extents at the current
         // position.  Used by the fusion system after merging two bodies.

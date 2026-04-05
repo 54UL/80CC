@@ -5,6 +5,7 @@
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Scene/Components/AudioSourceComponent.hpp>
 #include <Scene/Components/AudioListenerComponent.hpp>
+#include <Scene/Components/GravityAttractorComponent.hpp>
 #include <Networking/NetworkComponent.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
@@ -28,6 +29,23 @@ namespace ettycc
 {
     static int viewportNumber = 1;
     static bool frameBufferErrorShown = false;
+
+    const DevEditor::ResolutionPreset DevEditor::kResolutionPresets[] = {
+        // PC
+        { "1920x1080 (FHD)",    1920, 1080 },
+        { "1280x720  (HD)",     1280,  720 },
+        { "2560x1440 (QHD)",    2560, 1440 },
+        { "3840x2160 (4K)",     3840, 2160 },
+        { "1366x768",          1366,  768 },
+        // Mobile
+        { "390x844   (iPhone 14)",       390,  844 },
+        { "360x800   (Samsung Galaxy)",  360,  800 },
+        { "393x873   (Pixel 7)",         393,  873 },
+        { "1024x768  (iPad)",           1024,  768 },
+        { "820x1180  (iPad Air)",        820, 1180 },
+    };
+    const int DevEditor::kNumPresets =
+        static_cast<int>(sizeof(kResolutionPresets) / sizeof(kResolutionPresets[0]));
 
     DevEditor::DevEditor(const std::shared_ptr<Engine>& engine)
         : engineInstance_(engine), uiConsoleOpen_(false),
@@ -280,15 +298,15 @@ namespace ettycc
             ImGui::DockBuilderAddNode(dsId, ImGuiDockNodeFlags_DockSpace);
             ImGui::DockBuilderSetNodeSize(dsId, ImGui::GetMainViewport()->Size);
 
-            // ── Split left strip (Hierarchy) ─────────────────────────────────
+            // ── Split left strip  ─────────────────────────────────
             ImGuiID left, rest;
             ImGui::DockBuilderSplitNode(dsId, ImGuiDir_Left, 0.18f, &left, &rest);
 
-            // ── Split right strip (Inspector) ────────────────────────────────
+            // ── Split right strip ────────────────────────────────
             ImGuiID centre, right;
             ImGui::DockBuilderSplitNode(rest, ImGuiDir_Right, 0.24f, &right, &centre);
 
-            // ── Split bottom strip (Debug + Assets) ──────────────────────────
+            // ── Split bottom strip ──────────────────────────
             ImGuiID viewport_row, bottom;
             ImGui::DockBuilderSplitNode(centre, ImGuiDir_Down, 0.26f, &bottom, &viewport_row);
 
@@ -296,13 +314,13 @@ namespace ettycc
             ImGui::DockBuilderSplitNode(bottom, ImGuiDir_Left, 0.38f, &bottomLeft, &bottomRight);
 
             // ── Assign windows ───────────────────────────────────────────────
-            ImGui::DockBuilderDockWindow("Scene Hierarchy", left);
+            ImGui::DockBuilderDockWindow("Scene Hierarchy", bottomLeft);
             ImGui::DockBuilderDockWindow("Editor view",    viewport_row);
-            ImGui::DockBuilderDockWindow("Game view",      viewport_row); // tab behind Editor view
+            ImGui::DockBuilderDockWindow("Game view",      viewport_row);
             ImGui::DockBuilderDockWindow("Inspector",      right);
-            ImGui::DockBuilderDockWindow("Debug",          bottomLeft);
+            ImGui::DockBuilderDockWindow("Debug",          bottomRight);
             ImGui::DockBuilderDockWindow("Assets",         bottomRight);
-            ImGui::DockBuilderDockWindow("Build",          bottomRight); // tab behind Assets
+            ImGui::DockBuilderDockWindow("Build",          right);
 
             ImGui::DockBuilderFinish(dsId);
         }
@@ -365,9 +383,121 @@ namespace ettycc
     // VIEWPORT
     // -------------------------------------------------------------------------
 
+    void DevEditor::DrawGravityAttractorGizmos(ImVec2 imgMin, ImVec2 imgSize)
+    {
+        if (!engineInstance_->mainScene_) return;
+
+        auto& cam = engineInstance_->editorCamera_->editorCameraControl_;
+        glm::mat4 view = cam->ComputeViewMatrix(0.f);
+        glm::mat4 proj = cam->ComputeProjectionMatrix(0.f);
+        float worldPerPixel = (2.f * EditorCamera::baseSize_) / (cam->zoom * imgSize.y);
+
+        auto toScreen = [&](glm::vec3 wp) -> ImVec2 {
+            glm::vec4 c = proj * view * glm::vec4(wp, 1.f);
+            glm::vec3 n = glm::vec3(c) / c.w;
+            return { imgMin.x + (n.x * 0.5f + 0.5f) * imgSize.x,
+                     imgMin.y + (1.f - (n.y * 0.5f + 0.5f)) * imgSize.y };
+        };
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        auto& registry = engineInstance_->mainScene_->registry_;
+
+        for (ecs::Entity e : registry.View<GravityAttractorComponent>())
+        {
+            auto* attractor = registry.Get<GravityAttractorComponent>(e);
+            if (!attractor) continue;
+
+            ImVec2 center = toScreen(attractor->GetPosition());
+
+            const float innerPx = attractor->GetInnerRadius() / worldPerPixel;
+            const float outerPx = attractor->GetOuterRadius() / worldPerPixel;
+
+            // Inner ring — full-strength zone (cyan)
+            dl->AddCircle(center, innerPx,
+                          IM_COL32(0, 200, 255, 200), 64, 1.5f);
+            // Outer ring — max gravitational influence (magenta, faded)
+            dl->AddCircle(center, outerPx,
+                          IM_COL32(200, 60, 255, 130), 64, 1.0f);
+
+            // Labels
+            dl->AddText({ center.x + innerPx + 4.f, center.y - 8.f },
+                        IM_COL32(0, 200, 255, 220), "inner");
+            dl->AddText({ center.x + outerPx + 4.f, center.y - 8.f },
+                        IM_COL32(200, 60, 255, 200), "outer");
+        }
+    }
+
+    void DevEditor::DrawAudioGizmos(ImVec2 imgMin, ImVec2 imgSize)
+    {
+        if (!engineInstance_->mainScene_) return;
+
+        auto& cam = engineInstance_->editorCamera_->editorCameraControl_;
+        glm::mat4 view = cam->ComputeViewMatrix(0.f);
+        glm::mat4 proj = cam->ComputeProjectionMatrix(0.f);
+        float worldPerPixel = (2.f * EditorCamera::baseSize_) / (cam->zoom * imgSize.y);
+
+        auto toScreen = [&](glm::vec3 wp) -> ImVec2 {
+            glm::vec4 c = proj * view * glm::vec4(wp, 1.f);
+            glm::vec3 n = glm::vec3(c) / c.w;
+            return { imgMin.x + (n.x * 0.5f + 0.5f) * imgSize.x,
+                     imgMin.y + (1.f - (n.y * 0.5f + 0.5f)) * imgSize.y };
+        };
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        auto& registry = engineInstance_->mainScene_->registry_;
+
+        for (ecs::Entity e : registry.View<AudioSourceComponent>())
+        {
+            auto* src = registry.Get<AudioSourceComponent>(e);
+            if (!src || src->GetMode() != AudioSourceComponent::AudioMode::Spatial) continue;
+
+            auto* node = engineInstance_->mainScene_->GetNode(e);
+            if (!node) continue;
+
+            ImVec2 center = toScreen(node->transform_.getGlobalPosition());
+
+            const float minPx = src->GetMinDistance() / worldPerPixel;
+            const float maxPx = src->GetMaxDistance() / worldPerPixel;
+
+            // Inner ring — full-volume zone (bright green)
+            dl->AddCircle(center, minPx,
+                          IM_COL32(80, 230, 80, 200), 64, 1.5f);
+            // Outer ring — silence boundary (orange, faded)
+            dl->AddCircle(center, maxPx,
+                          IM_COL32(255, 140, 40, 130), 64, 1.0f);
+
+            dl->AddText({ center.x + minPx + 4.f, center.y - 8.f },
+                        IM_COL32(80, 230, 80, 220), "min");
+            dl->AddText({ center.x + maxPx + 4.f, center.y - 8.f },
+                        IM_COL32(255, 140, 40, 200), "max");
+        }
+    }
+
     void DevEditor::ShowEditorViewPort()
     {
         ImGui::Begin("Editor view");
+
+        // ─── Playback + overlay toggles ─────────────────────────────────
+        DrawPlaybackToolbar();
+        ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.92f, 0.016f, 1.f));
+        ImGui::Checkbox("Colliders", &showColliderDebug_);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.f, 0.9f, 0.9f, 1.f));
+        ImGui::Checkbox("Gravity", &showGravityDebug_);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.31f, 0.9f, 0.31f, 1.f));
+        ImGui::Checkbox("Audio", &showAudioDebug_);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.60f, 0.85f, 1.f));
+        ImGui::Checkbox("Grid", &gameViewShowGrid_);
+        ImGui::PopStyleColor();
+        ImGui::Separator();
 
         auto showPlaceholder = [](const char* msg) {
             ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -515,15 +645,16 @@ namespace ettycc
                 dragging = AXIS_NONE;
             }
 
-            // ─── Gizmo mode toolbar (T/R/S) ───────────────────────────────────
+            // ─── Gizmo mode toolbar (T/R/S) — row 2 ──────────────────────────
             bool toolbarConsumedClick = false;
             {
                 ImDrawList* dl = ImGui::GetWindowDrawList();
                 const float btnSz = 22.f, pad = 6.f, gap = 3.f;
+                const float row2Y = imgMin.y + pad + btnSz + gap; // below overlay row
                 const char* labels[] = { "T", "R", "S" };
                 for (int i = 0; i < 3; ++i)
                 {
-                    ImVec2 bMin = { imgMin.x + pad + i * (btnSz + gap), imgMin.y + pad };
+                    ImVec2 bMin = { imgMin.x + pad + i * (btnSz + gap), row2Y };
                     ImVec2 bMax = { bMin.x + btnSz, bMin.y + btnSz };
                     bool active = (gizmoMode == i);
                     bool btnHov = ImGui::IsMouseHoveringRect(bMin, bMax);
@@ -584,6 +715,16 @@ namespace ettycc
                     selectedAsset_.active = false;
                     inspectorSource_      = InspectorSource::None;
                 }
+            }
+
+            // ─── Viewport right-click context menu ───────────────────────────
+            if (mouseInVP && ImGui::BeginPopupContextWindow("##viewport_ctx", ImGuiPopupFlags_MouseButtonRight))
+            {
+                auto target = selNode
+                    ? selNode
+                    : engineInstance_->mainScene_->root_node_;
+                DrawNodeContextMenu(target, true);
+                ImGui::EndPopup();
             }
 
             // ─── Helper: get RigidBodyComponent on the selected node (may be null) ──
@@ -717,39 +858,6 @@ namespace ettycc
                 }
             }
 
-            // ─── Audio source gizmo ───────────────────────────────────────────
-            // Draw min/max distance rings when an AudioSourceComponent (Spatial)
-            // is present on the selected node.
-            if (selNode)
-            {
-                auto* src = selNode->GetComponent<AudioSourceComponent>();
-                if (src)
-                {
-                    if (src && src->GetMode() == AudioSourceComponent::AudioMode::Spatial)
-                    {
-                        // worldPerPixel was computed in the hover block above.
-                        // gizmoOrigin is the screen-space centre of the node.
-                        ImDrawList* dl = ImGui::GetWindowDrawList();
-
-                        const float minPx = src->GetMinDistance() / worldPerPixel;
-                        const float maxPx = src->GetMaxDistance() / worldPerPixel;
-
-                        // Inner ring — full-volume zone (bright green)
-                        dl->AddCircle(gizmoOrigin, minPx,
-                                      IM_COL32(80, 230, 80, 200), 64, 1.5f);
-                        // Outer ring — silence boundary (orange, faded)
-                        dl->AddCircle(gizmoOrigin, maxPx,
-                                      IM_COL32(255, 140, 40, 130), 64, 1.0f);
-
-                        // Label on the inner ring
-                        dl->AddText({ gizmoOrigin.x + minPx + 4.f, gizmoOrigin.y - 8.f },
-                                    IM_COL32(80, 230, 80, 220), "min");
-                        // Label on the outer ring
-                        dl->AddText({ gizmoOrigin.x + maxPx + 4.f, gizmoOrigin.y - 8.f },
-                                    IM_COL32(255, 140, 40, 200), "max");
-                    }
-                }
-            }
 
             // ─── Camera pan / focus ───────────────────────────────────────────
             static bool    isViewportFocused = false;
@@ -778,6 +886,11 @@ namespace ettycc
                 isViewportFocused = false;
                 engineInstance_->editorCamera_->editorCameraControl_->enabled = false;
             }
+
+            // ─── Debug overlay gizmos ─────────────────────────────────────────
+            if (showColliderDebug_)  DrawColliderGizmos(imgMin, avail);
+            if (showGravityDebug_)   DrawGravityAttractorGizmos(imgMin, avail);
+            if (showAudioDebug_)     DrawAudioGizmos(imgMin, avail);
         }
         else
         {
@@ -818,17 +931,277 @@ namespace ettycc
     }
 
     // -------------------------------------------------------------------------
+    // SHARED PLAYBACK TOOLBAR
+    // -------------------------------------------------------------------------
+
+    bool DevEditor::DrawPlaybackToolbar()
+    {
+        bool pressed = false;
+        const bool isStopped = (playbackState_ == PlaybackState::Stopped);
+        const bool isPlaying = (playbackState_ == PlaybackState::Playing);
+        const bool isPaused  = (playbackState_ == PlaybackState::Paused);
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+
+        // Helper: icon button drawn with ImDrawList shapes
+        auto iconBtn = [&](const char* id, ImU32 col, auto drawIcon) -> bool {
+            constexpr float SZ = 20.f;
+            bool hit = ImGui::InvisibleButton(id, ImVec2(SZ, SZ));
+            ImVec2 mn = ImGui::GetItemRectMin();
+            ImVec2 mx = ImGui::GetItemRectMax();
+            bool hov  = ImGui::IsItemHovered();
+            dl->AddRectFilled(mn, mx,
+                hov ? IM_COL32(70, 70, 70, 200) : IM_COL32(40, 40, 40, 160), 3.f);
+            drawIcon(dl, mn, mx, col);
+            return hit;
+        };
+
+        // ▶ Play / ⏸ Pause
+        if (isStopped || isPaused)
+        {
+            if (iconBtn("##play", IM_COL32(80, 220, 90, 255),
+                [](ImDrawList* d, ImVec2 mn, ImVec2 mx, ImU32 c) {
+                    float cx = (mn.x + mx.x) * 0.5f + 1.f, cy = (mn.y + mx.y) * 0.5f;
+                    float h = (mx.y - mn.y) * 0.35f;
+                    d->AddTriangleFilled({cx - h*0.6f, cy - h}, {cx + h*0.7f, cy},
+                                         {cx - h*0.6f, cy + h}, c);
+                }))
+            {
+                playbackState_ = PlaybackState::Playing;
+                engineInstance_->simulationPaused_ = false;
+                pressed = true;
+            }
+        }
+        else
+        {
+            if (iconBtn("##pause", IM_COL32(255, 210, 40, 255),
+                [](ImDrawList* d, ImVec2 mn, ImVec2 mx, ImU32 c) {
+                    float x0 = mn.x + 5.f, x1 = mx.x - 5.f;
+                    float y0 = mn.y + 4.f,  y1 = mx.y - 4.f;
+                    float w  = (x1 - x0) * 0.3f;
+                    d->AddRectFilled({x0, y0}, {x0 + w, y1}, c);
+                    d->AddRectFilled({x1 - w, y0}, {x1, y1}, c);
+                }))
+            {
+                playbackState_ = PlaybackState::Paused;
+                pressed = true;
+            }
+        }
+
+        ImGui::SameLine();
+
+        // ■ Stop
+        {
+            const bool canStop = !isStopped;
+            if (!canStop) ImGui::BeginDisabled();
+            if (iconBtn("##stop", IM_COL32(240, 70, 70, 255),
+                [](ImDrawList* d, ImVec2 mn, ImVec2 mx, ImU32 c) {
+                    d->AddRectFilled({mn.x + 5.f, mn.y + 5.f},
+                                     {mx.x - 5.f, mx.y - 5.f}, c);
+                }))
+            {
+                playbackState_ = PlaybackState::Stopped;
+                engineInstance_->simulationPaused_ = true;
+                pressed = true;
+            }
+            if (!canStop) ImGui::EndDisabled();
+        }
+
+        ImGui::SameLine();
+
+        // ▶| Step
+        {
+            const bool canStep = isPaused || isStopped;
+            if (!canStep) ImGui::BeginDisabled();
+            if (iconBtn("##step", IM_COL32(120, 180, 255, 255),
+                [](ImDrawList* d, ImVec2 mn, ImVec2 mx, ImU32 c) {
+                    float cx = (mn.x + mx.x) * 0.5f - 1.f, cy = (mn.y + mx.y) * 0.5f;
+                    float h = (mx.y - mn.y) * 0.30f;
+                    d->AddTriangleFilled({cx - h*0.6f, cy - h}, {cx + h*0.6f, cy},
+                                         {cx - h*0.6f, cy + h}, c);
+                    d->AddRectFilled({cx + h*0.7f, cy - h}, {cx + h*0.7f + 2.f, cy + h}, c);
+                }))
+            {
+                stepRequested_ = true;
+                playbackState_ = PlaybackState::Paused;
+                pressed = true;
+            }
+            if (!canStep) ImGui::EndDisabled();
+        }
+
+        return pressed;
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLIDER WIREFRAME GIZMOS (ImGui overlay — editor only)
+    // -------------------------------------------------------------------------
+
+    void DevEditor::DrawColliderGizmos(ImVec2 imgMin, ImVec2 imgSize)
+    {
+        if (!engineInstance_->mainScene_) return;
+
+        auto& cam = engineInstance_->editorCamera_->editorCameraControl_;
+        glm::mat4 view = cam->ComputeViewMatrix(0.f);
+        glm::mat4 proj = cam->ComputeProjectionMatrix(0.f);
+
+        auto toScreen = [&](glm::vec3 wp) -> ImVec2 {
+            glm::vec4 c = proj * view * glm::vec4(wp, 1.f);
+            glm::vec3 n = glm::vec3(c) / c.w;
+            return { imgMin.x + (n.x * 0.5f + 0.5f) * imgSize.x,
+                     imgMin.y + (1.f - (n.y * 0.5f + 0.5f)) * imgSize.y };
+        };
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        constexpr ImU32 COL_COLLIDER = IM_COL32(255, 235, 4, 200);
+
+        auto& registry = engineInstance_->mainScene_->registry_;
+
+        // ── Rigid body colliders (box outlines matching real half-extents) ────
+        auto rbEntities = registry.View<RigidBodyComponent>();
+        for (ecs::Entity e : rbEntities)
+        {
+            auto* rb = registry.Get<RigidBodyComponent>(e);
+            if (!rb || !rb->IsInitialized()) continue;
+
+            glm::vec3 pos = rb->GetPosition();
+            glm::quat rot = rb->GetRotation();
+            glm::vec3 he  = rb->GetHalfExtents();
+
+            // Compute 4 corners in world space (2D — Z = 0)
+            glm::vec3 localCorners[4] = {
+                { -he.x, -he.y, 0.f },
+                {  he.x, -he.y, 0.f },
+                {  he.x,  he.y, 0.f },
+                { -he.x,  he.y, 0.f },
+            };
+
+            ImVec2 screenPts[4];
+            for (int i = 0; i < 4; ++i)
+            {
+                glm::vec3 world = pos + rot * localCorners[i];
+                screenPts[i] = toScreen(world);
+            }
+
+            // Draw closed polyline
+            for (int i = 0; i < 4; ++i)
+                dl->AddLine(screenPts[i], screenPts[(i + 1) % 4], COL_COLLIDER, 1.5f);
+        }
+
+        // ── Soft body outlines (trace actual mesh edges) ─────────────────────
+        auto sbEntities = registry.View<SoftBodyComponent>();
+        for (ecs::Entity e : sbEntities)
+        {
+            auto* sb = registry.Get<SoftBodyComponent>(e);
+            if (!sb || !sb->IsInitialized()) continue;
+
+            const btSoftBody* body = sb->GetBody();
+            if (!body) continue;
+
+            // Draw all face edges
+            for (int f = 0; f < body->m_faces.size(); ++f)
+            {
+                const btSoftBody::Face& face = body->m_faces[f];
+                for (int j = 0; j < 3; ++j)
+                {
+                    //TODO: THIS SHOULD BE ABSTRACT AND IMPLENETAITON DETAILS SHOULD BE KEPT ON THE RIGID BODY API IMPL
+                    const btVector3& a = face.m_n[j]->m_x;
+                    const btVector3& b = face.m_n[(j + 1) % 3]->m_x;
+                    ImVec2 sa = toScreen({a.getX(), a.getY(), a.getZ()});
+                    ImVec2 sb2 = toScreen({b.getX(), b.getY(), b.getZ()});
+                    dl->AddLine(sa, sb2, COL_COLLIDER, 1.0f);
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // GAME VIEW
     // -------------------------------------------------------------------------
 
-    void DevEditor::ShowGameView() const
+    void DevEditor::ShowGameView()
     {
         ImGui::Begin("Game view");
 
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        ImVec2 textSize = ImGui::CalcTextSize("No game camera in scene");
-        ImGui::SetCursorPos(ImVec2((avail.x - textSize.x) * 0.5f, (avail.y - textSize.y) * 0.5f));
-        ImGui::TextDisabled("No game camera in scene");
+        // ─── Toolbar: shared playback + resolution + rendering layers ────
+        DrawPlaybackToolbar();
+
+        ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::SameLine();
+
+        // Resolution preset
+        ImGui::SetNextItemWidth(180.f);
+        if (ImGui::BeginCombo("##gv_res", kResolutionPresets[resolutionIndex_].label))
+        {
+            ImGui::TextDisabled("  Desktop");
+            for (int i = 0; i < 5; ++i)
+            {
+                bool selected = (resolutionIndex_ == i);
+                if (ImGui::Selectable(kResolutionPresets[i].label, selected))
+                    resolutionIndex_ = i;
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::Separator();
+            ImGui::TextDisabled("  Mobile");
+            for (int i = 5; i < kNumPresets; ++i)
+            {
+                bool selected = (resolutionIndex_ == i);
+                if (ImGui::Selectable(kResolutionPresets[i].label, selected))
+                    resolutionIndex_ = i;
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::Separator();
+
+        // ─── Game viewport (final product — no editor overlays) ──────────
+        if (const auto framebuffer = engineInstance_->renderEngine_.GetViewPortFrameBuffer())
+        {
+            const auto& preset = kResolutionPresets[resolutionIndex_];
+            const float targetAspect = static_cast<float>(preset.width)
+                                     / static_cast<float>(preset.height);
+
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+            float  viewW, viewH;
+
+            if (avail.x / avail.y > targetAspect)
+            { viewH = avail.y; viewW = viewH * targetAspect; }
+            else
+            { viewW = avail.x; viewH = viewW / targetAspect; }
+
+            // Center with black letterbox bars
+            float offsetX = (avail.x - viewW) * 0.5f;
+            float offsetY = (avail.y - viewH) * 0.5f;
+            ImVec2 cursor = ImGui::GetCursorPos();
+
+            // Draw black bars behind the image
+            ImVec2 regionMin = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                regionMin, {regionMin.x + avail.x, regionMin.y + avail.y},
+                IM_COL32(0, 0, 0, 255));
+
+            ImGui::SetCursorPos(ImVec2(cursor.x + offsetX, cursor.y + offsetY));
+            ImGui::Image(reinterpret_cast<void*>(
+                static_cast<intptr_t>(framebuffer->GetTextureId())),
+                ImVec2(viewW, viewH), ImVec2(0, 1), ImVec2(1, 0));
+
+            // Resolution label overlay
+            char resLabel[64];
+            snprintf(resLabel, sizeof(resLabel), "%dx%d", preset.width, preset.height);
+            ImVec2 imgMin = ImGui::GetItemRectMin();
+            ImGui::GetWindowDrawList()->AddText(
+                ImVec2(imgMin.x + 6.f, imgMin.y + 4.f),
+                IM_COL32(200, 200, 200, 140), resLabel);
+        }
+        else
+        {
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+            ImVec2 textSize = ImGui::CalcTextSize("No framebuffer available");
+            ImGui::SetCursorPos(ImVec2((avail.x - textSize.x) * 0.5f,
+                                       (avail.y - textSize.y) * 0.5f));
+            ImGui::TextDisabled("No framebuffer available");
+        }
 
         ImGui::End();
     }
@@ -1011,27 +1384,7 @@ namespace ettycc
 
             if (ImGui::BeginPopup("add_component_popup"))
             {
-                if (ImGui::MenuItem("Camera"))        AddComponentFromTemplate(selectedNode, "Camera");
-                if (ImGui::MenuItem("Sprite"))        AddComponentFromTemplate(selectedNode, "Sprite");
-                ImGui::Separator();
-                if (ImGui::MenuItem("Audio Source"))
-                {
-                    if (!selectedNode->HasComponent<AudioSourceComponent>())
-                    {
-                        selectedNode->AddComponent(AudioSourceComponent {});
-                        engineInstance_->mainScene_->NotifyEntityAdded(
-                            selectedNode->GetId(), *engineInstance_);
-                    }
-                }
-                if (ImGui::MenuItem("Audio Listener"))
-                {
-                    if (!selectedNode->HasComponent<AudioListenerComponent>())
-                    {
-                        selectedNode->AddComponent(AudioListenerComponent {});
-                        engineInstance_->mainScene_->NotifyEntityAdded(
-                            selectedNode->GetId(), *engineInstance_);
-                    }
-                }
+                DrawAddComponentMenu(selectedNode);
                 ImGui::EndPopup();
             }
 
@@ -1040,7 +1393,10 @@ namespace ettycc
             {
                 auto& scene = *engineInstance_->mainScene_;
                 const ecs::Entity eid = selectedNode->GetId();
-                const auto& typeNames = scene.registry_.GetComponentTypes(eid);
+                // Copy the type names — removal during iteration would invalidate refs.
+                const auto typeNames = scene.registry_.GetComponentTypes(eid);
+
+                std::string pendingRemove; // deferred removal (safe outside loop)
 
                 for (int i = 0; i < (int)typeNames.size(); ++i)
                 {
@@ -1061,7 +1417,22 @@ namespace ettycc
                     ImGui::PopStyleColor();
                     ImGui::SameLine();
 
-                    bool open = ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen);
+                    // Header + remove button on the same line
+                    bool open = ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap);
+
+                    // Draw X button aligned to the right of the header
+                    {
+                        ImGui::SameLine(ImGui::GetContentRegionMax().x - 20.f);
+                        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0,0,0,0));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.2f, 0.2f, 0.6f));
+                        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.9f, 0.1f, 0.1f, 0.8f));
+                        char btnId[64];
+                        snprintf(btnId, sizeof(btnId), "x##rm_%d", i);
+                        if (ImGui::SmallButton(btnId))
+                            pendingRemove = typeName;
+                        ImGui::PopStyleColor(3);
+                    }
+
                     if (!open) continue;
 
                     ImGui::PushID(i);
@@ -1083,6 +1454,11 @@ namespace ettycc
                     else if (typeName == SoftBodyComponent::componentType)
                     {
                         if (auto* c = selectedNode->GetComponent<SoftBodyComponent>())
+                            c->InspectProperties(visitor);
+                    }
+                    else if (typeName == GravityAttractorComponent::componentType)
+                    {
+                        if (auto* c = selectedNode->GetComponent<GravityAttractorComponent>())
                             c->InspectProperties(visitor);
                     }
                     else if (typeName == AudioSourceComponent::componentType)
@@ -1108,6 +1484,10 @@ namespace ettycc
                     ImGui::Unindent(12.f);
                     ImGui::PopID();
                 }
+
+                // Deferred removal — safe to mutate after the loop
+                if (!pendingRemove.empty())
+                    RemoveComponentByName(selectedNode, pendingRemove);
             }
         }
 
@@ -1204,30 +1584,162 @@ namespace ettycc
     // SCENE CONTEXT MENU / NODES
     // -------------------------------------------------------------------------
 
-    static bool showPopup = false;
-    void DevEditor::ShowSceneContextMenu(const std::shared_ptr<SceneNode>& node)
+    // ── Centralized Add-Component menu ──────────────────────────────────────
+    // Shared popup content drawn by inspector, hierarchy, and viewport.
+    void DevEditor::DrawAddComponentMenu(const std::shared_ptr<SceneNode>& node)
     {
-        if (ImGui::BeginPopupContextItem())
-        {
-            if (ImGui::BeginMenu("Add"))
+        if (!node) return;
+        auto& scene = *engineInstance_->mainScene_;
+        auto  eid   = node->GetId();
+
+        auto addIfMissing = [&](auto tag, const char* label) {
+            using T = std::remove_pointer_t<decltype(tag)>;
+            bool has = node->HasComponent<T>();
+            if (ImGui::MenuItem(label, nullptr, false, !has))
             {
-                if (ImGui::MenuItem("Node"))
-                    showPopup = true;
-                if (ImGui::BeginMenu("Components"))
-                {
-                    if (ImGui::MenuItem("Camera", NULL))
-                        AddComponentFromTemplate(node, "Camera");
-                    if (ImGui::MenuItem("Sprite", NULL))
-                        AddComponentFromTemplate(node, "Sprite");
-                    ImGui::EndMenu();
-                }
-                ImGui::EndMenu();
+                node->AddComponent<T>(T{});
+                scene.NotifyEntityAdded(eid, *engineInstance_);
             }
-            if (ImGui::MenuItem("Remove"))   { /* TODO */ }
-            if (ImGui::MenuItem("Duplicate")){ /* TODO */ }
-            if (ImGui::MenuItem("Persist"))  { /* TODO */ }
-            ImGui::EndPopup();
+        };
+
+        // Renderable (Sprite)
+        if (ImGui::MenuItem("Sprite", nullptr, false, !node->HasComponent<RenderableNode>()))
+        {
+            auto globals = GetDependency(Globals);
+            const std::string tex = globals->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+            auto sprite = std::make_shared<Sprite>(tex);
+            sprite->underylingTransform = node->transform_;
+            node->AddComponent<RenderableNode>(RenderableNode(sprite));
+            scene.NotifyEntityAdded(eid, *engineInstance_);
         }
+
+        ImGui::Separator();
+        addIfMissing(static_cast<RigidBodyComponent*>(nullptr),    "Rigid Body");
+        addIfMissing(static_cast<SoftBodyComponent*>(nullptr),     "Soft Body");
+        addIfMissing(static_cast<GravityAttractorComponent*>(nullptr), "Gravity Attractor");
+        ImGui::Separator();
+        addIfMissing(static_cast<AudioSourceComponent*>(nullptr),  "Audio Source");
+        addIfMissing(static_cast<AudioListenerComponent*>(nullptr),"Audio Listener");
+        ImGui::Separator();
+        addIfMissing(static_cast<NetworkComponent*>(nullptr),      "Network");
+    }
+
+    // ── Centralized node context menu ────────────────────────────────────────
+    static bool showPopup = false;
+    void DevEditor::DrawNodeContextMenu(const std::shared_ptr<SceneNode>& node, bool editorExtras)
+    {
+        if (!node) return;
+
+        if (ImGui::BeginMenu("Add"))
+        {
+            if (ImGui::MenuItem("Empty Node"))
+                showPopup = true;
+            ImGui::Separator();
+            DrawAddComponentMenu(node);
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Duplicate"))
+            DuplicateNode(node);
+
+        bool isRoot = (node == engineInstance_->mainScene_->root_node_);
+        if (ImGui::MenuItem("Remove", nullptr, false, !isRoot))
+        {
+            if (node->parent_)
+            {
+                node->parent_->RemoveNode(node->GetId());
+                selectedNodes_.clear();
+            }
+        }
+
+        if (editorExtras)
+        {
+            ImGui::Separator();
+            if (ImGui::MenuItem("Reload Scene"))
+                ReloadScene();
+        }
+    }
+
+    // ── Remove component by type name ────────────────────────────────────────
+    void DevEditor::RemoveComponentByName(const std::shared_ptr<SceneNode>& node, const std::string& typeName)
+    {
+        if (!node) return;
+
+        if      (typeName == RenderableNode::componentType)
+        {
+            // Also remove from the render engine
+            auto* rn = node->GetComponent<RenderableNode>();
+            if (rn && rn->renderable_)
+                engineInstance_->renderEngine_.RemoveRenderable(rn->renderable_);
+            node->RemoveComponent<RenderableNode>();
+        }
+        else if (typeName == RigidBodyComponent::componentType)       node->RemoveComponent<RigidBodyComponent>();
+        else if (typeName == SoftBodyComponent::componentType)        node->RemoveComponent<SoftBodyComponent>();
+        else if (typeName == GravityAttractorComponent::componentType)node->RemoveComponent<GravityAttractorComponent>();
+        else if (typeName == AudioSourceComponent::componentType)     node->RemoveComponent<AudioSourceComponent>();
+        else if (typeName == AudioListenerComponent::componentType)   node->RemoveComponent<AudioListenerComponent>();
+        else if (typeName == NetworkComponent::componentType)         node->RemoveComponent<NetworkComponent>();
+        else spdlog::warn("[DevEditor] Unknown component type to remove: {}", typeName);
+    }
+
+    // ── Duplicate node ───────────────────────────────────────────────────────
+    void DevEditor::DuplicateNode(const std::shared_ptr<SceneNode>& node)
+    {
+        if (!node || !node->parent_) return;
+
+        auto& scene = *engineInstance_->mainScene_;
+        auto clone = std::make_shared<SceneNode>(node->GetName() + " (copy)");
+        clone->transform_ = node->transform_;
+
+        // Clone components by type
+        if (auto* rn = node->GetComponent<RenderableNode>())
+        {
+            if (auto srcSprite = std::dynamic_pointer_cast<Sprite>(rn->renderable_))
+            {
+                auto newSprite = std::make_shared<Sprite>(srcSprite->GetTexturePath());
+                newSprite->underylingTransform = srcSprite->underylingTransform;
+                clone->AddComponent<RenderableNode>(RenderableNode(newSprite));
+            }
+        }
+        if (auto* rb = node->GetComponent<RigidBodyComponent>())
+            clone->AddComponent<RigidBodyComponent>(
+                RigidBodyComponent{rb->GetMass(), rb->GetHalfExtents(), rb->GetPosition()});
+        if (auto* ga = node->GetComponent<GravityAttractorComponent>())
+            clone->AddComponent<GravityAttractorComponent>(
+                GravityAttractorComponent{ga->GetPosition(), ga->GetStrength()});
+        if (node->HasComponent<AudioSourceComponent>())
+            clone->AddComponent<AudioSourceComponent>(AudioSourceComponent{});
+        if (node->HasComponent<AudioListenerComponent>())
+            clone->AddComponent<AudioListenerComponent>(AudioListenerComponent{});
+
+        node->parent_->AddChild(clone);
+        spdlog::info("[DevEditor] Duplicated node '{}' -> '{}'", node->GetName(), clone->GetName());
+    }
+
+    // ── Reload scene ─────────────────────────────────────────────────────────
+    void DevEditor::ReloadScene()
+    {
+        spdlog::info("[DevEditor] Reloading scene...");
+
+        // Stop simulation
+        playbackState_ = PlaybackState::Stopped;
+        engineInstance_->simulationPaused_ = true;
+        selectedNodes_.clear();
+
+        // Reload from last loaded path, or fall back to default
+        auto globals = engineInstance_->globals_;
+        auto lastScene = globals->Get(gk::prefix::STATE, gk::key::STATE_LAST_SCENE);
+        if (!lastScene.empty())
+            engineInstance_->LoadScene(lastScene, false);
+        else
+            engineInstance_->LoadDefaultScene();
+
+        // Re-init editor camera
+        engineInstance_->InitEditorCamera();
+
+        spdlog::info("[DevEditor] Scene reloaded");
     }
 
     void DevEditor::AddNode(const std::shared_ptr<SceneNode>& selectedNode)
@@ -1253,24 +1765,6 @@ namespace ettycc
             }
             ImGui::EndPopup();
         }
-    }
-
-    static int positionIndex = 2;
-    void DevEditor::AddComponentFromTemplate(const std::shared_ptr<SceneNode>& selectedNode, const char* templateName)
-    {
-        const char* notFoundTexturePath = "D:/repos2/ALPHA_V1/assets/images/not_found_texture.png";//NOOOOO
-
-        if (strcmp("Camera", templateName) == 0)
-            spdlog::info("Camera spawning not yet implemented");
-
-        if (strcmp("Sprite", templateName) == 0)
-        {
-            auto notFoundSprite = std::make_shared<Sprite>(notFoundTexturePath);
-            notFoundSprite->underylingTransform.setGlobalPosition({(float)positionIndex, (float)positionIndex, -5.f});
-            selectedNode->AddComponent<RenderableNode>(RenderableNode(notFoundSprite));
-        }
-
-        positionIndex += positionIndex;
     }
 
     void DevEditor::RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode,
@@ -1315,7 +1809,11 @@ namespace ettycc
             ImGui::EndDragDropTarget();
         }
 
-        ShowSceneContextMenu(rootNode);
+        if (ImGui::BeginPopupContextItem())
+        {
+            DrawNodeContextMenu(rootNode);
+            ImGui::EndPopup();
+        }
 
         if (isNodeOpen)
         {
@@ -1836,6 +2334,30 @@ namespace ettycc
             pickerBuffer_->RenderPass(re.GetRenderingContext(), re.GetRenderables());
         }
 
+        // Re-add editor grid after scene load if needed, and apply visibility
+        if (engineInstance_->editorGrid_)
+        {
+            auto& renderables = engineInstance_->renderEngine_.GetRenderables();
+            bool found = std::find(renderables.begin(), renderables.end(),
+                                   engineInstance_->editorGrid_) != renderables.end();
+            if (!found)
+                engineInstance_->renderEngine_.AddRenderable(engineInstance_->editorGrid_);
+
+            engineInstance_->editorGrid_->enabled = gameViewShowGrid_;
+        }
+
+        // ── Playback step handling (once per frame) ─────────────────────────
+        if (stepRequested_)
+        {
+            engineInstance_->simulationPaused_ = false;
+            stepRequested_ = false;
+        }
+        else if (playbackState_ == PlaybackState::Paused ||
+                 playbackState_ == PlaybackState::Stopped)
+        {
+            engineInstance_->simulationPaused_ = true;
+        }
+
         ShowMenuBar();
         configurationsWindow_.Draw();
         ShowDockSpace();
@@ -1863,6 +2385,12 @@ namespace ettycc
         auto resources   = GetDependency(Globals);
         auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
         pickerBuffer_->InitShader(shadersPath);
+
+        // Game view framebuffer (starts at 1920x1080)
+        gameViewFBO_ = std::make_shared<FrameBuffer>(glm::ivec2(0, 0),
+                           glm::ivec2(kResolutionPresets[0].width,
+                                      kResolutionPresets[0].height), false);
+        gameViewFBO_->Init();
     }
 
     void DevEditor::UpdateUI() { DrawEditor(); }

@@ -26,6 +26,13 @@ void SceneNode::AddComponent(T comp)
 }
 
 template<typename T>
+void SceneNode::RemoveComponent()
+{
+    if (!scene_) return;
+    scene_->registry_.Remove<T>(id_);
+}
+
+template<typename T>
 T* SceneNode::GetComponent()
 {
     if (!scene_) return nullptr;

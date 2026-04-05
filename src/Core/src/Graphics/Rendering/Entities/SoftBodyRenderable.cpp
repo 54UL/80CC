@@ -8,9 +8,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
 
-#include <fstream>
-#include <sstream>
-
 namespace ettycc
 {
     SoftBodyRenderable::SoftBodyRenderable(std::string         texPath,
@@ -37,10 +34,10 @@ namespace ettycc
 
     SoftBodyRenderable::~SoftBodyRenderable()
     {
+        // Geometry is owned per-instance; shader+texture are owned by ResourceCache
         glDeleteVertexArrays(1, &VAO_);
         glDeleteBuffers(1, &VBO_);
         glDeleteBuffers(1, &EBO_);
-        glDeleteTextures(1, &TEXTURE_);
     }
 
     // -------------------------------------------------------------------------
@@ -51,8 +48,21 @@ namespace ettycc
         if (initialized)
             return;
 
-        LoadShaders();
-        LoadTexture();
+        // ── Shader + Texture via ResourceCache ───────────────────────────────
+        auto cache = GetDependency(ResourceCache);
+        cachedShader_ = cache->GetShader(kShaderName);
+
+        auto resources = GetDependency(Globals);
+        const std::string fullPath = resources->GetWorkingFolder() + texturePath_;
+        TEXTURE_ = cache->GetTexture(fullPath);
+
+        // Set sampler uniform once
+        if (cachedShader_)
+        {
+            cachedShader_->pipeline.Bind();
+            glUniform1i(glGetUniformLocation(cachedShader_->programId, "ourTexture"), 0);
+            cachedShader_->pipeline.Unbind();
+        }
 
         // Seed positions from the initial bullet node positions
         for (int i = 0; i < numVerts_; ++i)
@@ -108,7 +118,7 @@ namespace ettycc
     // -------------------------------------------------------------------------
     void SoftBodyRenderable::Pass(const std::shared_ptr<RenderingContext>& ctx, float /*deltaTime*/)
     {
-        if (!initialized || !body_)
+        if (!initialized || !body_ || !cachedShader_)
             return;
 
         // Pull updated world-space positions from Bullet
@@ -127,16 +137,18 @@ namespace ettycc
                         vertexBuffer_.data());
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+        const GLuint prog = cachedShader_->programId;
+
         // Soft body nodes are already in world space — no model matrix needed
         glm::mat4 PV = ctx->Projection * ctx->View;
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TEXTURE_);
 
-        shader_.Bind();
-        glUniformMatrix4fv(glGetUniformLocation(shader_.GetProgramId(), "PV"),
+        cachedShader_->pipeline.Bind();
+        glUniformMatrix4fv(glGetUniformLocation(prog, "PV"),
                            1, GL_FALSE, glm::value_ptr(PV));
-        glUniform2f(glGetUniformLocation(shader_.GetProgramId(), "tiling"),
+        glUniform2f(glGetUniformLocation(prog, "tiling"),
                     tiling.x, tiling.y);
 
         glBindVertexArray(VAO_);
@@ -144,7 +156,7 @@ namespace ettycc
                        static_cast<GLsizei>(indices_.size()),
                        GL_UNSIGNED_INT, 0);
 
-        shader_.Unbind();
+        cachedShader_->pipeline.Unbind();
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -179,71 +191,6 @@ namespace ettycc
         PROP_RO(numVerts_, "Vertices");
         PROP(tiling.x, "Tiling X");
         PROP(tiling.y, "Tiling Y");
-    }
-
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-    std::string SoftBodyRenderable::LoadShaderFile(const std::string& path)
-    {
-        std::ifstream file(path);
-        if (!file.is_open())
-        {
-            spdlog::error("[SoftBodyRenderable] failed to open shader file {}", path);
-            return {};
-        }
-        std::stringstream buf;
-        buf << file.rdbuf();
-        return buf.str();
-    }
-
-    void SoftBodyRenderable::LoadShaders()
-    {
-        auto resources   = GetDependency(Globals);
-        auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
-
-        auto vert = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
-        auto frag = LoadShaderFile(shadersPath + shaderBaseName_ + ".frag");
-
-        std::vector<std::shared_ptr<Shader>> shaders = {
-            std::make_shared<Shader>(vert.c_str(), GL_VERTEX_SHADER),
-            std::make_shared<Shader>(frag.c_str(), GL_FRAGMENT_SHADER)
-        };
-        shader_.AddShaders(shaders);
-        shader_.Create();
-    }
-
-    void SoftBodyRenderable::LoadTexture()
-    {
-        auto resources = GetDependency(Globals);
-        const std::string fullPath = resources->GetWorkingFolder() + texturePath_;
-
-        glGenTextures(1, &TEXTURE_);
-        glBindTexture(GL_TEXTURE_2D, TEXTURE_);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        int width, height, numChannels;
-        unsigned char* image = stbi_load(fullPath.c_str(), &width, &height, &numChannels, 0);
-        if (image)
-        {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0,
-                         GL_RGB, GL_UNSIGNED_BYTE, image);
-            glGenerateMipmap(GL_TEXTURE_2D);
-            stbi_image_free(image);
-        }
-        else
-        {
-            spdlog::error("[SoftBodyRenderable] Error loading image [{}]: {}",
-                          fullPath, stbi_failure_reason());
-        }
-
-        shader_.Bind();
-        glUniform1i(glGetUniformLocation(shader_.GetProgramId(), "ourTexture"), 0);
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
 } // namespace ettycc

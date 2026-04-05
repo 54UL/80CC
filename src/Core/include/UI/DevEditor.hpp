@@ -36,8 +36,12 @@ namespace ettycc
         void ShowDebugger();
         void ShowDockSpace();
         void ShowMenuBar();
+
+        void DrawGravityAttractorGizmos(ImVec2 imgMin, ImVec2 imgSize);
+        void DrawAudioGizmos(ImVec2 imgMin, ImVec2 imgSize);
+
         void ShowEditorViewPort();
-        void ShowGameView() const;
+        void ShowGameView();
         void ShowInspector();
         void ShowAssetsView();
         void ShowSceneHierarchy();
@@ -50,9 +54,20 @@ namespace ettycc
 
         void RenderSceneTree();
         void RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>>& selectedNodes, int depth);
-        void ShowSceneContextMenu(const std::shared_ptr<SceneNode>& node);
         void AddNode(const std::shared_ptr<SceneNode>& selectedNode);
-        void AddComponentFromTemplate(const std::shared_ptr<SceneNode>& selectedNode, const char* templateName);
+
+        // ── Centralized context menus ────────────────────────────────────────
+        // Shared Add-Component sub-menu used by inspector, hierarchy, and viewport.
+        void DrawAddComponentMenu(const std::shared_ptr<SceneNode>& node);
+        // Shared node-operations context menu (Add child, Remove, Duplicate).
+        // editorExtras = true adds viewport-only items (Reload Scene, etc.).
+        void DrawNodeContextMenu(const std::shared_ptr<SceneNode>& node, bool editorExtras = false);
+        // Remove the component matching typeName from the node.
+        void RemoveComponentByName(const std::shared_ptr<SceneNode>& node, const std::string& typeName);
+        // Duplicate a node and all its components under the same parent.
+        void DuplicateNode(const std::shared_ptr<SceneNode>& node);
+        // Stop simulation -> reload scene -> play.
+        void ReloadScene();
 
         // ASSET BROWSER ############################################################
         //TODO: URGENT REFACTORS (forgive me)
@@ -97,12 +112,44 @@ namespace ettycc
             const std::shared_ptr<SceneNode>& node,
             const std::shared_ptr<Renderable>& renderable) const;
 
+        // Shared playback toolbar drawn in both viewport and game view.
+        // Returns true if any button was pressed.
+        bool DrawPlaybackToolbar();
+
+        // Draws yellow wireframe collider outlines as ImGui overlay on the
+        // editor viewport (gizmo-style, never touches the render pipeline).
+        void DrawColliderGizmos(ImVec2 imgMin, ImVec2 imgSize);
+
         // MISC
         GLuint LoadTextureFromFile(const char* filePath);
 
         // BUILD WINDOW
         ConfigurationsWindow configurationsWindow_;
         BuildPanelUI         buildPanel_;
+
+        // EDITOR OVERLAY TOGGLES
+        bool showColliderDebug_  = true;
+        bool showGravityDebug_   = true;
+        bool showAudioDebug_     = true;
+
+        // GAME VIEW ################################################################
+        enum class PlaybackState { Stopped, Playing, Paused };
+
+        struct ResolutionPreset {
+            const char* label;
+            int         width;
+            int         height;
+        };
+
+        PlaybackState  playbackState_      = PlaybackState::Stopped;
+        bool           stepRequested_      = false;
+        int            resolutionIndex_    = 0;
+        bool           gameViewShowGrid_   = true;
+
+        std::shared_ptr<FrameBuffer> gameViewFBO_;
+
+        static const ResolutionPreset kResolutionPresets[];
+        static const int              kNumPresets;
     };
 } // namespace ettycc
 

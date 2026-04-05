@@ -81,6 +81,9 @@ namespace ettycc
         // Picker support — lets FindNodeByRenderable trace back to this node.
         std::shared_ptr<Renderable> GetRenderable() const { return renderable_; }
 
+        // Editor gizmo — read Bullet node positions for wireframe overlay.
+        const btSoftBody* GetBody() const { return body_.get(); }
+
         // Returns the current centroid of the soft body from the Bullet node
         // positions.  Falls back to initialPosition_ if the body is not ready.
         glm::vec3 GetCentroid() const;

@@ -1,4 +1,3 @@
-
 #include <Graphics/Rendering/Entities/Sprite.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 #include <cmath>
@@ -8,32 +7,22 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-namespace ettycc
-{
-    Sprite::Sprite()
-    {
+namespace ettycc {
+    Sprite::Sprite() {
         initializable_ = true;
     }
 
-    Sprite::Sprite(const std::string &spriteFilePath, bool initialize) : spriteFilePath_(spriteFilePath)
-    {
+    Sprite::Sprite(const std::string &spriteFilePath, bool initialize) : spriteFilePath_(spriteFilePath) {
         initializable_ = initialize;
-        // // if null nothing to do (THIS IS USED FOR UNIT TESTING)
-        // if (spriteFilePath.empty() || !initialize)
-        // {
-        //     return;
-        // }
     }
 
-    Sprite::Sprite(const std::string &spriteFilePath) : spriteFilePath_(spriteFilePath)
-    {
+    Sprite::Sprite(const std::string &spriteFilePath) : spriteFilePath_(spriteFilePath) {
         initializable_ = true;
     }
 
-    auto Sprite::InitBackend(const std::string& spritePath) -> void
-    {
+    auto Sprite::InitBackend(const std::string &spritePath) -> void {
         // Quad vertices and texture coordinates
-        float vertices[] {
+        float vertices[]{
             // Positions         // Texture Coords
             -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
             1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
@@ -44,7 +33,8 @@ namespace ettycc
         // Indices to form two triangles for the quad
         unsigned int indices[]{
             0, 1, 2,
-            2, 3, 0};
+            2, 3, 0
+        };
 
         // Generate and bind a Vertex Array Object (VAO)
         glGenVertexArrays(1, &VAO);
@@ -63,92 +53,40 @@ namespace ettycc
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
         // Set vertex attribute pointers
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) 0);
         glEnableVertexAttribArray(0);
 
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
         glEnableVertexAttribArray(1);
 
         // Unbind the VAO (not strictly necessary but advised)
         glBindVertexArray(0);
 
-        LoadShaders();
-        LoadTextures(spritePath);
+        // ── Shader (shared via ResourceCache) ────────────────────────────────
+        auto cache = GetDependency(ResourceCache);
+        cachedShader_ = cache->GetShader(kShaderName);
+
+        // ── Texture (shared via ResourceCache) ───────────────────────────────
+        TEXTURE = cache->GetTexture(spritePath);
+
+        // Set the texture sampler uniform once
+        if (cachedShader_)
+        {
+            cachedShader_->pipeline.Bind();
+            glUniform1i(glGetUniformLocation(cachedShader_->programId, "ourTexture"), 0);
+            cachedShader_->pipeline.Unbind();
+        }
     }
 
-    Sprite::~Sprite()
-    {
-        // Clean up
+    Sprite::~Sprite() {
+        // Clean up geometry only — shader and texture are owned by ResourceCache
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
         glDeleteBuffers(1, &EBO);
-        glDeleteTextures(1, &TEXTURE);
-    }
-
-    void Sprite::LoadShaders()
-    {
-        // TODO: THIS OPERATION NEEDS TO BE EAGEAR INITIALIZED INSTEAD OF LAZY INIT...
-        auto resources = GetDependency(Globals);
-        auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
-
-        // TODO: Make shader types constants...
-        auto vertexShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".vert");
-        auto fragmentShaderSource = LoadShaderFile(shadersPath + shaderBaseName_ + ".frag");
-
-        std::vector<std::shared_ptr<Shader>> shadersIntances =
-            {
-                std::make_shared<Shader>(vertexShaderSource.c_str(), GL_VERTEX_SHADER),
-                std::make_shared<Shader>(fragmentShaderSource.c_str(), GL_FRAGMENT_SHADER)
-            };
-        // Shader sources
-        underlyingShader.AddShaders(shadersIntances);
-        underlyingShader.Create();
-    }
-
-    void Sprite::LoadTextures(const std::string& spritePath)
-    {
-        // TODO MOVE BELOW THIS PICES OF CODE...
-        // Load and create a texture
-
-        glGenTextures(1, &TEXTURE);
-        glBindTexture(GL_TEXTURE_2D, TEXTURE);
-
-        // Set the texture parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        // load the image with stbi_load
-        int width, height, numChannels;
-        unsigned char *image = stbi_load(spritePath.c_str(), &width, &height, &numChannels, 0);
-
-        // Pass the data to the gpu
-        if (image)
-        {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-            glGenerateMipmap(GL_TEXTURE_2D);
-            // Free the image data after generating the texture
-            stbi_image_free(image); // TODO: ABSTRACT THIS FUNCTION TO A GENERIC ONE
-        }
-        else
-        {
-            spdlog::error("Error loading image: {}", stbi_failure_reason());
-        }
-
-        // Bind the shader program
-        underlyingShader.Bind();
-
-        // Set the texture unit in the shader
-        glUniform1i(glGetUniformLocation(underlyingShader.GetProgramId(), "ourTexture"), 0);
-
-        // Unbind the texture
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // Renderable
-    void Sprite::Init(const std::shared_ptr<Engine>& engineCtx)
-    {
+    void Sprite::Init(const std::shared_ptr<Engine> &engineCtx) {
         if (initialized || !initializable_ || spriteFilePath_.empty())
             return;
 
@@ -161,42 +99,45 @@ namespace ettycc
         initialized = true;
     }
 
-    void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time)
-    {
+    void Sprite::Pass(const std::shared_ptr<RenderingContext> &ctx, float time) {
+        if (!cachedShader_) return;
+
         static float elapsedTime = 0;
         elapsedTime += time;
+
+        const GLuint prog = cachedShader_->programId;
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TEXTURE);
 
-        underlyingShader.Bind();
+        cachedShader_->pipeline.Bind();
 
         // Multiply projection * view * model matrix to compute sprite rendering...
         glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
-        glUniformMatrix4fv(glGetUniformLocation(underlyingShader.GetProgramId(), "PVM"), 1, GL_FALSE, glm::value_ptr(ProjectionViewMatrix));
+        glUniformMatrix4fv(glGetUniformLocation(prog, "PVM"), 1, GL_FALSE,
+                           glm::value_ptr(ProjectionViewMatrix));
 
-        glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "deltaTime"), time);
-        glUniform1f(glGetUniformLocation(underlyingShader.GetProgramId(), "time"), elapsedTime);
+        glUniform1f(glGetUniformLocation(prog, "deltaTime"), time);
+        glUniform1f(glGetUniformLocation(prog, "time"), elapsedTime);
 
         // Scale-relative tiling: texture density stays constant regardless of stretch.
         // tiling = scale.xy * multiplier, so a 5x1 sprite tiles 5x in X by default.
         const glm::vec3 scale = underylingTransform.getGlobalScale();
         const glm::vec2 tiling(std::abs(scale.x) * tilingMultiplier_,
                                std::abs(scale.y) * tilingMultiplier_);
-        glUniform2f(glGetUniformLocation(underlyingShader.GetProgramId(), "tiling"),
+        glUniform2f(glGetUniformLocation(prog, "tiling"),
                     tiling.x, tiling.y);
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        underlyingShader.Unbind();
+        cachedShader_->pipeline.Unbind();
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    void Sprite::DrawForPicker(const std::shared_ptr<RenderingContext>& ctx,
-                               GLuint program, uint32_t id)
-    {
+    void Sprite::DrawForPicker(const std::shared_ptr<RenderingContext> &ctx,
+                               GLuint program, uint32_t id) {
         if (!initialized) return;
 
         glm::mat4 PVM = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
@@ -209,26 +150,14 @@ namespace ettycc
         glBindVertexArray(0);
     }
 
-    void Sprite::Inspect(EditorPropertyVisitor& v)
-    {
-        Renderable::Inspect(v);          // Enabled + Transform section
+    GLuint Sprite::GetShaderProgramId() const {
+        return cachedShader_ ? cachedShader_->programId : 0;
+    }
+
+    void Sprite::Inspect(EditorPropertyVisitor &v) {
+        Renderable::Inspect(v); // Enabled + Transform section
         PROP_SECTION("Sprite");
         PROP(spriteFilePath_, "Texture Path");
         PROP(tilingMultiplier_, "Tiling Multiplier");
-    }
-
-    std::string Sprite::LoadShaderFile(const std::string &shaderPath)
-    {
-        std::ifstream file(shaderPath);
-
-        if (!file.is_open())
-        {
-            spdlog::error("failed to open shader file {}", shaderPath);
-            return std::string();
-        }
-
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        return buffer.str();
     }
 }

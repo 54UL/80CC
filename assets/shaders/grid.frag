@@ -3,7 +3,8 @@
 in  vec3 worldPos;
 out vec4 FragColor;
 
-uniform vec2 camPos;
+uniform vec2  camPos;
+uniform float viewSize; // visible area diagonal — drives fade distance
 
 // Returns [0,1] line intensity at coord for the given period and half-thickness
 float gridLine(float coord, float period, float thickness)
@@ -23,7 +24,11 @@ float axisLine(float coord, float thickness)
 void main()
 {
     float dist = length(worldPos.xy - camPos);
-    float fade = 1.0 - smoothstep(14.0, 28.0, dist);
+
+    // Fade distance scales with the visible area so the grid never clips
+    float fadeStart = viewSize * 0.5;
+    float fadeEnd   = viewSize * 0.95;
+    float fade = 1.0 - smoothstep(fadeStart, fadeEnd, dist);
     if (fade <= 0.0) discard;
 
     // ── Minor grid (every 1 unit) ────────────────────────────────────
