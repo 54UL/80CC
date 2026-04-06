@@ -2,6 +2,7 @@
 #define RENDERING_MESH_HPP
 
 #include "../Renderable.hpp"
+#include "SpriteShape.hpp"
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
@@ -26,9 +27,11 @@ namespace ettycc
         std::string spriteFilePath_;
 
         // Tiling multiplier applied on top of the scale-relative tiling.
-        // 1.0 = the checker (or any texture) tiles once per world unit of scale.
-        // 2.0 = twice as dense, 0.5 = half as dense, etc.
         float tilingMultiplier_ = 1.0f;
+
+        // Shape geometry — defaults to quad for backwards compatibility
+        SpriteShape shape_ = SpriteShape::MakeQuad();
+        int indexCount_ = 6;
 
         // Shared shader program from ResourceCache (not owned by this instance)
         std::shared_ptr<CachedShader> cachedShader_;
@@ -42,6 +45,10 @@ namespace ettycc
 
         void InitBackend(const std::string &spritePath);
 
+        // Apply a new shape and rebuild GL buffers (only if already initialized)
+        void SetShape(const SpriteShape& shape);
+        const SpriteShape& GetShape() const { return shape_; }
+
         // Renderable
     public:
         void Init(const std::shared_ptr<Engine> &engineCtx) override;
@@ -53,13 +60,18 @@ namespace ettycc
         GLuint GetShaderProgramId() const;
         const std::string& GetTexturePath() const { return spriteFilePath_; }
 
+    private:
+        void UploadGeometry();
+
+    public:
         // Serialization/Deserialziation
         template <class Archive>
         void serialize(Archive &ar)
         {
             ar(cereal::base_class<Renderable>(this),
                CEREAL_NVP(spriteFilePath_),
-               CEREAL_NVP(tilingMultiplier_));
+               CEREAL_NVP(tilingMultiplier_),
+               CEREAL_NVP(shape_));
         }
     };
 

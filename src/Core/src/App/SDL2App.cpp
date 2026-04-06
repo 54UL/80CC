@@ -104,7 +104,13 @@ namespace ettycc
         // Setup ImGui
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
-     
+
+        // Enable docking + multi-viewport before backend init so SDL2
+        // installs the platform viewport handlers (CreateWindow, etc.)
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
         ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
         ImGui_ImplOpenGL3_Init("#version 330 core");
 
@@ -139,6 +145,17 @@ namespace ettycc
         // ImGui render call
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Multi-viewport: render ImGui windows that were dragged outside the main window
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            SDL_Window*   backupWindow  = SDL_GL_GetCurrentWindow();
+            SDL_GLContext backupContext = SDL_GL_GetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            SDL_GL_MakeCurrent(backupWindow, backupContext);
+        }
 
         // Swap buffers
         SDL_GL_SwapWindow(window_);

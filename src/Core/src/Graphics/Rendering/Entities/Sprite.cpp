@@ -20,47 +20,49 @@ namespace ettycc {
         initializable_ = true;
     }
 
+    void Sprite::UploadGeometry()
+    {
+        auto vbuf = shape_.BuildVertexBuffer();
+        indexCount_ = static_cast<int>(shape_.indices.size());
+
+        glBindVertexArray(VAO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(vbuf.size() * sizeof(float)),
+                     vbuf.data(), GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(shape_.indices.size() * sizeof(unsigned int)),
+                     shape_.indices.data(), GL_DYNAMIC_DRAW);
+
+        // Position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        // TexCoord attribute
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
+        glBindVertexArray(0);
+    }
+
+    void Sprite::SetShape(const SpriteShape& shape)
+    {
+        shape_ = shape;
+        if (VAO != 0) // already initialized — re-upload
+            UploadGeometry();
+    }
+
     auto Sprite::InitBackend(const std::string &spritePath) -> void {
-        // Quad vertices and texture coordinates
-        float vertices[]{
-            // Positions         // Texture Coords
-            -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f
-        };
-
-        // Indices to form two triangles for the quad
-        unsigned int indices[]{
-            0, 1, 2,
-            2, 3, 0
-        };
-
-        // Generate and bind a Vertex Array Object (VAO)
+        // Generate GL objects
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
         glGenBuffers(1, &EBO);
 
-        // Bind the VAO
-        glBindVertexArray(VAO);
-
-        // Bind and set vertex buffer data
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-        // Bind and set element buffer data
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-        // Set vertex attribute pointers
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) 0);
-        glEnableVertexAttribArray(0);
-
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
-        // Unbind the VAO (not strictly necessary but advised)
-        glBindVertexArray(0);
+        // Upload shape geometry
+        UploadGeometry();
 
         // ── Shader (shared via ResourceCache) ────────────────────────────────
         auto cache = GetDependency(ResourceCache);
@@ -112,7 +114,6 @@ namespace ettycc {
 
         cachedShader_->pipeline.Bind();
 
-        // Multiply projection * view * model matrix to compute sprite rendering...
         glm::mat4 ProjectionViewMatrix = ctx->Projection * ctx->View * underylingTransform.GetMatrix();
         glUniformMatrix4fv(glGetUniformLocation(prog, "PVM"), 1, GL_FALSE,
                            glm::value_ptr(ProjectionViewMatrix));
@@ -120,8 +121,6 @@ namespace ettycc {
         glUniform1f(glGetUniformLocation(prog, "deltaTime"), time);
         glUniform1f(glGetUniformLocation(prog, "time"), elapsedTime);
 
-        // Scale-relative tiling: texture density stays constant regardless of stretch.
-        // tiling = scale.xy * multiplier, so a 5x1 sprite tiles 5x in X by default.
         const glm::vec3 scale = underylingTransform.getGlobalScale();
         const glm::vec2 tiling(std::abs(scale.x) * tilingMultiplier_,
                                std::abs(scale.y) * tilingMultiplier_);
@@ -129,7 +128,7 @@ namespace ettycc {
                     tiling.x, tiling.y);
 
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, indexCount_, GL_UNSIGNED_INT, 0);
 
         cachedShader_->pipeline.Unbind();
         glBindVertexArray(0);
@@ -144,9 +143,8 @@ namespace ettycc {
         glUniformMatrix4fv(glGetUniformLocation(program, "PVM"), 1, GL_FALSE,
                            glm::value_ptr(PVM));
 
-        // idColor is already set by RenderPass (golden-ratio hue)
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, indexCount_, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
     }
 
@@ -159,5 +157,13 @@ namespace ettycc {
         PROP_SECTION("Sprite");
         PROP(spriteFilePath_, "Texture Path");
         PROP(tilingMultiplier_, "Tiling Multiplier");
+
+        // Show current shape info (read-only)
+        PROP_SECTION("Shape");
+        PROP(shape_.name, "Shape Type");
+        int vertCount = static_cast<int>(shape_.vertices.size());
+        v.Property("Vertices", vertCount, PROP_READ_ONLY);
+        int triCount = static_cast<int>(shape_.indices.size() / 3);
+        v.Property("Triangles", triCount, PROP_READ_ONLY);
     }
 }

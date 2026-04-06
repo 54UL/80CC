@@ -57,11 +57,17 @@ set(80CC_CORE_HEADERS
     include/UI/BuildPanel.hpp
     include/UI/Console.hpp
     include/UI/EditorPropertyVisitor.hpp
+    include/UI/SpriteEditor.hpp
+    include/Graphics/Rendering/Entities/SpriteShape.hpp
     include/Scene/PropertySystem.hpp
     include/Dependencies/Resources.hpp
     include/Networking/NetworkManager.hpp
     include/Networking/NetworkComponent.hpp
     include/Benchmark/Benchmark.hpp
+    include/Threading/ThreadPool.hpp
+    include/Threading/AsyncQueue.hpp
+    include/Threading/WorkerThread.hpp
+    include/Threading/ThreadRegistry.hpp
     # IMGUI LIBRARY HEADERS
     external/imgui/imgui.h
     external/imgui/imgui_internal.h
@@ -112,6 +118,7 @@ set(80CC_CORE_SOURCES
     src/UI/Build/BuildPanelUI.cpp
     src/UI/ConfigurationsWindow.cpp
     src/UI/DevEditor.cpp
+    src/UI/SpriteEditor.cpp
     src/UI/BuildPanel.cpp
     src/Engine.cpp
     src/Networking/NetworkManager.cpp

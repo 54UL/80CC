@@ -4,8 +4,10 @@
 #include <enet/enet.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <Threading/AsyncQueue.hpp>
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <string>
@@ -42,6 +44,13 @@ namespace ettycc
     };
 
     // ── NetworkManager ────────────────────────────────────────────────────────
+    // Thread-safe design:
+    //   • Poll() and SendOutbound() run on the NETWORK WORKER thread.
+    //     All ENet calls are confined to that thread.
+    //   • QueueBroadcast() is called from the MAIN thread to enqueue packets.
+    //   • ApplyInboundTransforms() is called from the MAIN thread to drain
+    //     received transform packets and apply them to components.
+    //   • The two AsyncQueues provide lock-free SPSC communication.
     class NetworkManager
     {
     public:
@@ -51,18 +60,46 @@ namespace ettycc
         bool InitHost  (uint16_t port);
         bool InitClient(const std::string& address, uint16_t port);
 
-        // Service ENet events; call once per frame from Engine::Update.
+        // ── Network-thread API ───────────────────────────────────────────────
+
+        // Service ENet events.  Received transforms are pushed to the inbound
+        // queue instead of being applied directly.  Called by network worker.
         void Poll();
+
+        // Drain the outbound queue and send each packet via ENet.
+        // Called by the network worker after Poll().
+        void SendOutbound();
 
         // Graceful shutdown — releases physics on all registered components,
         // clears the registry and destroys the ENet host.
         void Shutdown();
 
-        NetState    GetState   () const { return state_;   }
+        // ── Main-thread API ──────────────────────────────────────────────────
+
+        // Drain the inbound queue and call ApplyRemoteTransform on each
+        // matching NetworkComponent.  Call once per frame from the main thread.
+        // Returns number of transforms applied.
+        size_t ApplyInboundTransforms();
+
+        // Queue a transform packet for sending by the network worker.
+        // Called from main thread (NetworkSystem::OnUpdate).
+        void QueueBroadcast(uint32_t networkId,
+                            const glm::vec3& pos,
+                            const glm::quat& rot,
+                            const glm::vec3& scale);
+
+        // ── State / accessors ────────────────────────────────────────────────
+
+        NetState    GetState   () const { return state_.load(std::memory_order_acquire); }
         const char* GetStateStr() const;
 
         bool IsHost  () const { return isHost_;          }
         bool IsActive() const { return host_ != nullptr; }
+
+        // True if the network worker detected a disconnect that the main thread
+        // hasn't processed yet.  Main thread should call HandlePendingDisconnect().
+        bool HasPendingDisconnect() const { return disconnectPending_.load(std::memory_order_acquire); }
+        void HandlePendingDisconnect();
 
         // ── Bandwidth / stats ─────────────────────────────────────────────────
         struct BandwidthStats
@@ -100,6 +137,8 @@ namespace ettycc
         void Register  (uint32_t networkId, NetworkComponent* comp);
         void Unregister(uint32_t networkId);
 
+        // Legacy synchronous broadcast — still available but prefer QueueBroadcast
+        // for thread-safe operation.  Only call from the network thread.
         void BroadcastTransform(uint32_t networkId,
                                 const glm::vec3& pos,
                                 const glm::quat& rot,
@@ -110,7 +149,8 @@ namespace ettycc
         ENetHost*  host_       = nullptr;
         ENetPeer*  serverPeer_ = nullptr;
 
-        NetState   state_      = NetState::OFFLINE;
+        std::atomic<NetState> state_{NetState::OFFLINE};
+        std::atomic<bool>     disconnectPending_{false};
 
         std::chrono::steady_clock::time_point connectStart_;
         std::chrono::steady_clock::time_point connectedSince_;
@@ -133,6 +173,12 @@ namespace ettycc
         std::array<float, kBwHistorySize> sendHistory_ = {};
         std::array<float, kBwHistorySize> recvHistory_ = {};
         int bwHistoryOffset_ = 0;
+
+        // ── Lock-free queues ─────────────────────────────────────────────────
+        // Inbound: network worker → main thread (received transforms)
+        AsyncQueue<TransformPacket, 1024> inboundTransforms_;
+        // Outbound: main thread → network worker (broadcasts)
+        AsyncQueue<TransformPacket, 1024> outboundTransforms_;
 
         void HandlePacket(const uint8_t* data, size_t length);
         void ReleaseAllPhysics();

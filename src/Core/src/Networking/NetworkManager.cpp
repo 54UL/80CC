@@ -24,7 +24,7 @@ namespace ettycc
 
     const char* NetworkManager::GetStateStr() const
     {
-        switch (state_)
+        switch (GetState())
         {
         case NetState::OFFLINE:      return "Offline";
         case NetState::CONNECTING:   return "Connecting...";
@@ -50,12 +50,12 @@ namespace ettycc
         if (!host_)
         {
             spdlog::error("[NetworkManager] Failed to create host on port {}", port);
-            state_ = NetState::DISCONNECTED;
+            state_.store(NetState::DISCONNECTED, std::memory_order_release);
             return false;
         }
 
-        isHost_        = true;
-        state_         = NetState::CONNECTED;
+        isHost_ = true;
+        state_.store(NetState::CONNECTED, std::memory_order_release);
         connectedSince_ = std::chrono::steady_clock::now();
         spdlog::info("[NetworkManager] Host listening on port {}", port);
         return true;
@@ -73,7 +73,7 @@ namespace ettycc
         if (!host_)
         {
             spdlog::error("[NetworkManager] Failed to create client ENet host");
-            state_ = NetState::DISCONNECTED;
+            state_.store(NetState::DISCONNECTED, std::memory_order_release);
             return false;
         }
 
@@ -87,15 +87,17 @@ namespace ettycc
             spdlog::error("[NetworkManager] No available peer slot for connection");
             enet_host_destroy(host_);
             host_  = nullptr;
-            state_ = NetState::DISCONNECTED;
+            state_.store(NetState::DISCONNECTED, std::memory_order_release);
             return false;
         }
 
-        state_        = NetState::CONNECTING;
+        state_.store(NetState::CONNECTING, std::memory_order_release);
         connectStart_ = std::chrono::steady_clock::now();
         spdlog::info("[NetworkManager] Connecting to {}:{}", address, port);
         return true;
     }
+
+    // ── Network-thread: service ENet events ──────────────────────────────────
 
     void NetworkManager::Poll()
     {
@@ -107,26 +109,28 @@ namespace ettycc
         lastPollTime_ = now;
 
         // ── Connection timeout (client CONNECTING state) ───────────────────────
-        if (state_ == NetState::CONNECTING)
+        if (GetState() == NetState::CONNECTING)
         {
             double elapsed = std::chrono::duration<double>(now - connectStart_).count();
             if (elapsed > kConnectTimeoutSec)
             {
                 spdlog::warn("[NetworkManager] Connection timed out after {:.1f}s", elapsed);
-                Shutdown();
-                state_ = NetState::DISCONNECTED;
+                // Can't call full Shutdown from worker — just mark disconnected.
+                // Main thread will handle cleanup via HandlePendingDisconnect.
+                state_.store(NetState::DISCONNECTED, std::memory_order_release);
+                disconnectPending_.store(true, std::memory_order_release);
                 return;
             }
         }
 
-        // ── ENet event loop ───────────────────────────────────────────────────
+        // ── ENet event loop (non-blocking: timeout = 0) ──────────────────────
         ENetEvent event;
         while (enet_host_service(host_, &event, 0) > 0)
         {
             switch (event.type)
             {
             case ENET_EVENT_TYPE_CONNECT:
-                state_          = NetState::CONNECTED;
+                state_.store(NetState::CONNECTED, std::memory_order_release);
                 connectedSince_ = std::chrono::steady_clock::now();
                 spdlog::info("[NetworkManager] Peer connected (id={})",
                              event.peer->incomingPeerID);
@@ -137,9 +141,10 @@ namespace ettycc
                              event.peer->incomingPeerID);
                 if (!isHost_)
                 {
-                    ReleaseAllPhysics();
                     serverPeer_ = nullptr;
-                    state_      = NetState::DISCONNECTED;
+                    state_.store(NetState::DISCONNECTED, std::memory_order_release);
+                    // Defer physics release to main thread
+                    disconnectPending_.store(true, std::memory_order_release);
                 }
                 break;
 
@@ -154,7 +159,8 @@ namespace ettycc
         }
 
         // ── Bandwidth sampling (one sample per second) ────────────────────────
-        if (state_ == NetState::CONNECTED || state_ == NetState::CONNECTING)
+        auto currentState = GetState();
+        if (currentState == NetState::CONNECTED || currentState == NetState::CONNECTING)
         {
             bwTimeAccum_ += dt;
 
@@ -177,11 +183,80 @@ namespace ettycc
         }
 
         // ── Live connection duration ───────────────────────────────────────────
-        if (state_ == NetState::CONNECTED)
+        if (currentState == NetState::CONNECTED)
         {
             bwStats_.connectedForSecs =
                 std::chrono::duration<double>(now - connectedSince_).count();
         }
+    }
+
+    // ── Network-thread: drain outbound queue and send via ENet ───────────────
+
+    void NetworkManager::SendOutbound()
+    {
+        if (!host_ || GetState() != NetState::CONNECTED) return;
+
+        outboundTransforms_.DrainInto([this](TransformPacket&& pkt) {
+            ENetPacket* packet = enet_packet_create(
+                &pkt, sizeof(TransformPacket), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
+
+            if (isHost_)
+                enet_host_broadcast(host_, 0, packet);
+            else if (serverPeer_)
+                enet_peer_send(serverPeer_, 0, packet);
+
+            ++totalSent_;
+            bytesSentWindow_        += sizeof(TransformPacket);
+            bwStats_.totalBytesSent += sizeof(TransformPacket);
+
+            auto& dbg = debugEntries_[pkt.networkId];
+            dbg.pos = { pkt.px, pkt.py, pkt.pz };
+            dbg.count++;
+        });
+    }
+
+    // ── Main-thread: drain inbound queue and apply transforms ────────────────
+
+    size_t NetworkManager::ApplyInboundTransforms()
+    {
+        return inboundTransforms_.DrainInto([this](TransformPacket&& pkt) {
+            auto it = registry_.find(pkt.networkId);
+            if (it == registry_.end() || !it->second) return;
+
+            glm::vec3 pos  { pkt.px, pkt.py, pkt.pz };
+            glm::quat rot  { pkt.rw, pkt.rx, pkt.ry, pkt.rz };
+            glm::vec3 scale{ pkt.sx, pkt.sy, pkt.sz };
+
+            it->second->ApplyRemoteTransform(pos, rot, scale);
+        });
+    }
+
+    // ── Main-thread: handle deferred disconnect ──────────────────────────────
+
+    void NetworkManager::HandlePendingDisconnect()
+    {
+        if (!disconnectPending_.load(std::memory_order_acquire)) return;
+
+        spdlog::info("[NetworkManager] Processing deferred disconnect on main thread");
+        ReleaseAllPhysics();
+        disconnectPending_.store(false, std::memory_order_release);
+    }
+
+    // ── Main-thread: queue a broadcast for the network worker ────────────────
+
+    void NetworkManager::QueueBroadcast(uint32_t networkId,
+                                        const glm::vec3& pos,
+                                        const glm::quat& rot,
+                                        const glm::vec3& scale)
+    {
+        TransformPacket pkt;
+        pkt.networkId = networkId;
+        pkt.px = pos.x;   pkt.py = pos.y;   pkt.pz = pos.z;
+        pkt.rw = rot.w;   pkt.rx = rot.x;   pkt.ry = rot.y;   pkt.rz = rot.z;
+        pkt.sx = scale.x; pkt.sy = scale.y; pkt.sz = scale.z;
+
+        if (!outboundTransforms_.TryPush(std::move(pkt)))
+            spdlog::warn("[NetworkManager] Outbound queue full — dropping broadcast for id={}", networkId);
     }
 
     // ── Shutdown ──────────────────────────────────────────────────────────────
@@ -204,7 +279,7 @@ namespace ettycc
         enet_host_destroy(host_);
         host_   = nullptr;
         isHost_ = false;
-        state_  = NetState::OFFLINE;
+        state_.store(NetState::OFFLINE, std::memory_order_release);
 
         spdlog::info("[NetworkManager] Shutdown complete");
     }
@@ -243,14 +318,14 @@ namespace ettycc
         }
     }
 
-    // ── Broadcast ─────────────────────────────────────────────────────────────
+    // ── Legacy synchronous broadcast (network-thread only) ───────────────────
 
     void NetworkManager::BroadcastTransform(uint32_t networkId,
                                             const glm::vec3& pos,
                                             const glm::quat& rot,
                                             const glm::vec3& scale)
     {
-        if (!host_ || state_ != NetState::CONNECTED) return;
+        if (!host_ || GetState() != NetState::CONNECTED) return;
 
         TransformPacket pkt;
         pkt.networkId = networkId;
@@ -274,7 +349,7 @@ namespace ettycc
         dbg.count++;
     }
 
-    // ── Receive ───────────────────────────────────────────────────────────────
+    // ── Receive (called on network thread) ───────────────────────────────────
 
     void NetworkManager::HandlePacket(const uint8_t* data, size_t length)
     {
@@ -289,24 +364,19 @@ namespace ettycc
             TransformPacket pkt;
             std::memcpy(&pkt, data, sizeof(TransformPacket));
 
-            auto it = registry_.find(pkt.networkId);
-            if (it == registry_.end()) return;
-
-            glm::vec3 pos  { pkt.px, pkt.py, pkt.pz };
-            glm::quat rot  { pkt.rw, pkt.rx, pkt.ry, pkt.rz };
-            glm::vec3 scale{ pkt.sx, pkt.sy, pkt.sz };
-
-            it->second->ApplyRemoteTransform(pos, rot, scale);
+            // Push to inbound queue — main thread will apply via ApplyInboundTransforms()
+            if (!inboundTransforms_.TryPush(pkt))
+                spdlog::warn("[NetworkManager] Inbound queue full — dropping transform for id={}", pkt.networkId);
 
             ++totalReceived_;
-            bytesRecvWindow_               += length;
-            bwStats_.totalBytesReceived    += length;
+            bytesRecvWindow_            += length;
+            bwStats_.totalBytesReceived += length;
 
             auto& dbg = debugEntries_[pkt.networkId];
-            dbg.pos = pos;
+            dbg.pos = { pkt.px, pkt.py, pkt.pz };
             dbg.count++;
 
-            // Host relays to all other clients
+            // Host relays to all other clients (ENet call, safe on network thread)
             if (isHost_)
             {
                 ENetPacket* relay = enet_packet_create(

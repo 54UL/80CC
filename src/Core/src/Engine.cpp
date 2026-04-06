@@ -31,6 +31,15 @@ namespace ettycc {
     }
 
     Engine::~Engine() {
+        // Stop all worker threads and pool tasks FIRST.
+        // The network worker and any in-flight physics tasks must finish
+        // before we destroy the subsystems they reference.
+        threadRegistry_.Shutdown();
+
+        // Wait for any in-flight physics step.
+        if (physicsFuture_.valid())
+            physicsFuture_.get();
+
         // Reset the scene BEFORE shutting down AudioManager.
         // AudioSourceComponent::~AudioSourceComponent calls DestroySource(), which
         // calls alDeleteSources() — those calls require a live AL context.
@@ -149,7 +158,7 @@ namespace ettycc {
         // ── Orbiting boxes ──────
         // Spawn boxes in a ring and give each a tangential velocity for a
         // roughly circular orbit:  v = sqrt(strength / radius)
-        constexpr int boxCount = 100;
+        constexpr int boxCount = 500;
         constexpr float orbitRadius = 10.0f;
 
         for (int i = 0; i < boxCount; ++i) {
@@ -182,6 +191,14 @@ namespace ettycc {
 
         if (!isEditorMode_)
             EnsureGameCamera();
+    }
+
+    void Engine::CreateEmptyScene(const std::string& name) {
+        spdlog::info("[Engine] Creating empty scene '{}'...", name);
+
+        renderEngine_.ClearRenderables();
+        mainScene_ = std::make_shared<Scene>(name);
+        SetupSceneSystems(*mainScene_, *this);
     }
 
     void Engine::InitEditorCamera() {
@@ -503,6 +520,16 @@ namespace ettycc {
         // Write benchmark results — file lives next to the engine config.
         const std::string benchPath = globals_->GetWorkingFolder() + "config/startup_benchmark.csv";
         bench.WriteToFile(benchPath);
+
+        // ── Start the network worker thread ──────────────────────────────────
+        auto& netWorker = threadRegistry_.CreateWorker("network");
+        netWorker.Start([this]() {
+            networkManager_.Poll();
+            networkManager_.SendOutbound();
+            // ~60 polls/sec — avoid spinning the CPU
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        });
+        spdlog::info("[Engine] Network worker started");
     }
 
     void Engine::Update() {
@@ -512,16 +539,23 @@ namespace ettycc {
         const float dt = appInstance_->GetDeltaTime();
         const auto frameStart = Clock::now();
 
-        // ── Phase 1: serial systems that WRITE to scene state ─────────────────
+        // ── 1. Wait for previous frame's physics step (pipelining) ───────────
         auto t0 = Clock::now();
-        if (!simulationPaused_) {
-            physicsWorld_.Step(dt);
+        if (physicsFuture_.valid())
+        {
+            // The future returns the step duration in ms (measured on the worker)
+            threadDebugInfo_.physics.durationMs = physicsFuture_.get();
+            threadDebugInfo_.physics.async = true;
         }
-        networkManager_.Poll();
 
-        threadDebugInfo_.physics.durationMs = Ms(Clock::now() - t0).count();
-        threadDebugInfo_.physics.async = false;
+        // ── 2. Drain inbound network transforms (lock-free queue) ────────────
+        auto tNet = Clock::now();
+        networkManager_.HandlePendingDisconnect();
+        networkManager_.ApplyInboundTransforms();
+        threadDebugInfo_.network.durationMs = Ms(Clock::now() - tNet).count();
+        threadDebugInfo_.network.async = true; // polling runs on network worker
 
+        // ── 3. Scene MAIN processing (gravity, fusion, sync, broadcast) ──────
         auto t1 = Clock::now();
         if (!simulationPaused_)
             mainScene_->Process(dt, ProcessingChannel::MAIN);
@@ -530,6 +564,19 @@ namespace ettycc {
 
         for (const auto &module: gameModules_)
             module->OnUpdate(dt);
+
+        // ── 4. Kick physics step for THIS frame (runs during PresentFrame) ───
+        // Bullet Step overlaps with rendering.  Safe because all Bullet
+        // reads/writes in Process(MAIN) are done before this point, and the
+        // next frame's Update waits for this future before touching Bullet.
+        if (!simulationPaused_)
+        {
+            physicsFuture_ = threadRegistry_.Submit([this, dt]() {
+                auto t = Clock::now();
+                physicsWorld_.Step(dt);
+                return Ms(Clock::now() - t).count();
+            });
+        }
 
         threadDebugInfo_.updatePhaseMs = Ms(Clock::now() - frameStart).count();
     }
@@ -546,11 +593,10 @@ namespace ettycc {
 
         auto scene = mainScene_;
 
-        // Audio timing is written to threadDebugInfo_ (a member, not a stack var)
-        // so there is no lifetime hazard if an exception unwinds before get().
+        // ── Audio on a pool thread (via ThreadRegistry instead of raw async) ─
         threadDebugInfo_.audio.durationMs = 0.f;
 
-        auto audioFuture = std::async(std::launch::async, [this, scene, dt]() {
+        auto audioFuture = threadRegistry_.Submit([this, scene, dt]() {
             auto t = Clock::now();
             audioManager_.Update();
             scene->Process(dt, ProcessingChannel::AUDIO);

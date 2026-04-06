@@ -16,12 +16,14 @@
 #include <Physics/PhysicsWorld.hpp>
 #include <Networking/NetworkManager.hpp>
 #include <Audio/AudioManager.hpp>
+#include <Threading/ThreadRegistry.hpp>
 
 #include <Scene/Assets/ResourceCache.hpp>
 
 #include <memory>
 #include <vector>
 #include <array>
+#include <future>
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
@@ -41,7 +43,8 @@ namespace ettycc
     {
         static constexpr int kHistorySize = 96;
 
-        ChannelSample physics;    // physicsWorld_.Step + networkManager_.Poll
+        ChannelSample physics;    // physicsWorld_.Step
+        ChannelSample network;    // networkManager_ Poll + apply
         ChannelSample main;       // Scene::Process(MAIN)
         ChannelSample audio;      // audioManager_.Update + Scene::Process(AUDIO)
         ChannelSample rendering;  // Scene::Process(RENDERING) + renderEngine_.Pass
@@ -84,10 +87,17 @@ namespace ettycc
         NetworkManager         networkManager_;
         std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
         ThreadDebugInfo        threadDebugInfo_;
+        ThreadRegistry         threadRegistry_;
 
     private:
         bool isEditorMode_ = false;
-        
+
+        // ── Async physics pipelining ─────────────────────────────────────────
+        // Physics Step runs on a pool thread.  We kick it at the end of Update()
+        // and wait for it at the START of the next frame's Update().
+        // This overlaps Bullet simulation with rendering.
+        std::future<float> physicsFuture_;
+
     public:
         explicit Engine(std::shared_ptr<App> appInstance);
         ~Engine() override;
@@ -118,6 +128,7 @@ namespace ettycc
         void GravityScene();
 
         void LoadDefaultScene();
+        void CreateEmptyScene(const std::string& name = "untitled");
         // Engine front-end API
         void LoadLastScene();
         void LoadScene(const std::string& sceneName, const bool defaultPath = true);
@@ -133,7 +144,7 @@ namespace ettycc
         void InitNetwork(bool isHost, uint16_t port = 7777,
                          const std::string& serverAddress = "127.0.0.1");
         void LoadNetworkScene();
-        
+
         // Async asset preloading — reads images/shaders on a worker thread,
         // then uploads GL objects on the main thread.  Call after scene
         // deserialization but before SetupSceneSystems().

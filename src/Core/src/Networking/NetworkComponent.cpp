@@ -103,7 +103,7 @@ namespace ettycc
         const glm::vec3 eulerDeg = syncTransform_->getStoredRotation();
         const glm::quat rot      = glm::quat(glm::radians(eulerDeg));
 
-        networkManager_->BroadcastTransform(networkId_, pos, rot, scale);
+        networkManager_->QueueBroadcast(networkId_, pos, rot, scale);
     }
 
     // ── Called by NetworkManager on packet receive ─────────────────────────────

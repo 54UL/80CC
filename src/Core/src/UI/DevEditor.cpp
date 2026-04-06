@@ -317,10 +317,10 @@ namespace ettycc
             ImGui::DockBuilderDockWindow("Scene Hierarchy", bottomLeft);
             ImGui::DockBuilderDockWindow("Editor view",    viewport_row);
             ImGui::DockBuilderDockWindow("Game view",      viewport_row);
-            ImGui::DockBuilderDockWindow("Inspector",      right);
             ImGui::DockBuilderDockWindow("Debug",          bottomRight);
             ImGui::DockBuilderDockWindow("Assets",         bottomRight);
             ImGui::DockBuilderDockWindow("Build",          right);
+            ImGui::DockBuilderDockWindow("Inspector",      right);
 
             ImGui::DockBuilderFinish(dsId);
         }
@@ -332,6 +332,10 @@ namespace ettycc
         {
             if (ImGui::BeginMenu("File"))
             {
+                if (ImGui::MenuItem("New", NULL))
+                {
+                    NewScene();
+                }
                 if (ImGui::MenuItem("Open", NULL))
                 {
                     auto f = pfd::open_file("Choose a scene",
@@ -357,6 +361,8 @@ namespace ettycc
             {
                 if (ImGui::MenuItem("Configure", NULL))
                     configurationsWindow_.Open();
+                if (ImGui::MenuItem("Sprite Editor", NULL))
+                    spriteEditor_.isOpen = true;
                 ImGui::EndMenu();
             }
 
@@ -521,7 +527,7 @@ namespace ettycc
             const ImVec2 imgMax = { imgMin.x + avail.x, imgMin.y + avail.y };
             const ImVec2 mp     = ImGui::GetMousePos();
 
-            // ─── Prefab drag-drop (unchanged) ────────────────────────────────
+            // ─── Prefab drag-drop ────────────────────────────────────────────
             if (ImGui::BeginDragDropTarget())
             {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_ENTRY"))
@@ -540,6 +546,20 @@ namespace ettycc
                     else
                         spdlog::warn("[DevEditor] Drop type '{}' not handled yet",
                                      GetAssetTypeName(dropType));
+                }
+                // ─── Sprite shape drag-drop from Sprite Editor ───────────
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SPRITE_SHAPE"))
+                {
+                    const SpriteShape* shape = *static_cast<const SpriteShape* const*>(payload->Data);
+                    auto sprite = std::make_shared<Sprite>("images/not_found_texture.png");
+                    sprite->SetShape(*shape);
+
+                    auto node = std::make_shared<SceneNode>("Sprite_" + shape->name);
+                    node->AddComponent(RenderableNode(sprite));
+
+                    engineInstance_->mainScene_->root_node_->AddChild(node);
+                    engineInstance_->renderEngine_.AddRenderable(sprite);
+                    spdlog::info("[DevEditor] Spawned sprite with shape '{}'", shape->name);
                 }
                 ImGui::EndDragDropTarget();
             }
@@ -1000,8 +1020,7 @@ namespace ettycc
                                      {mx.x - 5.f, mx.y - 5.f}, c);
                 }))
             {
-                playbackState_ = PlaybackState::Stopped;
-                engineInstance_->simulationPaused_ = true;
+                ReloadScene();
                 pressed = true;
             }
             if (!canStop) ImGui::EndDisabled();
@@ -1502,6 +1521,13 @@ namespace ettycc
     {
         ImGui::Begin("Scene Hierarchy");
         RenderSceneTree();
+
+        // Process the "new node" popup modal (triggered by context menu "Empty Node").
+        auto parentNode = (!selectedNodes_.empty())
+            ? selectedNodes_.back()
+            : engineInstance_->mainScene_->root_node_;
+        AddNode(parentNode);
+
         ImGui::End();
     }
 
@@ -1649,8 +1675,10 @@ namespace ettycc
         {
             if (node->parent_)
             {
+                CleanupNodeRenderables(node);
                 node->parent_->RemoveNode(node->GetId());
                 selectedNodes_.clear();
+                inspectorSource_ = InspectorSource::None;
             }
         }
 
@@ -1718,6 +1746,38 @@ namespace ettycc
         spdlog::info("[DevEditor] Duplicated node '{}' -> '{}'", node->GetName(), clone->GetName());
     }
 
+    // ── Recursively remove renderables from the render engine ──────────────
+    void DevEditor::CleanupNodeRenderables(const std::shared_ptr<SceneNode>& node)
+    {
+        if (!node) return;
+
+        if (auto* rn = node->GetComponent<RenderableNode>())
+        {
+            if (rn->renderable_)
+                engineInstance_->renderEngine_.RemoveRenderable(rn->renderable_);
+        }
+
+        for (auto& child : node->children_)
+            CleanupNodeRenderables(child);
+    }
+
+    // ── New scene ─────────────────────────────────────────────────────────────
+    void DevEditor::NewScene()
+    {
+        spdlog::info("[DevEditor] Creating new scene...");
+
+        playbackState_ = PlaybackState::Stopped;
+        engineInstance_->simulationPaused_ = true;
+        selectedNodes_.clear();
+        inspectorSource_ = InspectorSource::None;
+        selectedAsset_.active = false;
+
+        engineInstance_->CreateEmptyScene("untitled");
+        engineInstance_->InitEditorCamera();
+
+        spdlog::info("[DevEditor] New scene created");
+    }
+
     // ── Reload scene ─────────────────────────────────────────────────────────
     void DevEditor::ReloadScene()
     {
@@ -1761,6 +1821,7 @@ namespace ettycc
             if (ImGui::Button("Apply") || pressed)
             {
                 selectedNode->AddChild(std::make_shared<SceneNode>(node_name));
+                node_name[0] = '\0';
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -1804,7 +1865,39 @@ namespace ettycc
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_NODE"))
             {
                 IM_ASSERT(payload->DataSize == sizeof(std::shared_ptr<SceneNode>));
-                // TODO: reparenting logic
+                auto draggedNode = *reinterpret_cast<const std::shared_ptr<SceneNode>*>(payload->Data);
+
+                // Prevent reparenting onto itself, its current parent, or a descendant.
+                bool valid = draggedNode && draggedNode != rootNode && draggedNode->parent_ != rootNode;
+                if (valid)
+                {
+                    // Cycle check: walk up from rootNode to ensure draggedNode isn't an ancestor.
+                    auto ancestor = rootNode->parent_;
+                    while (ancestor)
+                    {
+                        if (ancestor == draggedNode) { valid = false; break; }
+                        ancestor = ancestor->parent_;
+                    }
+                }
+
+                if (valid)
+                {
+                    // Detach from old parent (without destroying registry/ECS data)
+                    if (auto oldParent = draggedNode->parent_)
+                    {
+                        auto& siblings = oldParent->children_;
+                        siblings.erase(
+                            std::remove(siblings.begin(), siblings.end(), draggedNode),
+                            siblings.end());
+                    }
+
+                    // Attach to new parent
+                    draggedNode->parent_ = rootNode;
+                    rootNode->children_.emplace_back(draggedNode);
+
+                    spdlog::info("[DevEditor] Reparented '{}' under '{}'",
+                                 draggedNode->GetName(), rootNode->GetName());
+                }
             }
             ImGui::EndDragDropTarget();
         }
@@ -2175,7 +2268,8 @@ namespace ettycc
 
                 struct Row { const char* label; const ChannelSample* s; ImVec4 col; };
                 Row rows[] = {
-                    { "Physics+Net", &td.physics,   {0.55f, 0.85f, 0.40f, 1.f} },
+                    { "Physics",     &td.physics,    {0.55f, 0.85f, 0.40f, 1.f} },
+                    { "Network",     &td.network,    {0.40f, 0.90f, 0.80f, 1.f} },
                     { "MAIN",        &td.main,       {0.30f, 0.65f, 1.00f, 1.f} },
                     { "RENDERING",   &td.rendering,  {1.00f, 0.55f, 0.20f, 1.f} },
                     { "AUDIO",       &td.audio,      {0.90f, 0.40f, 0.85f, 1.f} },
@@ -2231,8 +2325,9 @@ namespace ettycc
 
                 // ── Timeline (two horizontal rows: main / worker) ─────────────
                 ImGui::SeparatorText("Frame Timeline  (this frame)");
-                ImGui::TextDisabled("Main thread: [Physics][  MAIN  ] ... [  RENDERING  ]");
-                ImGui::TextDisabled("Worker:                             [    AUDIO     ]");
+                ImGui::TextDisabled("Main:       [Net][  MAIN  ] ... [  RENDERING  ]");
+                ImGui::TextDisabled("Pool:                               [ PHYS ][ AUD ]");
+                ImGui::TextDisabled("Net worker: [========= polling =========]");
                 ImGui::Spacing();
 
                 float total = td.updatePhaseMs + td.presentPhaseMs;
@@ -2266,23 +2361,32 @@ namespace ettycc
                     float row0 = origin.y;
                     float row1 = origin.y + rowH + gap;
 
-                    // Main thread row: physics | MAIN | (gap = module/overhead) | RENDERING
-                    float physStart  = 0.f;
-                    float mainStart  = physStart + td.physics.durationMs;
-                    float renderOff  = td.updatePhaseMs; // rendering starts in PresentFrame
-                    drawSegment(physStart,  td.physics.durationMs,   {0.55f,0.85f,0.40f,0.9f}, "Phys",    row0);
-                    drawSegment(mainStart,  td.main.durationMs,       {0.30f,0.65f,1.00f,0.9f}, "MAIN",    row0);
-                    drawSegment(renderOff,  td.rendering.durationMs,  {1.00f,0.55f,0.20f,0.9f}, "REND",    row0);
+                    float row2 = row1 + rowH + gap;
 
-                    // Worker row: audio starts in parallel with RENDERING
-                    drawSegment(renderOff,  td.audio.durationMs,      {0.90f,0.40f,0.85f,0.9f}, "AUDIO",   row1);
+                    // Main thread row: net-apply | MAIN | RENDERING
+                    float netApplyStart = 0.f;
+                    float mainStart     = netApplyStart + td.network.durationMs;
+                    float renderOff     = td.updatePhaseMs; // rendering starts in PresentFrame
+                    drawSegment(netApplyStart, td.network.durationMs,  {0.40f,0.90f,0.80f,0.9f}, "Net",     row0);
+                    drawSegment(mainStart,     td.main.durationMs,     {0.30f,0.65f,1.00f,0.9f}, "MAIN",    row0);
+                    drawSegment(renderOff,     td.rendering.durationMs,{1.00f,0.55f,0.20f,0.9f}, "REND",    row0);
+
+                    // Worker row 1: physics step overlaps with rendering (pipelined)
+                    drawSegment(renderOff,  td.physics.durationMs,    {0.55f,0.85f,0.40f,0.9f}, "PHYS",    row1);
+                    // Worker row 1: audio also overlaps
+                    drawSegment(renderOff + td.physics.durationMs, td.audio.durationMs, {0.90f,0.40f,0.85f,0.9f}, "AUDIO", row1);
+
+                    // Worker row 2: network worker (persistent, always running)
+                    // Show it as a thin continuous bar
+                    drawSegment(0.f, total, {0.40f,0.90f,0.80f,0.4f}, "NET POLL", row2);
 
                     // Labels
                     dl->AddText({origin.x, row0 + rowH + 2.f},  IM_COL32(180,180,180,160), "main");
-                    dl->AddText({origin.x, row1 + rowH + 2.f},  IM_COL32(180,180,180,160), "worker");
+                    dl->AddText({origin.x, row1 + rowH + 2.f},  IM_COL32(180,180,180,160), "pool");
+                    dl->AddText({origin.x, row2 + rowH + 2.f},  IM_COL32(180,180,180,160), "net worker");
 
-                    // Advance cursor past the two rows + labels
-                    ImGui::Dummy({tlW, rowH * 2.f + gap + 14.f});
+                    // Advance cursor past the three rows + labels
+                    ImGui::Dummy({tlW, rowH * 3.f + gap * 2.f + 14.f});
                 }
 
                 // ── Rolling sparkline histories ───────────────────────────────
@@ -2368,11 +2472,13 @@ namespace ettycc
         ShowSceneHierarchy();
         ShowAssetsView();
         buildPanel_.Draw();
+        spriteEditor_.Draw(engineInstance_);
     }
 
     void DevEditor::Init()
     {
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        // ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
 
         engineInstance_->InitEditorCamera();
         //TODO: MOVE EVERYTHING BELOW TO THE ENGINE...
@@ -2389,13 +2495,16 @@ namespace ettycc
         // Game view framebuffer (starts at 1920x1080)
         gameViewFBO_ = std::make_shared<FrameBuffer>(glm::ivec2(0, 0),
                            glm::ivec2(kResolutionPresets[0].width,
-                                      kResolutionPresets[0].height), false);
+                               kResolutionPresets[0].height),
+                            false);
+
         gameViewFBO_->Init();
     }
 
     void DevEditor::UpdateUI() { DrawEditor(); }
     void DevEditor::Update()   {}
 
+    //TODO: WIRE THIS TO THE RESOURCE CACHE...
     GLuint DevEditor::LoadTextureFromFile(const char* filePath)
     {
         int width, height, numChannels;

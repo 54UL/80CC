@@ -7,6 +7,7 @@
 #include <UI/ImGuiConsoleSink.hpp>
 #include <UI/Build/BuildPanelUI.hpp>
 #include <UI/ConfigurationsWindow.hpp>
+#include <UI/SpriteEditor.hpp>
 #include <Scene/Assets/AssetBuilder.hpp>
 #include <Graphics/Rendering/PickerBuffer.hpp>
 
@@ -56,18 +57,14 @@ namespace ettycc
         void RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>>& selectedNodes, int depth);
         void AddNode(const std::shared_ptr<SceneNode>& selectedNode);
 
-        // ── Centralized context menus ────────────────────────────────────────
-        // Shared Add-Component sub-menu used by inspector, hierarchy, and viewport.
         void DrawAddComponentMenu(const std::shared_ptr<SceneNode>& node);
-        // Shared node-operations context menu (Add child, Remove, Duplicate).
         // editorExtras = true adds viewport-only items (Reload Scene, etc.).
         void DrawNodeContextMenu(const std::shared_ptr<SceneNode>& node, bool editorExtras = false);
-        // Remove the component matching typeName from the node.
         void RemoveComponentByName(const std::shared_ptr<SceneNode>& node, const std::string& typeName);
-        // Duplicate a node and all its components under the same parent.
         void DuplicateNode(const std::shared_ptr<SceneNode>& node);
-        // Stop simulation -> reload scene -> play.
         void ReloadScene();
+        void NewScene();
+        void CleanupNodeRenderables(const std::shared_ptr<SceneNode>& node);
 
         // ASSET BROWSER ############################################################
         //TODO: URGENT REFACTORS (forgive me)
@@ -126,6 +123,9 @@ namespace ettycc
         // BUILD WINDOW
         ConfigurationsWindow configurationsWindow_;
         BuildPanelUI         buildPanel_;
+
+        // SPRITE EDITOR
+        SpriteEditor         spriteEditor_;
 
         // EDITOR OVERLAY TOGGLES
         bool showColliderDebug_  = true;
