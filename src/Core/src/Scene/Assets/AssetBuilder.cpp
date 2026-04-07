@@ -13,13 +13,17 @@ namespace ettycc {
         // --- Sprite prefab creator ---
         // Expected JSON fields:
         //   "name"           (string)  node name
-        //   "spriteFilePath" (string)  path to the image
+        //   "spriteFilePath" (string)  path to the image (or resolved from "material")
+        //   "material"       (string)  optional — path to .material file
         //   "transform"      (object)  position/rotation/scale, all optional (default: identity)
         RegisterCreator("Sprite", [](const nlohmann::json& obj) -> std::shared_ptr<SceneNode> {
             std::string name           = obj.value("name", "sprite");
             std::string spriteFilePath = obj.value("spriteFilePath", "");
+            std::string materialPath   = obj.value("material", "");
 
             auto sprite = std::make_shared<Sprite>(spriteFilePath);
+            if (!materialPath.empty())
+                sprite->SetMaterialPath(materialPath);
 
             if (obj.contains("transform")) {
                 const auto& t = obj["transform"];
@@ -129,6 +133,44 @@ namespace ettycc {
             result.push_back(kv.second);
         }
         return result;
+    }
+
+    // ── Material support ────────────────────────────────────────────────────
+
+    MaterialDef AssetBuilder::LoadMaterial(const std::string& materialPath) const
+    {
+        auto cached = loadedMaterials_.find(materialPath);
+        if (cached != loadedMaterials_.end())
+            return cached->second;
+
+        std::ifstream ifs(materialPath);
+        if (!ifs.is_open()) {
+            spdlog::error("[AssetBuilder] Cannot open material: {}", materialPath);
+            return {};
+        }
+
+        nlohmann::json j;
+        try {
+            ifs >> j;
+        } catch (const std::exception& e) {
+            spdlog::error("[AssetBuilder] JSON parse error in '{}': {}", materialPath, e.what());
+            return {};
+        }
+
+        auto mat = MaterialDef::FromJson(j);
+        loadedMaterials_[materialPath] = mat;
+        spdlog::info("[AssetBuilder] Loaded material '{}' (shader: {}, texture: {})",
+                     materialPath, mat.shader, mat.texture);
+        return mat;
+    }
+
+    std::vector<std::string> AssetBuilder::GetAllMaterialPaths() const
+    {
+        std::vector<std::string> paths;
+        paths.reserve(loadedMaterials_.size());
+        for (const auto& kv : loadedMaterials_)
+            paths.push_back(kv.first);
+        return paths;
     }
 
 } // namespace ettycc

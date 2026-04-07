@@ -43,36 +43,36 @@ namespace ettycc
             if (rb) rb->TickCooldown(dt);
         }
 
-        // Gravity attractors: apply radial force to every dynamic rigid body.
-        for (ecs::Entity ae : scene.registry_.Pool<GravityAttractorComponent>().Entities())
-        {
-            auto* attractor = scene.registry_.Get<GravityAttractorComponent>(ae);
-            if (!attractor) continue;
-
-            const glm::vec3 center   = attractor->GetPosition();
-            const float     strength = attractor->GetStrength();
-
-            for (ecs::Entity re : scene.registry_.Pool<RigidBodyComponent>().Entities())
-            {
-                auto* rb = scene.registry_.Get<RigidBodyComponent>(re);
-                if (!rb || !rb->IsInitialized() || !rb->IsDynamic()) continue;
-
-                const glm::vec3 pos  = rb->GetPosition();
-                const glm::vec3 diff = center - pos;
-                const float dist2    = glm::dot(diff, diff);
-                if (dist2 < 0.01f) continue;   // avoid singularity at center
-
-                const float dist = std::sqrt(dist2);
-                const glm::vec3 dir = diff / dist;
-
-                // F = strength * mass / dist^2  (inverse-square, like real gravity)
-                const float mag = strength * rb->GetMass() / dist2;
-                rb->ApplyCentralForce(dir * mag);
-            }
-        }
+        // // Gravity attractors: apply radial force to every dynamic rigid body.
+        // for (ecs::Entity ae : scene.registry_.Pool<GravityAttractorComponent>().Entities())
+        // {
+        //     auto* attractor = scene.registry_.Get<GravityAttractorComponent>(ae);
+        //     if (!attractor) continue;
+        //
+        //     const glm::vec3 center   = attractor->GetPosition();
+        //     const float     strength = attractor->GetStrength();
+        //
+        //     for (ecs::Entity re : scene.registry_.Pool<RigidBodyComponent>().Entities())
+        //     {
+        //         auto* rb = scene.registry_.Get<RigidBodyComponent>(re);
+        //         if (!rb || !rb->IsInitialized() || !rb->IsDynamic()) continue;
+        //
+        //         const glm::vec3 pos  = rb->GetPosition();
+        //         const glm::vec3 diff = center - pos;
+        //         const float dist2    = glm::dot(diff, diff);
+        //         if (dist2 < 0.01f) continue;   // avoid singularity at center
+        //
+        //         const float dist = std::sqrt(dist2);
+        //         const glm::vec3 dir = diff / dist;
+        //
+        //         // F = strength * mass / dist^2  (inverse-square)
+        //         const float mag = strength * rb->GetMass() / dist2;
+        //         rb->ApplyCentralForce(dir * mag);
+        //     }
+        // }
 
         // Planetary fusion: merge overlapping dynamic bodies.
-        ProcessFusions(scene);
+        // ProcessFusions(scene);
 
         // RigidBody: pull Bullet simulation result into the node transform.
         for (ecs::Entity e : scene.registry_.Pool<RigidBodyComponent>().Entities())

@@ -31,6 +31,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Rendering/Entities/SoftBodyRenderable.hpp
     include/Scene/Assets/AssetLoader.hpp
     include/Scene/Assets/AssetBuilder.hpp
+    include/Scene/Assets/MaterialDef.hpp
     include/Scene/Assets/ResourceCache.hpp
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
@@ -58,6 +59,7 @@ set(80CC_CORE_HEADERS
     include/UI/Console.hpp
     include/UI/EditorPropertyVisitor.hpp
     include/UI/SpriteEditor.hpp
+    include/UI/Widgets/PathFieldWidget.hpp
     include/Graphics/Rendering/Entities/SpriteShape.hpp
     include/Scene/PropertySystem.hpp
     include/Dependencies/Resources.hpp
@@ -120,6 +122,7 @@ set(80CC_CORE_SOURCES
     src/UI/DevEditor.cpp
     src/UI/SpriteEditor.cpp
     src/UI/BuildPanel.cpp
+    src/UI/Widgets/PathFieldWidget.cpp
     src/Engine.cpp
     src/Networking/NetworkManager.cpp
     src/Networking/NetworkComponent.cpp

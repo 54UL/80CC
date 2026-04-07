@@ -43,6 +43,7 @@ namespace ettycc::gk
         inline constexpr const char* PATH_SCENES     = "scenes";
         inline constexpr const char* PATH_SHADERS    = "shaders";
         inline constexpr const char* PATH_TEMPLATES  = "templates";
+        inline constexpr const char* PATH_MATERIALS  = "materials";
 
         // sprites
         inline constexpr const char* SPRITE_NOT_FOUND = "not-found";

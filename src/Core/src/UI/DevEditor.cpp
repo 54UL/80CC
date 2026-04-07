@@ -82,6 +82,8 @@ namespace ettycc
             return AssetType::Image;
         if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac")
             return AssetType::Audio;
+        if (ext == ".material")
+            return AssetType::Material;
         return AssetType::Unknown;
     }
 
@@ -95,6 +97,7 @@ namespace ettycc
             case AssetType::Shader:   return {0.58f, 0.44f, 0.86f, 1.f}; // purple
             case AssetType::Image:    return {0.13f, 0.70f, 0.67f, 1.f}; // teal
             case AssetType::Audio:    return {0.90f, 0.40f, 0.80f, 1.f}; // magenta
+            case AssetType::Material: return {0.85f, 0.65f, 0.13f, 1.f}; // gold
             default:                  return {0.35f, 0.35f, 0.35f, 1.f};
         }
     }
@@ -109,6 +112,7 @@ namespace ettycc
             case AssetType::Shader:   return "SHD";
             case AssetType::Image:    return "IMG";
             case AssetType::Audio:    return "SFX";
+            case AssetType::Material: return "MAT";
             default:                  return "???";
         }
     }
@@ -123,6 +127,7 @@ namespace ettycc
             case AssetType::Shader:   return "Shader";
             case AssetType::Image:    return "Image";
             case AssetType::Audio:    return "Audio Clip";
+            case AssetType::Material: return "Material";
             default:                  return "Unknown";
         }
     }
@@ -255,14 +260,35 @@ namespace ettycc
             // Drag source
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
             {
+                // General asset payload
                 ImGui::SetDragDropPayload("ASSET_ENTRY",
                                           entry.path.c_str(),
                                           entry.path.size() + 1);
+
+                // Also emit a typed payload for materials so drop targets can be specific
+                if (entry.type == AssetType::Material)
+                {
+                    // Convert absolute path to relative (materials/xxx.material)
+                    auto globals = GetDependency(Globals);
+                    std::string relPath = entry.path;
+                    if (globals)
+                    {
+                        const auto& wf = globals->GetWorkingFolder();
+                        if (relPath.find(wf) == 0)
+                            relPath = relPath.substr(wf.size());
+                    }
+                    ImGui::SetDragDropPayload("MATERIAL_ASSET",
+                                              relPath.c_str(),
+                                              relPath.size() + 1);
+                }
+
                 ImGui::TextColored(col, "%s", lbl);
                 ImGui::SameLine();
                 ImGui::Text("%s", entry.name.c_str());
                 if (entry.type == AssetType::Template)
                     ImGui::TextDisabled("Drop onto viewport to spawn");
+                if (entry.type == AssetType::Material)
+                    ImGui::TextDisabled("Drop onto sprite to assign");
                 ImGui::EndDragDropSource();
             }
 
@@ -560,6 +586,44 @@ namespace ettycc
                     engineInstance_->mainScene_->root_node_->AddChild(node);
                     engineInstance_->renderEngine_.AddRenderable(sprite);
                     spdlog::info("[DevEditor] Spawned sprite with shape '{}'", shape->name);
+                }
+                // ─── Material drag-drop onto viewport ────────────────────
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MATERIAL_ASSET"))
+                {
+                    std::string matPath(static_cast<const char*>(payload->Data), payload->DataSize - 1);
+
+                    // If a sprite is selected, assign the material to it
+                    bool assigned = false;
+                    if (!selectedNodes_.empty())
+                    {
+                        auto selNode = selectedNodes_.back();
+                        if (auto* rn = selNode->GetComponent<RenderableNode>())
+                        {
+                            if (auto* spr = dynamic_cast<Sprite*>(rn->renderable_.get()))
+                            {
+                                spr->SetMaterialPath(matPath);
+                                assigned = true;
+                                spdlog::info("[DevEditor] Assigned material '{}' to '{}'",
+                                             matPath, selNode->GetName());
+                            }
+                        }
+                    }
+
+                    // If no sprite selected, spawn a new sprite with the material
+                    if (!assigned)
+                    {
+                        auto sprite = std::make_shared<Sprite>();
+                        sprite->SetMaterialPath(matPath);
+
+                        std::string name = "Sprite_" +
+                            std::filesystem::path(matPath).stem().string();
+                        auto node = std::make_shared<SceneNode>(name);
+                        node->AddComponent(RenderableNode(sprite));
+
+                        engineInstance_->mainScene_->root_node_->AddChild(node);
+                        engineInstance_->renderEngine_.AddRenderable(sprite);
+                        spdlog::info("[DevEditor] Spawned sprite with material '{}'", matPath);
+                    }
                 }
                 ImGui::EndDragDropTarget();
             }
@@ -1287,6 +1351,46 @@ namespace ettycc
                                    "and set 'Clip Path' to this file's path.");
             }
 
+            if (selectedAsset_.type == AssetType::Material)
+            {
+                ImGui::Spacing();
+                ImGui::TextWrapped("Drag onto a sprite in the viewport or onto the inspector "
+                                   "to assign this material.");
+
+                // Try to show material preview (shader + texture info)
+                if (assetBuilder_)
+                {
+                    auto mat = assetBuilder_->LoadMaterial(selectedAsset_.path);
+                    if (mat.IsValid())
+                    {
+                        ImGui::Spacing();
+                        ImGui::SeparatorText("Material Properties");
+                        ImGui::TextDisabled("Shader");
+                        ImGui::SameLine(80);
+                        ImGui::Text("%s", mat.shader.c_str());
+                        ImGui::TextDisabled("Texture");
+                        ImGui::SameLine(80);
+                        ImGui::Text("%s", mat.texture.c_str());
+
+                        // Texture preview
+                        auto globals = GetDependency(Globals);
+                        auto cache = GetDependency(ResourceCache);
+                        if (globals && cache && !mat.texture.empty())
+                        {
+                            std::string absPath = globals->GetWorkingFolder() + mat.texture;
+                            GLuint texHandle = cache->GetTexture(absPath);
+                            if (texHandle != 0)
+                            {
+                                float previewSize = ImGui::GetContentRegionAvail().x;
+                                ImGui::Image(reinterpret_cast<ImTextureID>(
+                                    static_cast<intptr_t>(texHandle)),
+                                    ImVec2(previewSize, previewSize));
+                            }
+                        }
+                    }
+                }
+            }
+
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::TextColored({1.0f, 0.6f, 0.15f, 1.0f}, "[ Source: Asset ]");
@@ -1510,6 +1614,28 @@ namespace ettycc
             }
         }
 
+        // ── Material drag-drop target on the inspector window ────────────────
+        // Dropping a material anywhere on the inspector assigns it to the first
+        // Sprite renderable on the selected node (Unity-style).
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MATERIAL_ASSET"))
+            {
+                std::string matPath(static_cast<const char*>(payload->Data),
+                                    payload->DataSize - 1);
+                if (auto* rn = selectedNode->GetComponent<RenderableNode>())
+                {
+                    if (auto* spr = dynamic_cast<Sprite*>(rn->renderable_.get()))
+                    {
+                        spr->SetMaterialPath(matPath);
+                        spdlog::info("[DevEditor] Material '{}' assigned to '{}' via inspector",
+                                     matPath, selectedNode->GetName());
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
         ImGui::End();
     }
 
@@ -1727,6 +1853,7 @@ namespace ettycc
             if (auto srcSprite = std::dynamic_pointer_cast<Sprite>(rn->renderable_))
             {
                 auto newSprite = std::make_shared<Sprite>(srcSprite->GetTexturePath());
+                newSprite->SetMaterialPath(srcSprite->GetMaterialPath());
                 newSprite->underylingTransform = srcSprite->underylingTransform;
                 clone->AddComponent<RenderableNode>(RenderableNode(newSprite));
             }
@@ -2504,30 +2631,5 @@ namespace ettycc
     void DevEditor::UpdateUI() { DrawEditor(); }
     void DevEditor::Update()   {}
 
-    //TODO: WIRE THIS TO THE RESOURCE CACHE...
-    GLuint DevEditor::LoadTextureFromFile(const char* filePath)
-    {
-        int width, height, numChannels;
-        unsigned char* image = stbi_load(filePath, &width, &height, &numChannels, 0);
-
-        GLuint textureID = 0;
-        if (image)
-        {
-            glGenTextures(1, &textureID);
-            glBindTexture(GL_TEXTURE_2D, textureID);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glBindTexture(GL_TEXTURE_2D, 0);
-            glGenerateMipmap(GL_TEXTURE_2D);
-            stbi_image_free(image);
-        }
-        else
-        {
-            spdlog::error("DevEditor: failed to load texture '{}': {}", filePath, stbi_failure_reason());
-        }
-
-        return textureID;
-    }
 
 } // namespace ettycc

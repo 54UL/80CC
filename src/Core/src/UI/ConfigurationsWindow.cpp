@@ -2,6 +2,7 @@
 #undef min
 
 #include <UI/ConfigurationsWindow.hpp>
+#include <UI/Widgets/PathFieldWidget.hpp>
 #include <Build/BuildStrings.hpp>
 #include <Build/BuildController.hpp>
 #include <Dependency.hpp>
@@ -69,41 +70,6 @@ namespace ettycc
     }
 
     // -------------------------------------------------------------------------
-    // PathField
-    // -------------------------------------------------------------------------
-
-    void ConfigurationsWindow::PathField(const char* label, const char* inputId,
-                                          const char* btnId, char* buf, size_t bufSz,
-                                          bool isFolder, std::vector<std::string> filter)
-    {
-        constexpr float kBtnW = 52.0f;
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine();
-        ImGui::PushItemWidth(-kBtnW - ImGui::GetStyle().ItemSpacing.x);
-        ImGui::InputText(inputId, buf, bufSz);
-        ImGui::PopItemWidth();
-        ImGui::SameLine();
-        if (ImGui::Button(btnId, ImVec2(kBtnW, 0)))
-        {
-            if (isFolder)
-            {
-                auto dlg = pfd::select_folder(std::string("Select ") + label,
-                                              buf[0] ? buf : ".");
-                if (!dlg.result().empty())
-                    strncpy(buf, dlg.result().c_str(), bufSz - 1);
-            }
-            else
-            {
-                auto dlg = pfd::open_file(std::string("Select ") + label,
-                                          buf[0] ? buf : ".", filter);
-                if (!dlg.result().empty())
-                    strncpy(buf, dlg.result()[0].c_str(), bufSz - 1);
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------
     // DrawBuildSettings
     // -------------------------------------------------------------------------
 
@@ -130,7 +96,7 @@ namespace ettycc
             ImGui::SetTooltip("%s", build::str::TIP_GENERATOR);
 
         // vcvarsall — file browse
-        PathField(build::str::FLD_VCVARSALL, "##cfg_vcvars", "...##cfg_vcvars_btn",
+        widgets::PathField(build::str::FLD_VCVARSALL, "##cfg_vcvars", "...##cfg_vcvars_btn",
                   buildConfig_.vcvarsallPath, sizeof(buildConfig_.vcvarsallPath), false);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_VCVARSALL);
@@ -152,20 +118,20 @@ namespace ettycc
         }
 
         // vcpkg toolchain — file browse, filter *.cmake
-        PathField(build::str::FLD_VCPKG_TOOLCHAIN, "##cfg_vcpkg", "...##cfg_vcpkg_btn",
+        widgets::PathField(build::str::FLD_VCPKG_TOOLCHAIN, "##cfg_vcpkg", "...##cfg_vcpkg_btn",
                   buildConfig_.vcpkgToolchain, sizeof(buildConfig_.vcpkgToolchain), false,
                   { "CMake toolchain", "*.cmake", "All Files", "*" });
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_VCPKG);
 
         // Core lib — file browse
-        PathField(build::str::FLD_CORE_LIB, "##cfg_clib", "...##cfg_clib_btn",
+        widgets::PathField(build::str::FLD_CORE_LIB, "##cfg_clib", "...##cfg_clib_btn",
                   buildConfig_.coreLibPath, sizeof(buildConfig_.coreLibPath), false);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_CORE_LIB);
 
         // Core include — folder browse
-        PathField(build::str::FLD_CORE_INCLUDE, "##cfg_cinc", "...##cfg_cinc_btn",
+        widgets::PathField(build::str::FLD_CORE_INCLUDE, "##cfg_cinc", "...##cfg_cinc_btn",
                   buildConfig_.coreIncludePath, sizeof(buildConfig_.coreIncludePath), true);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_CORE_INCLUDE);

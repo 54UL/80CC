@@ -1,22 +1,31 @@
 #include <Graphics/Rendering/Entities/Sprite.hpp>
+#include <Scene/Assets/MaterialDef.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
+#include <UI/Widgets/PathFieldWidget.hpp>
 #include <cmath>
+#include <set>
+#include <filesystem>
+#include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <nlohmann/json.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 namespace ettycc {
     Sprite::Sprite() {
+        shaderName_ = kDefaultShader;
         initializable_ = true;
     }
 
     Sprite::Sprite(const std::string &spriteFilePath, bool initialize) : spriteFilePath_(spriteFilePath) {
+        shaderName_ = kDefaultShader;
         initializable_ = initialize;
     }
 
     Sprite::Sprite(const std::string &spriteFilePath) : spriteFilePath_(spriteFilePath) {
+        shaderName_ = kDefaultShader;
         initializable_ = true;
     }
 
@@ -55,7 +64,7 @@ namespace ettycc {
             UploadGeometry();
     }
 
-    auto Sprite::InitBackend(const std::string &spritePath) -> void {
+    auto Sprite::InitBackend(const std::string &texturePath, const std::string& shaderName) -> void {
         // Generate GL objects
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
@@ -66,10 +75,11 @@ namespace ettycc {
 
         // ── Shader (shared via ResourceCache) ────────────────────────────────
         auto cache = GetDependency(ResourceCache);
-        cachedShader_ = cache->GetShader(kShaderName);
+        const std::string& shader = shaderName.empty() ? std::string(kDefaultShader) : shaderName;
+        cachedShader_ = cache->GetShader(shader);
 
         // ── Texture (shared via ResourceCache) ───────────────────────────────
-        TEXTURE = cache->GetTexture(spritePath);
+        TEXTURE = cache->GetTexture(texturePath);
 
         // Set the texture sampler uniform once
         if (cachedShader_)
@@ -87,16 +97,52 @@ namespace ettycc {
         glDeleteBuffers(1, &EBO);
     }
 
+    void Sprite::ResolveMaterial()
+    {
+        if (materialPath_.empty()) return;
+
+        auto globals = GetDependency(Globals);
+        if (!globals) return;
+
+        std::string absMatPath = globals->GetWorkingFolder() + materialPath_;
+        std::ifstream ifs(absMatPath);
+        if (!ifs.is_open())
+        {
+            spdlog::warn("[Sprite] Cannot open material: {}", absMatPath);
+            return;
+        }
+
+        try {
+            nlohmann::json j;
+            ifs >> j;
+            auto mat = MaterialDef::FromJson(j);
+            if (!mat.texture.empty())
+                spriteFilePath_ = mat.texture;
+            if (!mat.shader.empty())
+                shaderName_ = mat.shader;
+            spdlog::info("[Sprite] Resolved material '{}' -> shader: {}, texture: {}",
+                         materialPath_, shaderName_, spriteFilePath_);
+        } catch (const std::exception& e) {
+            spdlog::error("[Sprite] Material parse error '{}': {}", absMatPath, e.what());
+        }
+    }
+
     // Renderable
     void Sprite::Init(const std::shared_ptr<Engine> &engineCtx) {
-        if (initialized || !initializable_ || spriteFilePath_.empty())
+        if (initialized || !initializable_)
+            return;
+
+        // Resolve material to texture + shader if a material path is set
+        ResolveMaterial();
+
+        if (spriteFilePath_.empty())
             return;
 
         auto engineResources = GetDependency(Globals);
         const auto fullPath = engineResources->GetWorkingFolder() + spriteFilePath_;
 
         spdlog::info("Initializing sprite [{}]", fullPath);
-        InitBackend(fullPath);
+        InitBackend(fullPath, shaderName_);
 
         initialized = true;
     }
@@ -155,7 +201,62 @@ namespace ettycc {
     void Sprite::Inspect(EditorPropertyVisitor &v) {
         Renderable::Inspect(v); // Enabled + Transform section
         PROP_SECTION("Sprite");
-        PROP(spriteFilePath_, "Texture Path");
+
+        // ── Material slot (drag-drop target) ─────────────────────────────
+        {
+            ++v.propertyCount;
+            const float avail      = ImGui::GetContentRegionAvail().x;
+            const float labelWidth = ImMax(80.f, avail * 0.38f);
+            const float widgetWidth = avail - labelWidth - ImGui::GetStyle().ItemSpacing.x;
+
+            ImGui::PushID("Material");
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Material");
+            ImGui::SameLine(labelWidth);
+
+            // Show current material name (or "None") as a selectable drop target
+            std::string displayName = materialPath_.empty() ? "None (drop material here)" :
+                std::filesystem::path(materialPath_).filename().string();
+
+            ImGui::SetNextItemWidth(widgetWidth);
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, materialPath_.empty()
+                ? ImVec4(0.15f, 0.15f, 0.15f, 1.f)
+                : ImVec4(0.2f, 0.15f, 0.05f, 1.f));
+            ImGui::InputText("##matslot", displayName.data(), displayName.size(),
+                             ImGuiInputTextFlags_ReadOnly);
+            ImGui::PopStyleColor();
+
+            // Drag-drop target: accept MATERIAL_ASSET payload
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MATERIAL_ASSET"))
+                {
+                    std::string droppedPath(static_cast<const char*>(payload->Data),
+                                            payload->DataSize - 1);
+                    materialPath_ = droppedPath;
+                    v.anyChanged = true;
+                    spdlog::info("[Sprite] Material assigned: {}", materialPath_);
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            // Clear button
+            if (!materialPath_.empty())
+            {
+                ImGui::SameLine();
+                if (ImGui::SmallButton("x##clrmat"))
+                {
+                    materialPath_.clear();
+                    v.anyChanged = true;
+                }
+            }
+
+            ImGui::PopID();
+        }
+
+        // Show resolved paths as read-only info
+        PROP_RO(spriteFilePath_, "Texture");
+        PROP_RO(shaderName_, "Shader");
         PROP(tilingMultiplier_, "Tiling Multiplier");
 
         // Show current shape info (read-only)

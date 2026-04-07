@@ -1,5 +1,6 @@
 
 #include <UI/Build/BuildPanelUI.hpp>
+#include <UI/Widgets/PathFieldWidget.hpp>
 #include <Build/BuildStrings.hpp>
 #include <imgui.h>
 #include <portable-file-dialogs.h>
@@ -21,41 +22,6 @@ namespace ettycc
     BuildPanelUI::~BuildPanelUI() = default;
 
     // -------------------------------------------------------------------------
-    // PathField
-    // -------------------------------------------------------------------------
-
-    void BuildPanelUI::PathField(const char* label, const char* inputId,
-                                  const char* btnId, char* buf, size_t bufSz,
-                                  bool isFolder, std::vector<std::string> filter)
-    {
-        constexpr float kBtnW = 52.0f;
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine();
-        ImGui::PushItemWidth(-kBtnW - ImGui::GetStyle().ItemSpacing.x);
-        ImGui::InputText(inputId, buf, bufSz);
-        ImGui::PopItemWidth();
-        ImGui::SameLine();
-        if (ImGui::Button(btnId, ImVec2(kBtnW, 0)))
-        {
-            if (isFolder)
-            {
-                auto dlg = pfd::select_folder(std::string("Select ") + label,
-                                              buf[0] ? buf : ".");
-                if (!dlg.result().empty())
-                    strncpy(buf, dlg.result().c_str(), bufSz - 1);
-            }
-            else
-            {
-                auto dlg = pfd::open_file(std::string("Select ") + label,
-                                          buf[0] ? buf : ".", filter);
-                if (!dlg.result().empty())
-                    strncpy(buf, dlg.result()[0].c_str(), bufSz - 1);
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------
     // Draw
     // -------------------------------------------------------------------------
 
@@ -72,12 +38,12 @@ namespace ettycc
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(build::str::FLD_PROJECT_NAME);
 
-        PathField(build::str::FLD_SOURCE, "##bld_src", "...##bld_src_btn",
+        widgets::PathField(build::str::FLD_SOURCE, "##bld_src", "...##bld_src_btn",
                   sourcePath_, sizeof(sourcePath_), true);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_SOURCE);
 
-        PathField(build::str::FLD_OUTPUT, "##bld_out", "...##bld_out_btn",
+        widgets::PathField(build::str::FLD_OUTPUT, "##bld_out", "...##bld_out_btn",
                   outputPath_, sizeof(outputPath_), true);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_OUTPUT);

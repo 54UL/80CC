@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//mnt/d/repos2/**)",
+      "Read(//mnt/d/repos2/ALPHA_V1/**)",
+      "Bash(xargs grep:*)",
+      "Bash(\"D:/repos2/ALPHA_V1/assets/audio/.gitkeep\")",
+      "Bash(grep -l \"AudioSource\\\\|AudioListener\" \"D:/repos2/ALPHA_V1/assets/scenes/\"*.json)",
+      "Bash(find D:/repos2/ALPHA_V1/assets -name 80CC.json -o -name *.80cc)",
+      "Bash(sed -n '975,995p' \"D:\\\\repos2\\\\ALPHA_V1\\\\src\\\\Core\\\\cmake-build-debug-visual-studio\\\\vcpkg_installed\\\\x64-windows\\\\include\\\\cereal\\\\cereal.hpp\")",
+      "Bash(sed -n '975,995p' \"/mnt/d/repos2/ALPHA_V1/src/Core/cmake-build-debug-visual-studio/vcpkg_installed/x64-windows/include/cereal/cereal.hpp\")",
+      "Bash(python3:*)",
+      "Bash(find /d/repos2/ALPHA_V1/src/Core/include -type f -name *.h)",
+      "Bash(cmake --build cmake-build-debug-visual-studio --config Debug)",
+      "Bash(cmake --build .)",
+      "Bash(find D:repos2ALPHA_V1srcEntry -name *.cpp -o -name *.hpp)",
+      "Bash(find /d/repos2/ALPHA_V1 -name *.vert -o -name *.frag)",
+      "Bash(ls D:/repos2/ALPHA_V1/build* D:/repos2/ALPHA_V1/out*)",
+      "Bash(ls D:/repos2/ALPHA_V1/cmake*)",
+      "Bash(cmake --build cmake-build-debug-visual-studio --target 80CC_CORE)",
+      "Bash(find D:repos2ALPHA_V1src -name *.inl)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(find /d/repos2/ALPHA_V1/assets -type f -name *.json)"
+    ]
+  }
+}

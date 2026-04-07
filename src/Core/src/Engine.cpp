@@ -158,8 +158,8 @@ namespace ettycc {
         // ── Orbiting boxes ──────
         // Spawn boxes in a ring and give each a tangential velocity for a
         // roughly circular orbit:  v = sqrt(strength / radius)
-        constexpr int boxCount = 500;
-        constexpr float orbitRadius = 10.0f;
+        constexpr int boxCount = 5000;
+        constexpr float orbitRadius = 500.0f;
 
         for (int i = 0; i < boxCount; ++i) {
             const float angle = (2.0f * 3.14159265f * i) / boxCount;

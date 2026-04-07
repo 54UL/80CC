@@ -68,7 +68,7 @@ namespace ettycc
 
         // ASSET BROWSER ############################################################
         //TODO: URGENT REFACTORS (forgive me)
-        enum class AssetType { Template, Scene, Config, Code, Shader, Image, Audio, Unknown };
+        enum class AssetType { Template, Scene, Config, Code, Shader, Image, Audio, Material, Unknown };
 
         struct AssetEntry {
             std::string path;
@@ -117,9 +117,6 @@ namespace ettycc
         // editor viewport (gizmo-style, never touches the render pipeline).
         void DrawColliderGizmos(ImVec2 imgMin, ImVec2 imgSize);
 
-        // MISC
-        GLuint LoadTextureFromFile(const char* filePath);
-
         // BUILD WINDOW
         ConfigurationsWindow configurationsWindow_;
         BuildPanelUI         buildPanel_;
@@ -146,8 +143,7 @@ namespace ettycc
         int            resolutionIndex_    = 0;
         bool           gameViewShowGrid_   = true;
 
-        std::shared_ptr<FrameBuffer> gameViewFBO_;
-
+        std::shared_ptr<FrameBuffer> gameViewFBO_; //TODO: gameViewFBO_SHOULD EXIST THIS IS THE SAME A USING A CAMERA IN THE SCENE...
         static const ResolutionPreset kResolutionPresets[];
         static const int              kNumPresets;
     };

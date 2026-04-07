@@ -44,7 +44,7 @@ public:
 
     bool Valid(Entity e) const
     {
-        return std::find(alive_.begin(), alive_.end(), e) != alive_.end();
+        return std::find(alive_.begin(), alive_.end(), e) != alive_.end(); // hmmmmmm da hell is this
     }
 
     // ── Component add / get / has / remove ────────────────────────────────────
@@ -184,6 +184,7 @@ private:
     template<typename T>
     Holder<T>& GetHolder()
     {
+        //TODO: debug if linear search is slow here...
         auto ti = std::type_index(typeid(T));
         auto it = pools_.find(ti);
         if (it == pools_.end())

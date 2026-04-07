@@ -32,8 +32,5 @@ namespace ettycc
 
         void DrawBuildSettings();
         void DrawGlobals();
-        void PathField(const char* label, const char* inputId, const char* btnId,
-                       char* buf, size_t bufSz, bool isFolder,
-                       std::vector<std::string> filter = {"All Files", "*"});
     };
 } // namespace ettycc

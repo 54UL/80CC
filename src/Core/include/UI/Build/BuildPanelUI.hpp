@@ -27,9 +27,5 @@ namespace ettycc
 
         bool defaultsApplied_  = false;  // pull working_dir / exe_dir from Globals once
         bool wasRunning_       = false;  // used to detect build-complete transition
-
-        void PathField(const char* label, const char* inputId, const char* btnId,
-                       char* buf, size_t bufSz, bool isFolder,
-                       std::vector<std::string> filter = {"All Files", "*"});
     };
 } // namespace ettycc
