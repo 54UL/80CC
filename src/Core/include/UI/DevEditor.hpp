@@ -143,7 +143,13 @@ namespace ettycc
         int            resolutionIndex_    = 0;
         bool           gameViewShowGrid_   = true;
 
-        std::shared_ptr<FrameBuffer> gameViewFBO_; //TODO: gameViewFBO_SHOULD EXIST THIS IS THE SAME A USING A CAMERA IN THE SCENE...
+        // Game-view preview: own FBO + finds (or creates) a scene camera
+        std::shared_ptr<FrameBuffer>  gameViewFBO_;
+        bool                          gameViewFBOReady_ = false;
+
+        // Locate the first Camera renderable in the scene (not the editor camera).
+        std::shared_ptr<Camera> FindSceneCamera() const;
+
         static const ResolutionPreset kResolutionPresets[];
         static const int              kNumPresets;
     };

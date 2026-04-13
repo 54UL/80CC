@@ -14,6 +14,7 @@
 
 #undef min
 #undef max
+#undef near
 
 namespace ettycc
 {
@@ -713,49 +714,93 @@ namespace ettycc
         DrawToolbar();
         ImGui::Separator();
 
-        float inspectorWidth = 260.f;
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        float canvasWidth = (avail.x - inspectorWidth - 16.f) * 0.5f;
+        // ── DockSpace inside Sprite Editor ──────────────────────────────
+        dockspaceId_ = ImGui::GetID("##SpriteEditorDock");
 
-        ImGui::BeginChild("##VertexPanel", ImVec2(canvasWidth, 0), true);
+        // Build the default dock layout BEFORE the DockSpace() call.
+        // DockBuilderGetNode returns NULL when the node doesn't exist yet
+        // (first frame, or after the editor was closed and imgui.ini cleared).
+        if (ImGui::DockBuilderGetNode(dockspaceId_) == nullptr)
+        {
+            ImGui::DockBuilderAddNode(dockspaceId_,
+                                      ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspaceId_,
+                                          ImGui::GetContentRegionAvail());
+
+            // Split: left 40% = vertex canvas, right remainder
+            ImGuiID dockLeft, dockRight;
+            ImGui::DockBuilderSplitNode(dockspaceId_, ImGuiDir_Left, 0.40f,
+                                        &dockLeft, &dockRight);
+
+            // Split right into center (UV) and right inspector
+            ImGuiID dockCenter, dockInspector;
+            ImGui::DockBuilderSplitNode(dockRight, ImGuiDir_Right, 0.35f,
+                                        &dockInspector, &dockCenter);
+
+            // Split inspector top/bottom for organization
+            ImGuiID dockInspTop, dockInspBottom;
+            ImGui::DockBuilderSplitNode(dockInspector, ImGuiDir_Up, 0.55f,
+                                        &dockInspTop, &dockInspBottom);
+
+            ImGui::DockBuilderDockWindow("Vertex Canvas",    dockLeft);
+            ImGui::DockBuilderDockWindow("UV Canvas",        dockCenter);
+            ImGui::DockBuilderDockWindow("Material Preview", dockInspTop);
+            ImGui::DockBuilderDockWindow("Shape Presets",    dockInspTop);
+            ImGui::DockBuilderDockWindow("Snap Config",      dockInspTop);
+            ImGui::DockBuilderDockWindow("Geometry Ops",     dockInspBottom);
+            ImGui::DockBuilderDockWindow("Vertex Inspector", dockInspBottom);
+            ImGui::DockBuilderDockWindow("Shape Info",       dockInspBottom);
+
+            ImGui::DockBuilderFinish(dockspaceId_);
+        }
+
+        ImGui::DockSpace(dockspaceId_, ImVec2(0, 0),
+                         ImGuiDockNodeFlags_PassthruCentralNode);
+
+        // ── Dockable panels ─────────────────────────────────────────────
+        if (ImGui::Begin("Vertex Canvas"))
         {
             ImGui::TextDisabled("Dbl-click: add  [E]xtrude  [X]/Del  [S]ubdiv  [F]lip  [D]issolve  [B]ox");
             ImVec2 canvasPos  = ImGui::GetCursorScreenPos();
             ImVec2 canvasSize = ImGui::GetContentRegionAvail();
             DrawVertexCanvas(canvasPos, canvasSize);
         }
-        ImGui::EndChild();
+        ImGui::End();
 
-        ImGui::SameLine();
-
-        ImGui::BeginChild("##UVPanel", ImVec2(canvasWidth, 0), true);
+        if (ImGui::Begin("UV Canvas"))
         {
             ImGui::TextDisabled("UVs");
             ImVec2 canvasPos  = ImGui::GetCursorScreenPos();
             ImVec2 canvasSize = ImGui::GetContentRegionAvail();
             DrawUVCanvas(canvasPos, canvasSize);
         }
-        ImGui::EndChild();
-
-        ImGui::SameLine();
-
-        ImGui::BeginChild("##SpriteInspector", ImVec2(inspectorWidth, 0), true);
-        {
-            DrawMaterialPreview();
-            ImGui::Separator();
-            DrawShapePresets();
-            ImGui::Separator();
-            DrawSnapConfig();
-            ImGui::Separator();
-            DrawGeometryOps();
-            ImGui::Separator();
-            DrawVertexInspector();
-            ImGui::Separator();
-            DrawShapeInfo();
-        }
-        ImGui::EndChild();
-
         ImGui::End();
+
+        if (ImGui::Begin("Material Preview"))
+            DrawMaterialPreview();
+        ImGui::End();
+
+        if (ImGui::Begin("Shape Presets"))
+            DrawShapePresets();
+        ImGui::End();
+
+        if (ImGui::Begin("Snap Config"))
+            DrawSnapConfig();
+        ImGui::End();
+
+        if (ImGui::Begin("Geometry Ops"))
+            DrawGeometryOps();
+        ImGui::End();
+
+        if (ImGui::Begin("Vertex Inspector"))
+            DrawVertexInspector();
+        ImGui::End();
+
+        if (ImGui::Begin("Shape Info"))
+            DrawShapeInfo();
+        ImGui::End();
+
+        ImGui::End(); // Sprite Editor
         frameEngine_ = nullptr;
     }
 
@@ -839,6 +884,17 @@ namespace ettycc
             ImGui::SetNextItemWidth(60.f);
             ImGui::DragFloat("##MergeDist", &mergeDist_, 0.005f, 0.01f, 0.5f, "%.3f");
         }
+
+        ImGui::SameLine();
+        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+        ImGui::SameLine();
+
+        // Local / Global toggle (shared concept with editor viewport gizmo)
+        const char* spaceLabel = useLocalSpace_ ? "Local" : "Global";
+        if (ImGui::Button(spaceLabel))
+            useLocalSpace_ = !useLocalSpace_;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Gizmo orientation: Local (normals/tangents) or Global (world X/Y)");
     }
 
     // ── Material preview ────────────────────────────────────────────────────
@@ -1186,17 +1242,21 @@ namespace ettycc
 
         glm::vec2 localX(1.f, 0.f), localY(0.f, 1.f);
 
-        if (editMode_ == EditMode::Edge && selectedEdge_.Valid())
+        if (useLocalSpace_)
         {
-            localX = ComputeEdgeTangent(selectedEdge_);
-            localY = ComputeEdgeNormal(selectedEdge_);
+            if (editMode_ == EditMode::Edge && selectedEdge_.Valid())
+            {
+                localX = ComputeEdgeTangent(selectedEdge_);
+                localY = ComputeEdgeNormal(selectedEdge_);
+            }
+            else if (editMode_ == EditMode::Vertex && selectedVert_ >= 0)
+            {
+                glm::vec2 n = ComputeVertexNormal(selectedVert_);
+                localY = n;
+                localX = glm::vec2(n.y, -n.x);
+            }
         }
-        else if (editMode_ == EditMode::Vertex && selectedVert_ >= 0)
-        {
-            glm::vec2 n = ComputeVertexNormal(selectedVert_);
-            localY = n;
-            localX = glm::vec2(n.y, -n.x);
-        }
+        // else: global mode — localX/localY stay as world X/Y
 
         ImVec2 xTip = { origin.x + localX.x * HANDLE_LEN, origin.y - localX.y * HANDLE_LEN };
         ImVec2 yTip = { origin.x + localY.x * HANDLE_LEN, origin.y - localY.y * HANDLE_LEN };
@@ -1251,8 +1311,8 @@ namespace ettycc
         dl->AddCircleFilled(origin, 5.f, cC);
         dl->AddCircle(origin, 5.f, IM_COL32(60, 60, 60, 200));
 
-        dl->AddText({ xTip.x + 4.f, xTip.y - 12.f }, cX, "T");
-        dl->AddText({ yTip.x + 4.f, yTip.y - 12.f }, cY, "N");
+        dl->AddText({ xTip.x + 4.f, xTip.y - 12.f }, cX, useLocalSpace_ ? "T" : "X");
+        dl->AddText({ yTip.x + 4.f, yTip.y - 12.f }, cY, useLocalSpace_ ? "N" : "Y");
 
         // ── Gizmo drag interaction ───────────────────────────────────────
         if (gizmoHovered_ != GizmoAxis::None && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
@@ -1718,8 +1778,45 @@ namespace ettycc
                 MarkCustom();
             }
 
-            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && draggingVert_)
+            {
                 draggingVert_ = false;
+
+                // Auto-merge: merge dragged vertices into nearby ones (Blender-style)
+                if (autoMerge_)
+                {
+                    // Collect the verts we just dragged (sorted descending so
+                    // deletion doesn't invalidate later indices).
+                    std::vector<int> dragged(selectedVerts_.begin(), selectedVerts_.end());
+                    if (dragged.empty() && selectedVert_ >= 0)
+                        dragged.push_back(selectedVert_);
+                    std::sort(dragged.rbegin(), dragged.rend());
+
+                    std::set<int> draggedSet(dragged.begin(), dragged.end());
+
+                    for (int idx : dragged)
+                    {
+                        if (idx < 0 || idx >= static_cast<int>(shape_.vertices.size())) continue;
+                        glm::vec2 pos = shape_.vertices[idx].position;
+                        int near = FindNearestVertex(pos, mergeDist_, draggedSet);
+                        if (near < 0) continue;
+
+                        // Snap dragged vert onto target, then merge (erases idx).
+                        // MergeVertices(a, b) erases b — so pass (near, idx) to
+                        // keep near's position and erase idx.
+                        shape_.vertices[idx].position = shape_.vertices[near].position;
+                        shape_.vertices[idx].uv       = shape_.vertices[near].uv;
+                        MergeVertices(near, idx);
+
+                        // Update draggedSet after removal of idx
+                        draggedSet.erase(idx);
+                        std::set<int> remapped;
+                        for (int v : draggedSet)
+                            remapped.insert(v > idx ? v - 1 : v);
+                        draggedSet = remapped;
+                    }
+                }
+            }
 
             // ── Resolve click-pending (Blender: click = deselect, drag = box select)
             if (clickPending_)

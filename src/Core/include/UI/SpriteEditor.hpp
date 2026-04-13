@@ -101,6 +101,12 @@ namespace ettycc
         GLuint        previewTextureHandle_ = 0;
         std::shared_ptr<Engine> frameEngine_;  // set during Draw(), cleared after
 
+        // ── Docking ────────────────────────────────────────────────────
+        ImGuiID dockspaceId_   = 0;
+
+        // ── Local/Global coordinate space ──────────────────────────────
+        bool  useLocalSpace_ = true;  // true=local normals, false=global X/Y
+
         // ── Context menu helper ──────────────────────────────────────────
         bool  wantsContextMenu_ = false;
         int   contextVert_      = -1;

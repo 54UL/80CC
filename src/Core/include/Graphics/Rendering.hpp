@@ -3,6 +3,7 @@
 #include <Graphics/Rendering/Renderable.hpp>
 #include <Graphics/Rendering/FrameBuffer.hpp>
 #include <Graphics/Rendering/RenderingContext.hpp>
+#include <Graphics/Rendering/SpriteBatch.hpp>
 
 #include <memory>
 #include <cstdint>
@@ -18,6 +19,8 @@ namespace ettycc
         std::shared_ptr<RenderingContext> renderingCtx_;
         float renderingTime;
         std::shared_ptr<FrameBuffer> sceneFrameBuffer_;
+        SpriteBatch spriteBatch_;
+        bool spriteBatchReady_ = false;
 
     public:
         Rendering();
@@ -34,6 +37,15 @@ namespace ettycc
         std::shared_ptr<RenderingContext> GetRenderingContext() const;
 
         void Pass(float deltaTime);
+
+        // Render all non-camera renderables into a separate FBO with the given
+        // projection/view matrices.  Used by the game-view preview so it can
+        // show the scene from a scene camera independent of the editor camera.
+        void RenderToTarget(const std::shared_ptr<FrameBuffer>& fbo,
+                            const glm::mat4& proj,
+                            const glm::mat4& view,
+                            float deltaTime);
+
         auto AddRenderable(std::shared_ptr<Renderable> renderable) -> void;
         void AddRenderables(const std::vector<std::shared_ptr<Renderable>>& renderables);
         void RemoveRenderable(const std::shared_ptr<Renderable>& renderable);

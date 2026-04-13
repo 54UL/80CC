@@ -159,7 +159,7 @@ namespace ettycc {
         // Spawn boxes in a ring and give each a tangential velocity for a
         // roughly circular orbit:  v = sqrt(strength / radius)
         constexpr int boxCount = 5000;
-        constexpr float orbitRadius = 500.0f;
+        constexpr float orbitRadius = 50;
 
         for (int i = 0; i < boxCount; ++i) {
             const float angle = (2.0f * 3.14159265f * i) / boxCount;
@@ -187,6 +187,17 @@ namespace ettycc {
         mainScene_ = std::make_shared<Scene>("default-scene");
         SetupSceneSystems(*mainScene_, *this);
 
+        // Every scene needs a camera — create as a proper scene node.
+        {
+            auto sz  = appInstance_->GetMainWindowSize();
+            auto cam = std::make_shared<Camera>(sz.x, sz.y);
+            cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
+
+            auto cameraNode = std::make_shared<SceneNode>("game-camera");
+            mainScene_->registry_.Add<RenderableNode>(cameraNode->GetId(), RenderableNode{cam});
+            mainScene_->root_node_->AddChild(cameraNode);
+        }
+
         GravityScene();
 
         if (!isEditorMode_)
@@ -199,6 +210,15 @@ namespace ettycc {
         renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>(name);
         SetupSceneSystems(*mainScene_, *this);
+
+        // Every scene needs a camera — create one as a proper scene node.
+        auto sz  = appInstance_->GetMainWindowSize();
+        auto cam = std::make_shared<Camera>(sz.x, sz.y);
+        cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
+
+        auto cameraNode = std::make_shared<SceneNode>("game-camera");
+        mainScene_->registry_.Add<RenderableNode>(cameraNode->GetId(), RenderableNode{cam});
+        mainScene_->root_node_->AddChild(cameraNode);
     }
 
     void Engine::InitEditorCamera() {
@@ -207,7 +227,8 @@ namespace ettycc {
         editorCamera_->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
         editorCamera_->Init(GetDependency(Engine));
         renderEngine_.SetViewPortFrameBuffer(editorCamera_->offScreenFrameBuffer);
-        renderEngine_.AddRenderable(editorCamera_);
+        // Camera must be first so it populates ctx matrices + frustum before sprites draw.
+        renderEngine_.EnsureFirst(editorCamera_);
 
         editorGrid_ = std::make_shared<Grid>();
         editorGrid_->Init(GetDependency(Engine));
@@ -227,13 +248,28 @@ namespace ettycc {
         }
 
         if (!cam) {
-            // No camera in scene — spawn a default free-fly camera.
+            // No camera in scene — spawn a default free-fly camera as a proper
+            // SceneNode so it is part of the scene hierarchy and gets serialized.
             auto sz = appInstance_->GetMainWindowSize();
             cam = std::make_shared<Camera>(sz.x, sz.y);
             cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
-            cam->Init(GetDependency(Engine));
+
+            if (mainScene_)
+            {
+                auto cameraNode = std::make_shared<SceneNode>("game-camera");
+                mainScene_->registry_.Add<RenderableNode>(cameraNode->GetId(), RenderableNode{cam});
+                mainScene_->root_node_->AddChild(cameraNode);
+                // RenderSystem::OnEntityAdded will call InitRenderable and AddRenderable
+            }
+            else
+            {
+                // Fallback if no scene is loaded yet
+                cam->Init(GetDependency(Engine));
+                renderEngine_.AddRenderable(cam);
+            }
+
             editorCamera_ = cam;
-            spdlog::info("[Engine] No scene camera — spawned default [{}x{}]", sz.x, sz.y);
+            spdlog::info("[Engine] No scene camera — spawned default [{}x{}] as scene node", sz.x, sz.y);
         }
 
         cam->AttachEditorControl(&inputSystem_);

@@ -630,6 +630,7 @@ namespace ettycc
 
             // ─── Gizmo persistent state ───────────────────────────────────────
             static int gizmoMode = 0; // 0=Translate  1=Rotate  2=Scale
+            static bool gizmoLocalSpace = false; // false=Global(world), true=Local(object)
 
             enum GizmoAxis : int {
                 AXIS_NONE = -1, AXIS_XY = 0, AXIS_X = 1, AXIS_Y = 2,
@@ -687,8 +688,28 @@ namespace ettycc
 
                 glm::vec3 wPos = selNode->transform_.getGlobalPosition();
                 gizmoOrigin = toScreen(wPos);
-                gizmoXTip   = { gizmoOrigin.x + HANDLE_LEN, gizmoOrigin.y };
-                gizmoYTip   = { gizmoOrigin.x, gizmoOrigin.y - HANDLE_LEN };
+
+                // Compute axis directions in screen space
+                // In global mode: world X = right, world Y = up
+                // In local mode: axes rotate with the object
+                glm::vec2 axisXDir(1.f, 0.f);  // screen-space X direction
+                glm::vec2 axisYDir(0.f, -1.f);  // screen-space Y direction (screen Y is flipped)
+
+                if (gizmoLocalSpace)
+                {
+                    float rotZ = glm::radians(selNode->transform_.getStoredRotation().z);
+                    float cosR = cosf(rotZ), sinR = sinf(rotZ);
+                    axisXDir = glm::vec2( cosR, -sinR); // screen-space (Y flipped)
+                    axisYDir = glm::vec2( sinR,  cosR); // screen-space (Y flipped)
+                    // Normalize (should already be unit)
+                    axisXDir = glm::normalize(axisXDir);
+                    axisYDir = glm::normalize(axisYDir);
+                }
+
+                gizmoXTip = { gizmoOrigin.x + axisXDir.x * HANDLE_LEN,
+                              gizmoOrigin.y + axisXDir.y * HANDLE_LEN };
+                gizmoYTip = { gizmoOrigin.x + axisYDir.x * HANDLE_LEN,
+                              gizmoOrigin.y + axisYDir.y * HANDLE_LEN };
 
                 float distO = sqrtf((mp.x-gizmoOrigin.x)*(mp.x-gizmoOrigin.x) +
                                     (mp.y-gizmoOrigin.y)*(mp.y-gizmoOrigin.y));
@@ -729,7 +750,7 @@ namespace ettycc
                 dragging = AXIS_NONE;
             }
 
-            // ─── Gizmo mode toolbar (T/R/S) — row 2 ──────────────────────────
+            // ─── Gizmo mode toolbar (T/R/S + L/G) — row 2 ─────────────────────
             bool toolbarConsumedClick = false;
             {
                 ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -758,6 +779,32 @@ namespace ettycc
                     }
                     if (btnHov)
                         toolbarConsumedClick = true; // also block picker on hover
+                }
+
+                // Separator gap then Local/Global toggle button
+                float lgX = imgMin.x + pad + 3 * (btnSz + gap) + gap * 2;
+                {
+                    const char* lgLabel = gizmoLocalSpace ? "L" : "G";
+                    ImVec2 bMin = { lgX, row2Y };
+                    ImVec2 bMax = { bMin.x + btnSz, bMin.y + btnSz };
+                    bool btnHov = ImGui::IsMouseHoveringRect(bMin, bMax);
+                    ImU32 bgCol = gizmoLocalSpace
+                        ? IM_COL32(200, 140,  50, 220)   // orange = local
+                        : btnHov ? IM_COL32( 80,  80,  80, 200)
+                                 : IM_COL32( 40,  40,  40, 180);
+                    dl->AddRectFilled(bMin, bMax, bgCol, 3.f);
+                    dl->AddRect(bMin, bMax, IM_COL32(120, 120, 120, 180), 3.f);
+                    ImVec2 tsz = ImGui::CalcTextSize(lgLabel);
+                    dl->AddText({ bMin.x + (btnSz - tsz.x) * 0.5f,
+                                  bMin.y + (btnSz - tsz.y) * 0.5f },
+                                IM_COL32(230, 230, 230, 255), lgLabel);
+                    if (btnHov && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                    {
+                        gizmoLocalSpace     = !gizmoLocalSpace;
+                        toolbarConsumedClick = true;
+                    }
+                    if (btnHov)
+                        toolbarConsumedClick = true;
                 }
             }
 
@@ -847,8 +894,31 @@ namespace ettycc
 
                 if (dragging == AXIS_X || dragging == AXIS_Y || dragging == AXIS_XY)
                 {
-                    if (dragging != AXIS_Y) pos.x += dxPx * worldPerPixel;
-                    if (dragging != AXIS_X) pos.y -= dyPx * worldPerPixel; // screen-Y is flipped
+                    if (gizmoLocalSpace)
+                    {
+                        // Project screen delta onto local axes
+                        float rotZ = glm::radians(dragStartRot.z);
+                        float cosR = cosf(rotZ), sinR = sinf(rotZ);
+                        glm::vec2 localXWorld( cosR, sinR);   // local X in world space
+                        glm::vec2 localYWorld(-sinR, cosR);   // local Y in world space
+                        // Screen delta → world delta: dxPx * wpp along X, -dyPx * wpp along Y
+                        glm::vec2 screenDeltaWorld(dxPx * worldPerPixel, -dyPx * worldPerPixel);
+                        float projX = glm::dot(screenDeltaWorld, localXWorld);
+                        float projY = glm::dot(screenDeltaWorld, localYWorld);
+                        if (dragging == AXIS_X || dragging == AXIS_XY) {
+                            pos.x += localXWorld.x * projX;
+                            pos.y += localXWorld.y * projX;
+                        }
+                        if (dragging == AXIS_Y || dragging == AXIS_XY) {
+                            pos.x += localYWorld.x * projY;
+                            pos.y += localYWorld.y * projY;
+                        }
+                    }
+                    else
+                    {
+                        if (dragging != AXIS_Y) pos.x += dxPx * worldPerPixel;
+                        if (dragging != AXIS_X) pos.y -= dyPx * worldPerPixel; // screen-Y is flipped
+                    }
                 }
                 else if (dragging == AXIS_ROTATE)
                 {
@@ -1201,6 +1271,19 @@ namespace ettycc
     // GAME VIEW
     // -------------------------------------------------------------------------
 
+    std::shared_ptr<Camera> DevEditor::FindSceneCamera() const
+    {
+        // Walk scene renderables and return the first Camera that is NOT
+        // the editor camera (editor camera is managed by Engine, not the scene).
+        for (const auto& r : engineInstance_->renderEngine_.GetRenderables())
+        {
+            if (r == engineInstance_->editorCamera_) continue;
+            if (auto cam = std::dynamic_pointer_cast<Camera>(r))
+                return cam;
+        }
+        return nullptr;
+    }
+
     void DevEditor::ShowGameView()
     {
         ImGui::Begin("Game view");
@@ -1238,10 +1321,35 @@ namespace ettycc
 
         ImGui::Separator();
 
-        // ─── Game viewport (final product — no editor overlays) ──────────
-        if (const auto framebuffer = engineInstance_->renderEngine_.GetViewPortFrameBuffer())
+        // ─── Find scene camera and render into the game-view FBO ─────────
+        auto sceneCam = FindSceneCamera();
+
+        if (sceneCam && gameViewFBO_)
         {
+            // Resize FBO to match selected resolution preset
             const auto& preset = kResolutionPresets[resolutionIndex_];
+            glm::ivec2 targetSize(preset.width, preset.height);
+            if (gameViewFBO_->GetSize() != targetSize)
+                gameViewFBO_->SetSize(targetSize);
+
+            // Compute the scene camera's projection & view matrices.
+            // The camera stores its own ProjectionMatrix and uses its
+            // transform for the view when no EditorCamera control is attached.
+            glm::mat4 proj = sceneCam->ProjectionMatrix;
+            glm::mat4 view = sceneCam->underylingTransform.GetMatrix();
+
+            // If the scene camera happens to have an editor control, use that.
+            if (sceneCam->editorCameraControl_)
+            {
+                proj = sceneCam->editorCameraControl_->ComputeProjectionMatrix(0.f);
+                view = sceneCam->editorCameraControl_->ComputeViewMatrix(0.f);
+            }
+
+            // Render the scene from the game camera into the game-view FBO
+            engineInstance_->renderEngine_.RenderToTarget(
+                gameViewFBO_, proj, view, 0.f);
+
+            // ─── Display the game-view FBO ───────────────────────────────
             const float targetAspect = static_cast<float>(preset.width)
                                      / static_cast<float>(preset.height);
 
@@ -1258,7 +1366,6 @@ namespace ettycc
             float offsetY = (avail.y - viewH) * 0.5f;
             ImVec2 cursor = ImGui::GetCursorPos();
 
-            // Draw black bars behind the image
             ImVec2 regionMin = ImGui::GetCursorScreenPos();
             ImGui::GetWindowDrawList()->AddRectFilled(
                 regionMin, {regionMin.x + avail.x, regionMin.y + avail.y},
@@ -1266,7 +1373,7 @@ namespace ettycc
 
             ImGui::SetCursorPos(ImVec2(cursor.x + offsetX, cursor.y + offsetY));
             ImGui::Image(reinterpret_cast<void*>(
-                static_cast<intptr_t>(framebuffer->GetTextureId())),
+                static_cast<intptr_t>(gameViewFBO_->GetTextureId())),
                 ImVec2(viewW, viewH), ImVec2(0, 1), ImVec2(1, 0));
 
             // Resolution label overlay
@@ -1279,11 +1386,15 @@ namespace ettycc
         }
         else
         {
+            // No scene camera — show helpful message
             ImVec2 avail = ImGui::GetContentRegionAvail();
-            ImVec2 textSize = ImGui::CalcTextSize("No framebuffer available");
+            const char* msg = "No scene camera found.\n"
+                              "Add a Camera component to a scene node\n"
+                              "to see the game preview.";
+            ImVec2 textSize = ImGui::CalcTextSize(msg);
             ImGui::SetCursorPos(ImVec2((avail.x - textSize.x) * 0.5f,
                                        (avail.y - textSize.y) * 0.5f));
-            ImGui::TextDisabled("No framebuffer available");
+            ImGui::TextDisabled("%s", msg);
         }
 
         ImGui::End();
@@ -2127,21 +2238,14 @@ namespace ettycc
 
             if (ImGui::BeginTabItem("Editor Camera"))
             {
-                auto& cam  = engineInstance->editorCamera_->editorCameraControl_;
-                auto& proj = engineInstance->editorCamera_->ProjectionMatrix;
+                // ── Camera properties via component inspector ───────────────
+                if (engineInstance->editorCamera_)
+                {
+                    EditorPropertyVisitor visitor;
+                    engineInstance->editorCamera_->Inspect(visitor);
+                }
 
-                ImGui::SeparatorText("Transform");
-                ImGui::SliderFloat2("Position", &cam->position.x, -50.0f, 50.0f, "%.3f");
-                ImGui::InputFloat2("Position (edit)", &cam->position.x, "%.3f");
-                ImGui::SliderFloat("Zoom", &cam->zoom, 0.01f, 20.0f, "%.3f");
-                ImGui::InputFloat("Zoom (edit)", &cam->zoom, 0.01f, 1.0f, "%.3f");
-
-                ImGui::SeparatorText("Projection");
-                bool isPersp = engineInstance->editorCamera_->isSetPerspective();
-                ImGui::Text("Mode: %s", isPersp ? "Perspective" : "Orthographic");
-                ImGui::Text("Matrix row 0: %.3f  %.3f  %.3f  %.3f", proj[0][0], proj[0][1], proj[0][2], proj[0][3]);
-                ImGui::Text("Matrix row 1: %.3f  %.3f  %.3f  %.3f", proj[1][0], proj[1][1], proj[1][2], proj[1][3]);
-
+                // ── Framebuffer ─────────────────────────────────────────────
                 ImGui::SeparatorText("Framebuffer");
                 auto fb = engineInstance->renderEngine_.GetViewPortFrameBuffer();
                 if (fb)
@@ -2151,6 +2255,7 @@ namespace ettycc
                     ImGui::Text("Texture ID: %u", fb->GetTextureId());
                 }
 
+                // ── Object Picker ───────────────────────────────────────────
                 ImGui::SeparatorText("Object Picker (color ID buffer)");
                 if (pickerBuffer_ && pickerBuffer_->initialized_)
                 {
@@ -2619,13 +2724,13 @@ namespace ettycc
         auto shadersPath = resources->GetWorkingFolder() + resources->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
         pickerBuffer_->InitShader(shadersPath);
 
-        // Game view framebuffer (starts at 1920x1080)
-        gameViewFBO_ = std::make_shared<FrameBuffer>(glm::ivec2(0, 0),
-                           glm::ivec2(kResolutionPresets[0].width,
-                               kResolutionPresets[0].height),
-                            false);
-
+        // Game-view preview FBO (starts at first resolution preset)
+        gameViewFBO_ = std::make_shared<FrameBuffer>(
+            glm::ivec2(0, 0),
+            glm::ivec2(kResolutionPresets[0].width, kResolutionPresets[0].height),
+            false);
         gameViewFBO_->Init();
+        gameViewFBOReady_ = true;
     }
 
     void DevEditor::UpdateUI() { DrawEditor(); }

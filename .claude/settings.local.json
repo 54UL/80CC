@@ -21,7 +21,10 @@
       "Bash(find D:repos2ALPHA_V1src -name *.inl)",
       "Bash(grep:*)",
       "Bash(ls:*)",
-      "Bash(find /d/repos2/ALPHA_V1/assets -type f -name *.json)"
+      "Bash(find /d/repos2/ALPHA_V1/assets -type f -name *.json)",
+      "Bash(git push:*)",
+      "Bash(find /d/repos2/ALPHA_V1 -path */bullet/* -name *Task* -o -path */bullet/* -name *Thread* -o -path */bullet/* -name *Mt*)",
+      "Bash(cmake --build src/cmake-build-debug-visual-studio --target 80CC_CORE)"
     ]
   }
 }

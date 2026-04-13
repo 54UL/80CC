@@ -11,7 +11,10 @@
       "nlohmann-json",
       "cereal",
       "enet",
-      "bullet3",
+      {
+        "name": "bullet3",
+        "features": ["multithreading"]
+      },
       "openal-soft"
     ]
   }

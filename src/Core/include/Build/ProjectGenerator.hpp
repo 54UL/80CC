@@ -399,6 +399,7 @@ find_package(nlohmann_json    CONFIG REQUIRED)
 find_package(cereal           CONFIG REQUIRED)
 find_package(unofficial-enet  CONFIG REQUIRED)
 find_package(Bullet           CONFIG REQUIRED)
+find_package(OpenAL           CONFIG REQUIRED)
 
 # ── Sources ───────────────────────────────────────────────────────────────────
 file(GLOB_RECURSE GAME_SOURCES
@@ -434,7 +435,8 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE nlohmann_json::nlohmann_json
     PRIVATE cereal::cereal
     PRIVATE unofficial::enet::enet
-    PRIVATE ${BULLET_LIBRARIES})
+    PRIVATE ${BULLET_LIBRARIES}
+    PUBLIC OpenAL::OpenAL)
 
 # ── Copy assets next to the binary after every build ─────────────────────────
 # $<TARGET_FILE_DIR:...> resolves correctly for all generators (Ninja, VS, etc.)

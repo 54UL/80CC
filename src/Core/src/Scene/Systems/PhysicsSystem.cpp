@@ -5,9 +5,13 @@
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Scene/Components/GravityAttractorComponent.hpp>
 #include <Engine.hpp>
+#include <Threading/ThreadRegistry.hpp>
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
 #include <cmath>
+
+#undef min
+#undef max
 
 namespace ettycc
 {
@@ -16,11 +20,13 @@ namespace ettycc
     {
         engine_ = &engine;
 
-        for (ecs::Entity e : scene.registry_.Pool<RigidBodyComponent>().Entities())
-            InitRigidBody(scene, engine, e);
+        auto& rbPool = scene.registry_.Pool<RigidBodyComponent>();
+        for (size_t i = 0; i < rbPool.Size(); ++i)
+            InitRigidBody(scene, engine, rbPool.Entities()[i]);
 
-        for (ecs::Entity e : scene.registry_.Pool<SoftBodyComponent>().Entities())
-            InitSoftBody(scene, engine, e);
+        auto& sbPool = scene.registry_.Pool<SoftBodyComponent>();
+        for (size_t i = 0; i < sbPool.Size(); ++i)
+            InitSoftBody(scene, engine, sbPool.Entities()[i]);
     }
 
     // ── OnEntityAdded ─────────────────────────────────────────────────────────
@@ -33,163 +39,321 @@ namespace ettycc
             InitSoftBody(scene, engine, entity);
     }
 
+    // ── Gravity: apply previous frame's results ──────────────────────────────
+    void PhysicsSystem::ApplyGravityForces(Scene& scene)
+    {
+        // bodySnap_ entities may have been removed by fusion last frame,
+        // so we must validate via pool lookup (single hash per body).
+        auto& pool = scene.registry_.Pool<RigidBodyComponent>();
+
+        for (size_t i = 0; i < bodySnap_.size(); ++i)
+        {
+            const glm::vec3& f = forceResults_[i];
+            if (f.x == 0.f && f.y == 0.f && f.z == 0.f) continue;
+
+            auto* rb = pool.Get(bodySnap_[i].entity);
+            if (rb) rb->ApplyCentralForce(f);
+        }
+    }
+
+    // ── Gravity: submit computation to ThreadRegistry pool ───────────────────
+    // Precondition: attractorSnap_ and bodySnap_ already populated.
+    void PhysicsSystem::DispatchGravityJob()
+    {
+        if (!engine_) return;
+
+        // Resize force buffer (reuses capacity — no alloc after warmup).
+        forceResults_.assign(bodySnap_.size(), glm::vec3(0.f));
+
+        // Hand ownership to worker.
+        gravityJobRunning_.store(true, std::memory_order_release);
+        hasGravityResults_ = true;
+
+        // Pointers to member buffers — safe because main won't touch them
+        // while gravityJobRunning_ == true.
+        auto* attractors = &attractorSnap_;
+        auto* bodies     = &bodySnap_;
+        auto* forces     = &forceResults_;
+        auto* running    = &gravityJobRunning_;
+
+        engine_->threadRegistry_.Submit(
+            [attractors, bodies, forces, running]()
+            {
+                const size_t n = bodies->size();
+                const auto& atts = *attractors;
+
+                // Linear read of bodies, linear read of attractors, linear write of forces.
+                // All contiguous — cache-friendly.
+                for (size_t i = 0; i < n; ++i)
+                {
+                    const glm::vec3& pos  = (*bodies)[i].pos;
+                    const float       mass = (*bodies)[i].mass;
+                    glm::vec3 net(0.f);
+
+                    for (const auto& att : atts)
+                    {
+                        const glm::vec3 diff = att.center - pos;
+                        const float dist2 = glm::dot(diff, diff);
+
+                        if (dist2 > att.outerRadius2 || dist2 < 0.01f)
+                            continue;
+
+                        const float dist = std::sqrt(dist2);
+                        const glm::vec3 dir = diff / dist;
+
+                        // Clamp at inner radius (full strength, no blow-up).
+                        const float ed2 = (dist2 < att.innerRadius2)
+                                         ? att.innerRadius2 : dist2;
+                        net += dir * (att.strength * mass / ed2);
+                    }
+
+                    (*forces)[i] = net;
+                }
+
+                running->store(false, std::memory_order_release);
+            });
+    }
+
+    // ── PlanetaryDynamics ─────────────────────────────────────────────────────
+    void PhysicsSystem::PlanetaryDynamics(Scene& scene)
+    {
+        // 1. If previous gravity job finished, apply its results.
+        if (hasGravityResults_ &&
+            !gravityJobRunning_.load(std::memory_order_acquire))
+        {
+            ApplyGravityForces(scene);
+            hasGravityResults_ = false;
+        }
+
+        // 2. If worker is idle, snapshot & dispatch.
+        if (!gravityJobRunning_.load(std::memory_order_acquire))
+        {
+            // Snapshot attractors (few — iterate directly).
+            attractorSnap_.clear();
+            {
+                auto& aPool = scene.registry_.Pool<GravityAttractorComponent>();
+                auto& comps = aPool.Components();
+                for (size_t i = 0; i < comps.size(); ++i)
+                {
+                    auto& a = comps[i];
+                    const float ir = a.GetInnerRadius();
+                    const float or_ = a.GetOuterRadius();
+                    attractorSnap_.push_back({ a.GetPosition(), a.GetStrength(),
+                                               ir * ir, or_ * or_ });
+                }
+            }
+
+            // Snapshot dynamic bodies (iterate dense array — zero hash lookups).
+            bodySnap_.clear();
+            {
+                auto& rbPool = scene.registry_.Pool<RigidBodyComponent>();
+                auto& comps    = rbPool.Components();
+                auto& entities = rbPool.Entities();
+                for (size_t i = 0; i < comps.size(); ++i)
+                {
+                    auto& rb = comps[i];
+                    if (!rb.IsInitialized() || !rb.IsDynamic()) continue;
+                    bodySnap_.push_back({ entities[i], rb.GetPosition(), rb.GetMass() });
+                }
+            }
+
+            if (!attractorSnap_.empty() && !bodySnap_.empty())
+                DispatchGravityJob();
+        }
+
+        // 3. Fusion always runs on main thread (mutates scene).
+        ProcessFusions(scene);
+    }
+
     // ── OnUpdate ──────────────────────────────────────────────────────────────
     void PhysicsSystem::OnUpdate(Scene& scene, float dt)
     {
-        // Tick fusion cooldowns.
-        for (ecs::Entity e : scene.registry_.Pool<RigidBodyComponent>().Entities())
+        PlanetaryDynamics(scene);
+
+        // Parallel pass over rigid bodies: tick cooldowns + sync transforms.
+        // Each body is independent — safe to chunk across pool threads.
+        // Bullet step is complete; nodeIndex_ is read-only during this phase.
         {
-            auto* rb = scene.registry_.Get<RigidBodyComponent>(e);
-            if (rb) rb->TickCooldown(dt);
+            auto& rbPool   = scene.registry_.Pool<RigidBodyComponent>();
+            auto& comps    = rbPool.Components();
+            auto& entities = rbPool.Entities();
+            const size_t n = comps.size();
+
+            if (engine_)
+            {
+                engine_->threadRegistry_.ParallelFor(n,
+                    [&comps, &entities, &scene, dt](size_t begin, size_t end)
+                    {
+                        for (size_t i = begin; i < end; ++i)
+                        {
+                            auto& rb = comps[i];
+                            rb.TickCooldown(dt);
+
+                            if (rb.IsInitialized())
+                            {
+                                auto* node = scene.GetNode(entities[i]);
+                                if (node) rb.SyncToTransform(node->transform_);
+                            }
+                        }
+                    });
+            }
+            else
+            {
+                for (size_t i = 0; i < n; ++i)
+                {
+                    comps[i].TickCooldown(dt);
+                    if (comps[i].IsInitialized())
+                    {
+                        auto* node = scene.GetNode(entities[i]);
+                        if (node) comps[i].SyncToTransform(node->transform_);
+                    }
+                }
+            }
         }
 
-        // // Gravity attractors: apply radial force to every dynamic rigid body.
-        // for (ecs::Entity ae : scene.registry_.Pool<GravityAttractorComponent>().Entities())
-        // {
-        //     auto* attractor = scene.registry_.Get<GravityAttractorComponent>(ae);
-        //     if (!attractor) continue;
-        //
-        //     const glm::vec3 center   = attractor->GetPosition();
-        //     const float     strength = attractor->GetStrength();
-        //
-        //     for (ecs::Entity re : scene.registry_.Pool<RigidBodyComponent>().Entities())
-        //     {
-        //         auto* rb = scene.registry_.Get<RigidBodyComponent>(re);
-        //         if (!rb || !rb->IsInitialized() || !rb->IsDynamic()) continue;
-        //
-        //         const glm::vec3 pos  = rb->GetPosition();
-        //         const glm::vec3 diff = center - pos;
-        //         const float dist2    = glm::dot(diff, diff);
-        //         if (dist2 < 0.01f) continue;   // avoid singularity at center
-        //
-        //         const float dist = std::sqrt(dist2);
-        //         const glm::vec3 dir = diff / dist;
-        //
-        //         // F = strength * mass / dist^2  (inverse-square)
-        //         const float mag = strength * rb->GetMass() / dist2;
-        //         rb->ApplyCentralForce(dir * mag);
-        //     }
-        // }
-
-        // Planetary fusion: merge overlapping dynamic bodies.
-        // ProcessFusions(scene);
-
-        // RigidBody: pull Bullet simulation result into the node transform.
-        for (ecs::Entity e : scene.registry_.Pool<RigidBodyComponent>().Entities())
+        // SoftBody pass (separate pool, dense iteration).
         {
-            auto* rb   = scene.registry_.Get<RigidBodyComponent>(e);
-            auto* node = scene.GetNode(e);
-            if (!rb || !node || !rb->IsInitialized()) continue;
-            rb->SyncToTransform(node->transform_);
-        }
-
-        // SoftBody: constrain to 2D plane and update node centroid.
-        for (ecs::Entity e : scene.registry_.Pool<SoftBodyComponent>().Entities())
-        {
-            auto* sb   = scene.registry_.Get<SoftBodyComponent>(e);
-            auto* node = scene.GetNode(e);
-            if (!sb || !node || !sb->IsInitialized()) continue;
-            sb->UpdateBody(node->transform_);
+            auto& sbPool   = scene.registry_.Pool<SoftBodyComponent>();
+            auto& comps    = sbPool.Components();
+            auto& entities = sbPool.Entities();
+            for (size_t i = 0; i < comps.size(); ++i)
+            {
+                auto& sb = comps[i];
+                if (!sb.IsInitialized()) continue;
+                auto* node = scene.GetNode(entities[i]);
+                if (node) sb.UpdateBody(node->transform_);
+            }
         }
     }
 
     // ── Planetary fusion ─────────────────────────────────────────────────────
-    // Two dynamic rigid bodies fuse when their centers are closer than half the
-    // sum of their radii (significant penetration, not just touching).
-    // After fusion the survivor gets a cooldown so it can't chain-absorb every
-    // neighbour in a single burst.
+    // Snapshot ALL candidate data into a flat contiguous array ONCE, then run
+    // the O(n^2) pair check over that — zero Bullet calls and zero hash
+    // lookups in the inner loop.
     void PhysicsSystem::ProcessFusions(Scene& scene)
     {
-        constexpr float OVERLAP_FACTOR  = 0.5f;   // require 50 % penetration
-        constexpr float FUSION_COOLDOWN = 0.5f;    // seconds before the survivor can fuse again
+        constexpr float OVERLAP_FACTOR  = 0.5f;
+        constexpr float FUSION_COOLDOWN = 0.5f;
 
-        const auto entities = scene.registry_.Pool<RigidBodyComponent>().Entities();  // copy
-        const size_t n = entities.size();
-
-        // Entities that participated in a fusion this frame (both survivor and victim).
-        std::vector<ecs::Entity> involved;
-        std::vector<ecs::Entity> toRemove;
-
-        auto isInvolved = [&](ecs::Entity e) {
-            for (ecs::Entity x : involved) if (x == e) return true;
-            return false;
+        // ── Pre-snapshot via dense array iteration (no hash lookups) ─────────
+        struct FusionBody {
+            ecs::Entity         entity;
+            RigidBodyComponent* rb;
+            glm::vec3           pos;
+            glm::vec3           halfExtents;
+            float               radius;
+            float               mass;
         };
 
-        for (size_t i = 0; i < n; ++i)
+        auto& rbPool   = scene.registry_.Pool<RigidBodyComponent>();
+        auto& comps    = rbPool.Components();
+        auto& entities = rbPool.Entities();
+
+        std::vector<FusionBody> candidates;
+        candidates.reserve(comps.size());
+
+        for (size_t i = 0; i < comps.size(); ++i)
         {
-            if (isInvolved(entities[i])) continue;
+            auto& rb = comps[i];
+            if (!rb.IsInitialized() || !rb.IsDynamic() || !rb.CanFuse())
+                continue;
 
-            auto* rbA = scene.registry_.Get<RigidBodyComponent>(entities[i]);
-            if (!rbA || !rbA->IsInitialized() || !rbA->IsDynamic() || !rbA->CanFuse()) continue;
-
-            for (size_t j = i + 1; j < n; ++j)
-            {
-                if (isInvolved(entities[j])) continue;
-
-                auto* rbB = scene.registry_.Get<RigidBodyComponent>(entities[j]);
-                if (!rbB || !rbB->IsInitialized() || !rbB->IsDynamic() || !rbB->CanFuse()) continue;
-
-                const glm::vec3 posA = rbA->GetPosition();
-                const glm::vec3 posB = rbB->GetPosition();
-                const float dist = glm::length(posA - posB);
-
-                // Average half-extent as radius (2D, ignore Z).
-                const glm::vec3 hA = rbA->GetHalfExtents();
-                const glm::vec3 hB = rbB->GetHalfExtents();
-                const float radiusA = (hA.x + hA.y) * 0.5f;
-                const float radiusB = (hB.x + hB.y) * 0.5f;
-
-                // Require significant overlap, not just touching.
-                const float threshold = (radiusA + radiusB) * OVERLAP_FACTOR;
-                if (dist >= threshold) continue;
-
-                // ── Fuse: heavier body survives ──────────────────────────────
-                const float massA = rbA->GetMass();
-                const float massB = rbB->GetMass();
-                const bool aIsSurvivor = (massA >= massB);
-
-                auto*             survivor   = aIsSurvivor ? rbA : rbB;
-                const ecs::Entity survivorId = aIsSurvivor ? entities[i] : entities[j];
-                const ecs::Entity victimId   = aIsSurvivor ? entities[j] : entities[i];
-
-                const float mS = survivor->GetMass();
-                const float mV = (aIsSurvivor ? rbB : rbA)->GetMass();
-                const float newMass = mS + mV;
-
-                // Conserve momentum.
-                const glm::vec3 velS = survivor->GetLinearVelocity();
-                const glm::vec3 velV = (aIsSurvivor ? rbB : rbA)->GetLinearVelocity();
-                const glm::vec3 newVel = (mS * velS + mV * velV) / newMass;
-
-                // Grow: scale up so combined volume = volS + volV.
-                const glm::vec3 hS = survivor->GetHalfExtents();
-                const float scaleFactor = std::cbrt(newMass / mS);
-                const glm::vec3 newHalf = hS * scaleFactor;
-
-                survivor->SetLinearVelocity(newVel);
-                survivor->Reinitialize(newMass, newHalf);
-                survivor->SetFusionCooldown(FUSION_COOLDOWN);
-
-                // Update the renderable scale.
-                if (auto* rn = scene.registry_.Get<RenderableNode>(survivorId))
-                    if (rn->renderable_)
-                        rn->renderable_->underylingTransform.setGlobalScale(newHalf);
-
-                // Both entities are done for this frame.
-                involved.push_back(survivorId);
-                involved.push_back(victimId);
-                toRemove.push_back(victimId);
-
-                spdlog::info("[PhysicsSystem] fusion: {} absorbed {} — mass={:.1f}  scale={:.2f}",
-                             survivorId, victimId, newMass, scaleFactor);
-
-                // Pool may have relocated — re-fetch and stop inner loop.
-                rbA = scene.registry_.Get<RigidBodyComponent>(entities[i]);
-                break;
-            }
+            const glm::vec3 h = rb.GetHalfExtents();
+            candidates.push_back({
+                entities[i], &rb,
+                rb.GetPosition(), h,
+                (h.x + h.y) * 0.5f,
+                rb.GetMass()
+            });
         }
 
-        // Deferred removal — destroy absorbed entities after iteration is done.
+        const size_t n = candidates.size();
+        std::vector<ecs::Entity> toRemove;
+
+        // ── Phase 1: Parallel candidate search (read-only on flat array) ─────
+        // Each thread finds the best (closest) fusion partner for its range of
+        // outer-loop indices.  Output: one candidate pair per outer index, or
+        // {-1, -1} if none found.
+        struct FusionPair { size_t a; size_t b; float dist; };
+
+        std::vector<FusionPair> pairsFound(n, { SIZE_MAX, SIZE_MAX, 0.f });
+
+        auto findPairs = [&candidates, n, OVERLAP_FACTOR, &pairsFound]
+                         (size_t begin, size_t end)
+        {
+            for (size_t i = begin; i < end; ++i)
+            {
+                float bestDist = std::numeric_limits<float>::max();
+                size_t bestJ = SIZE_MAX;
+
+                for (size_t j = i + 1; j < n; ++j)
+                {
+                    const float threshold =
+                        (candidates[i].radius + candidates[j].radius) * OVERLAP_FACTOR;
+                    const float dist = glm::length(candidates[i].pos - candidates[j].pos);
+                    if (dist < threshold && dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestJ = j;
+                    }
+                }
+
+                if (bestJ != SIZE_MAX)
+                    pairsFound[i] = { i, bestJ, bestDist };
+            }
+        };
+
+        if (engine_ && n > 32)
+            engine_->threadRegistry_.ParallelFor(n, findPairs, 32);
+        else
+            findPairs(0, n);
+
+        // ── Phase 2: Sequential fusion execution ─────────────────────────────
+        // Process pairs in order; skip already-consumed entities.
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (pairsFound[i].a == SIZE_MAX) continue;
+            if (candidates[i].entity == ecs::NullEntity) continue;
+
+            const size_t j = pairsFound[i].b;
+            if (candidates[j].entity == ecs::NullEntity) continue;
+
+            const bool iWins = (candidates[i].mass >= candidates[j].mass);
+            const size_t sIdx = iWins ? i : j;
+            const size_t vIdx = iWins ? j : i;
+
+            auto& S = candidates[sIdx];
+            auto& V = candidates[vIdx];
+
+            const float newMass = S.mass + V.mass;
+
+            const glm::vec3 newVel =
+                (S.mass * S.rb->GetLinearVelocity()
+               + V.mass * V.rb->GetLinearVelocity()) / newMass;
+
+            const float scaleFactor = std::cbrt(newMass / S.mass);
+            const glm::vec3 newHalf = S.halfExtents * scaleFactor;
+
+            S.rb->SetLinearVelocity(newVel);
+            S.rb->Reinitialize(newMass, newHalf);
+            S.rb->SetFusionCooldown(FUSION_COOLDOWN);
+
+            if (auto* rn = scene.registry_.Pool<RenderableNode>().Get(S.entity))
+                if (rn->renderable_)
+                    rn->renderable_->underylingTransform.setGlobalScale(newHalf);
+
+            S.halfExtents = newHalf;
+            S.radius      = (newHalf.x + newHalf.y) * 110.5f;
+            S.mass        = newMass;
+            S.pos         = S.rb->GetPosition();
+
+            toRemove.push_back(V.entity);
+            V.entity = ecs::NullEntity;
+
+            spdlog::info("[PhysicsSystem] fusion: {} absorbed {} — mass={:.1f}  scale={:.2f}",
+                         S.entity, toRemove.back(), newMass, scaleFactor);
+        }
+
         for (ecs::Entity victimId : toRemove)
         {
             auto* node = scene.GetNode(victimId);
@@ -201,13 +365,12 @@ namespace ettycc
     // ── Private helpers ───────────────────────────────────────────────────────
     void PhysicsSystem::InitRigidBody(Scene& scene, Engine& engine, ecs::Entity e)
     {
-        auto* rb   = scene.registry_.Get<RigidBodyComponent>(e);
+        auto* rb   = scene.registry_.Pool<RigidBodyComponent>().Get(e);
         auto* node = scene.GetNode(e);
         if (!rb || !node || rb->IsInitialized()) return;
 
-        // Seed transform from sibling RenderableNode if present.
         const Transform* seedTransform = nullptr;
-        if (auto* rn = scene.registry_.Get<RenderableNode>(e))
+        if (auto* rn = scene.registry_.Pool<RenderableNode>().Get(e))
             if (rn->renderable_)
                 seedTransform = &rn->renderable_->underylingTransform;
 
@@ -216,19 +379,13 @@ namespace ettycc
 
     void PhysicsSystem::InitSoftBody(Scene& scene, Engine& engine, ecs::Entity e)
     {
-        auto* sb   = scene.registry_.Get<SoftBodyComponent>(e);
+        auto* sb   = scene.registry_.Pool<SoftBodyComponent>().Get(e);
         auto* node = scene.GetNode(e);
         if (!sb || !node || sb->IsInitialized()) return;
 
         sb->InitBody(engine.physicsWorld_.GetSoftWorld(), engine);
         if (sb->IsInitialized())
-        {
-            // Sync the node transform to the soft body's actual centroid so that
-            // UpdateBody's delta logic (nodePos − lastTrackedCentroid_) starts at
-            // zero instead of producing a huge false offset that yanks every soft
-            // body to the origin on the first frame.
             node->transform_.setGlobalPosition(sb->GetCentroid());
-        }
     }
 
 } // namespace ettycc

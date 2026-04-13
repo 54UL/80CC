@@ -1,3 +1,4 @@
+// Avoid this shit below(.inl)...
 // SceneNode.inl — template implementations that need Scene fully defined.
 // Included at the bottom of Scene.hpp, never included directly.
 #pragma once

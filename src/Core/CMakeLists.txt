@@ -41,6 +41,7 @@ set(80CC_CORE_HEADERS
     include/Graphics/Rendering/Entities/Camera.hpp
     include/Graphics/Rendering/Entities/Sprite.hpp
     include/Graphics/Rendering/Entities/Grid.hpp
+    include/Graphics/Rendering/SpriteBatch.hpp
     include/Graphics/Shading/Shader.hpp
     include/Graphics/Shading/ShaderPipeline.hpp
     include/Input/PlayerInput.hpp
@@ -111,6 +112,7 @@ set(80CC_CORE_SOURCES
     src/Graphics/Rendering/Entities/Camera.cpp
     src/Graphics/Rendering/Entities/Sprite.cpp
     src/Graphics/Rendering/Entities/Grid.cpp
+    src/Graphics/Rendering/SpriteBatch.cpp
     src/Graphics/Shading/Shader.cpp
     src/Graphics/Shading/ShaderPipeline.cpp
     src/Input/PlayerInput.cpp
@@ -161,7 +163,7 @@ target_include_directories(80CC_CORE
     PUBLIC ${SDL2_INCLUDE_DIRS}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/portable-file-dialogs
+           ${CMAKE_CURRENT_SOURCE_DIR}/external/portable-file-dialogs
     PUBLIC ${Stb_INCLUDE_DIR}
     PUBLIC ${GLM_INCLUDE_DIRS})
 

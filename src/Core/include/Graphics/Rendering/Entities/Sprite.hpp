@@ -69,6 +69,9 @@ namespace ettycc
 
         GLuint GetShaderProgramId() const;
         const std::string& GetTexturePath() const { return spriteFilePath_; }
+        GLuint GetTextureHandle() const { return TEXTURE; }
+        float  GetTilingMultiplier() const { return tilingMultiplier_; }
+        bool   IsCustomGeometry() const { return shape_.preset == SpriteShape::Preset::Custom; }
 
     private:
         void UploadGeometry();

@@ -1,4 +1,6 @@
 #include <Graphics/Rendering/Entities/Camera.hpp>
+#include <Graphics/Rendering/Frustum.hpp>
+#include <UI/EditorPropertyVisitor.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 #include <Engine.hpp>
@@ -85,5 +87,19 @@ namespace ettycc
             ctx->Projection = this->ProjectionMatrix;
             ctx->View = this->underylingTransform.GetMatrix();
         }
+
+        // Compute frustum planes from the combined PV matrix
+        if (frustumCullingEnabled_)
+            ctx->frustum = Frustum::FromPV(ctx->Projection * ctx->View);
+        else
+            ctx->frustum.enabled = false;
+    }
+
+    void Camera::Inspect(EditorPropertyVisitor& v)
+    {
+        Renderable::Inspect(v);
+        PROP_SECTION("Camera");
+        PROP(ispresp, "Perspective");
+        PROP(frustumCullingEnabled_, "Frustum Culling");
     }
 }

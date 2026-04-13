@@ -6,11 +6,14 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 #include <future>
 #include <spdlog/spdlog.h>
-#include <future>
+
+#undef min
+#undef max
 
 namespace ettycc
 {
@@ -31,8 +34,22 @@ namespace ettycc
     {
     public:
         // poolSize = number of general-purpose worker threads in the pool.
-        explicit ThreadRegistry(size_t poolSize = 2)
-            : taskPool_(poolSize) {}
+        // Default: hardware threads minus 2 (main + network), minimum 2.
+        explicit ThreadRegistry(size_t poolSize = 0)
+            : taskPool_(poolSize > 0
+                        ? poolSize
+                        : std::max<size_t>(2, std::thread::hardware_concurrency() > 2
+                                              ? std::thread::hardware_concurrency() - 2
+                                              : 2))
+            , poolThreadCount_(poolSize > 0
+                               ? poolSize
+                               : std::max<size_t>(2, std::thread::hardware_concurrency() > 2
+                                                     ? std::thread::hardware_concurrency() - 2
+                                                     : 2))
+        {
+            spdlog::info("[ThreadRegistry] Pool created with {} threads (hw: {})",
+                         poolThreadCount_, std::thread::hardware_concurrency());
+        }
 
         ~ThreadRegistry() { Shutdown(); }
 
@@ -70,6 +87,51 @@ namespace ettycc
         auto Submit(F&& f, Args&&... args)
         {
             return taskPool_.enqueue(std::forward<F>(f), std::forward<Args>(args)...);
+        }
+
+        // ── Parallel iteration ─────────────────────────────────────────────────────
+
+        // Split [0, count) into chunks across pool threads and run fn(begin, end)
+        // on each chunk.  Blocks until all chunks complete.
+        // Falls back to single-threaded if count is below threshold.
+        template <typename Fn>
+        void ParallelFor(size_t count, Fn&& fn, size_t minPerThread = 64)
+        {
+            if (count == 0) return;
+
+            const size_t maxChunks = poolThreadCount_;
+            const size_t numChunks = (count >= minPerThread * 2 && maxChunks > 1)
+                                   ? std::min(maxChunks, (count + minPerThread - 1) / minPerThread)
+                                   : 1;
+
+            if (numChunks <= 1)
+            {
+                fn(size_t(0), count);
+                return;
+            }
+
+            const size_t chunkSize = (count + numChunks - 1) / numChunks;
+            std::vector<std::future<void>> futures;
+            futures.reserve(numChunks - 1);
+
+            // Submit N-1 chunks to pool, run last chunk on caller's thread.
+            for (size_t c = 0; c < numChunks - 1; ++c)
+            {
+                const size_t begin = c * chunkSize;
+                const size_t end   = std::min(begin + chunkSize, count);
+                futures.push_back(taskPool_.enqueue([&fn, begin, end]() {
+                    fn(begin, end);
+                }));
+            }
+
+            // Last chunk runs on the calling thread (no pool overhead).
+            {
+                const size_t begin = (numChunks - 1) * chunkSize;
+                const size_t end   = count;
+                fn(begin, end);
+            }
+
+            for (auto& f : futures) f.get();
         }
 
         // ── Debug / introspection ────────────────────────────────────────────────
@@ -123,7 +185,7 @@ namespace ettycc
         mutable std::mutex mutex_;
         std::unordered_map<std::string, std::unique_ptr<WorkerThread>> workers_;
         ThreadPool taskPool_;
-        size_t     poolThreadCount_ = 2;
+        size_t     poolThreadCount_;
     };
 
 } // namespace ettycc

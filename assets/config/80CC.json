@@ -33,12 +33,12 @@
                             "value": "images/"
                         },
                         {
-                            "key": "templates",
-                            "value": "templates/"
-                        },
-                        {
                             "key": "scenes",
                             "value": "scenes/"
+                        },
+                        {
+                            "key": "templates",
+                            "value": "templates/"
                         },
                         {
                             "key": "shaders",

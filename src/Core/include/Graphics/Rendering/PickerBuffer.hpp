@@ -13,10 +13,13 @@
 namespace ettycc
 {
     class Renderable;
+    class Sprite;
 
     // Completely separate from the main render pipeline.
     // Renders each renderable with a unique flat color (encoded object ID)
     // into its own RGBA8 FBO. Use ReadPixel() to identify what is under the cursor.
+    //
+    // Sprites are batched using instanced rendering (one draw call per shape preset).
     class PickerBuffer
     {
     public:
@@ -47,11 +50,58 @@ namespace ettycc
         GLuint fbo_       = 0;
         GLuint texture_   = 0;  // GL_RGBA8 color attachment
         GLuint depthRbo_  = 0;  // depth renderbuffer
-        GLuint program_   = 0;  // picker shader program
 
+        // ── Legacy per-object shader (for non-sprite renderables) ───────────
+        GLuint program_   = 0;  // picker shader program
         GLint  pvmLoc_     = -1;
         GLint  idColorLoc_ = -1;
 
+        // ── Instanced picker shader (for batched sprites) ───────────────────
+        GLuint instancedProgram_ = 0;
+        GLint  instancedPVLoc_   = -1;
+
+        // ── Per-instance data for picker batching ───────────────────────────
+        struct alignas(16) PickerInstanceData
+        {
+            glm::mat4 model;      // 64 bytes
+            glm::vec3 idColor;    // 12 bytes
+            float     _pad;       // 4 bytes → 80 bytes total
+        };
+
+        // ── Shared preset geometry (one VAO per shape preset) ───────────────
+        struct PresetGeo
+        {
+            GLuint vao = 0;
+            GLuint vbo = 0;
+            GLuint ebo = 0;
+            int    indexCount = 0;
+        };
+
+        std::unordered_map<int, PresetGeo> presetGeos_;
+        void BuildPresetGeo(int preset);
+        PresetGeo& GetPresetGeo(int preset);
+
+        // ── Instance VBO (reused each frame) ────────────────────────────────
+        GLuint instanceVBO_ = 0;
+        size_t instanceVBOCapacity_ = 0;
+        void EnsureInstanceVBO(size_t count);
+        void SetupInstanceAttributes(GLuint vao);
+
+        // ── Per-frame batch collection ──────────────────────────────────────
+        struct PickerBatch
+        {
+            int shapePreset;
+            std::vector<PickerInstanceData> instances;
+        };
+
+        // Custom geometry sprites rendered individually
+        struct CustomPickerEntry
+        {
+            Sprite*            sprite;
+            PickerInstanceData instance;
+        };
+
+        // ── Shader compilation helpers ──────────────────────────────────────
         GLuint CompileShader(const std::string& src, GLenum type) const;
         std::string LoadFile(const std::string& path) const;
 

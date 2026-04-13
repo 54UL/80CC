@@ -18,6 +18,7 @@ namespace ettycc
 		std::shared_ptr<EditorCamera> editorCameraControl_;
 
 		bool ispresp{};
+		bool frustumCullingEnabled_ = true;
 		glm::mat4 ProjectionMatrix{};
 		std::shared_ptr<FrameBuffer> offScreenFrameBuffer;
 
@@ -40,12 +41,16 @@ namespace ettycc
 	public:
 		void Init(const std::shared_ptr<Engine>& engineCtx) override;
 		void Pass(const std::shared_ptr<RenderingContext>& ctx, float deltaTime) override;
+		void Inspect(EditorPropertyVisitor& v) override;
 
 		// Serialization/Deserialziation
         template <class Archive>
         void serialize(Archive &ar)
         {
-            ar(cereal::base_class<Renderable>(this), CEREAL_NVP(offScreenFrameBuffer), CEREAL_NVP(ispresp));
+            ar(cereal::base_class<Renderable>(this),
+               CEREAL_NVP(offScreenFrameBuffer),
+               CEREAL_NVP(ispresp),
+               CEREAL_NVP(frustumCullingEnabled_));
         }
 	};
 } // namespace ettycc

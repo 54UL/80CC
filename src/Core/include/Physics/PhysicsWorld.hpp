@@ -4,6 +4,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
+#include <LinearMath/btThreads.h>
 #include <memory>
 
 namespace ettycc
@@ -18,20 +19,21 @@ namespace ettycc
         void Step(float deltaTime);
         void SetGravity(const btVector3& g);
 
-        // Backward-compat accessor — btSoftRigidDynamicsWorld IS-A btDiscreteDynamicsWorld
         btDiscreteDynamicsWorld* GetWorld();
-
-        // Full soft-body world accessor
         btSoftRigidDynamicsWorld* GetSoftWorld();
 
+        bool IsMultithreaded() const { return multithreaded_; }
+
     private:
-        // Declared in destruction-safe order (reverse of construction).
-        // world_ depends on all others, so it must be destroyed first.
         std::unique_ptr<btSoftBodyRigidBodyCollisionConfiguration> config_;
+        // Type-erased dispatcher — may be btCollisionDispatcher or btCollisionDispatcherMt.
         std::unique_ptr<btCollisionDispatcher>                     dispatcher_;
         std::unique_ptr<btBroadphaseInterface>                     broadphase_;
         std::unique_ptr<btSequentialImpulseConstraintSolver>       solver_;
         std::unique_ptr<btSoftRigidDynamicsWorld>                  world_;
+
+        btITaskScheduler* taskScheduler_ = nullptr;
+        bool              multithreaded_ = false;
     };
 }
 
