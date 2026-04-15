@@ -12,9 +12,6 @@
 #include <future>
 #include <spdlog/spdlog.h>
 
-#undef min
-#undef max
-
 namespace ettycc
 {
     // ── ThreadRegistry ───────────────────────────────────────────────────────────

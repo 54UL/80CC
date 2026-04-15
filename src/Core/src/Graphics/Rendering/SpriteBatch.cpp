@@ -114,6 +114,12 @@ void SpriteBatch::End()
     const glm::mat4 PV = ctx_->Projection * ctx_->View;
     const GLuint prog   = instancedShader_->programId;
 
+    // Sprites need alpha blending and must not be blocked by geometry at the
+    // same depth (everything is z=0 in this 2D engine).
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthFunc(GL_LEQUAL);
+
     instancedShader_->pipeline.Bind();
     glUniformMatrix4fv(glGetUniformLocation(prog, "uPV"), 1, GL_FALSE, glm::value_ptr(PV));
 
@@ -151,6 +157,10 @@ void SpriteBatch::End()
 
     instancedShader_->pipeline.Unbind();
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Restore GL state
+    glDepthFunc(GL_LESS);
+    glDisable(GL_BLEND);
 
     ctx_.reset();
 }
@@ -320,6 +330,9 @@ void SpriteBatch::RenderCustomSprites()
 
         // Set up instance attributes on the custom VAO
         SetupInstanceAttributes(customVAO_);
+
+        // SetupInstanceAttributes unbinds the VAO — rebind before drawing
+        glBindVertexArray(customVAO_);
 
         glDrawElementsBaseVertex(
             GL_TRIANGLES,

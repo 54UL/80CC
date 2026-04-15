@@ -91,6 +91,7 @@ namespace ettycc
 
     private:
         bool isEditorMode_ = false;
+        bool isHeadless_   = false;
 
         // ── Async physics pipelining ─────────────────────────────────────────
         // Physics Step runs on a pool thread.  We kick it at the end of Update()
@@ -106,6 +107,10 @@ namespace ettycc
         // This is the single source of truth for editor/game mode at runtime.
         void SetEditorMode(bool isEditor) { isEditorMode_ = isEditor; if (isEditor) simulationPaused_ = true; }
         bool IsEditorMode()         const { return isEditorMode_; }
+
+        // Call before Init(). True = headless dedicated server (no rendering, no audio, no input).
+        void SetHeadlessMode(bool headless) { isHeadless_ = headless; }
+        bool IsHeadless()           const { return isHeadless_; }
 
         // TODO: Implement some pattern to create this from other place
         // ALL THIS STUFF BELOW IS ONLY FOR TESTING...
@@ -140,9 +145,10 @@ namespace ettycc
         void StoreGlobals(const std::string &fileName) const;
         void ConfigResource();
 
-        // Networking helpers — call before Init() if you want a networked scene
+        // Networking helpers
         void InitNetwork(bool isHost, uint16_t port = 7777,
                          const std::string& serverAddress = "127.0.0.1");
+        void StartNetworkWorker();
         void LoadNetworkScene();
 
         // Async asset preloading — reads images/shaders on a worker thread,

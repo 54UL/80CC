@@ -17,9 +17,6 @@
 #include <cstdio>
 #include <portable-file-dialogs.h>
 
-#undef max
-#undef min
-
 /* MURO DE LA FUNA (TODOS)
  * - fix that stupid shit that makes the headers from windows affect std headers, this comes from the portable file dialogs (isolate headers???)
  * - refactor when this file is above 4444 lines (just because i said so)

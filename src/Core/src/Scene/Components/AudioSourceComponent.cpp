@@ -7,10 +7,6 @@
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-// TODO: FIX WIN32 HEADER ISSUES
-#undef max
-#undef min
-
 namespace ettycc
 {
     AudioSourceComponent::~AudioSourceComponent()

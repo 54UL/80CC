@@ -7,9 +7,6 @@
 #include <algorithm>
 #include <cstring>
 
-#undef max
-#undef min
-
 namespace ettycc
 {
     BuildPanelUI::BuildPanelUI(build::GlobalBuildConfig& globalCfg)

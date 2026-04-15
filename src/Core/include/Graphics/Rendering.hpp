@@ -47,6 +47,7 @@ namespace ettycc
                             float deltaTime);
 
         auto AddRenderable(std::shared_ptr<Renderable> renderable) -> void;
+
         void AddRenderables(const std::vector<std::shared_ptr<Renderable>>& renderables);
         void RemoveRenderable(const std::shared_ptr<Renderable>& renderable);
         void ClearRenderables();

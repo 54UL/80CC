@@ -12,10 +12,6 @@
 #include <fstream>
 #include <filesystem>
 
-#undef min
-#undef max
-#undef near
-
 namespace ettycc
 {
     // ── Coordinate conversions ───────────────────────────────────────────────
@@ -1798,15 +1794,15 @@ namespace ettycc
                     {
                         if (idx < 0 || idx >= static_cast<int>(shape_.vertices.size())) continue;
                         glm::vec2 pos = shape_.vertices[idx].position;
-                        int near = FindNearestVertex(pos, mergeDist_, draggedSet);
-                        if (near < 0) continue;
+                        int nearest = FindNearestVertex(pos, mergeDist_, draggedSet);
+                        if (nearest < 0) continue;
 
                         // Snap dragged vert onto target, then merge (erases idx).
-                        // MergeVertices(a, b) erases b — so pass (near, idx) to
-                        // keep near's position and erase idx.
-                        shape_.vertices[idx].position = shape_.vertices[near].position;
-                        shape_.vertices[idx].uv       = shape_.vertices[near].uv;
-                        MergeVertices(near, idx);
+                        // MergeVertices(a, b) erases b -- so pass (nearest, idx) to
+                        // keep nearest's position and erase idx.
+                        shape_.vertices[idx].position = shape_.vertices[nearest].position;
+                        shape_.vertices[idx].uv       = shape_.vertices[nearest].uv;
+                        MergeVertices(nearest, idx);
 
                         // Update draggedSet after removal of idx
                         draggedSet.erase(idx);

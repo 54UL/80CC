@@ -235,6 +235,9 @@ namespace ettycc::build
         content.insert(0,
             "// [80CC GENERATED] -- do not edit, re-run the generator.\n"
             "#ifdef _WIN32\n"
+            "#ifndef NOMINMAX\n"
+            "#define NOMINMAX\n"
+            "#endif\n"
             "#ifndef WIN32_LEAN_AND_MEAN\n"
             "#define WIN32_LEAN_AND_MEAN\n"
             "#endif\n"

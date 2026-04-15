@@ -1,6 +1,3 @@
-#undef max
-#undef min
-
 #include <UI/ConfigurationsWindow.hpp>
 #include <UI/Widgets/PathFieldWidget.hpp>
 #include <Build/BuildStrings.hpp>

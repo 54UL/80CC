@@ -204,7 +204,7 @@ namespace ettycc
         return currentDeltaTime_;
     }
     
-    float SDL2App::GetCurrentTime()
+    float SDL2App::GetAppTime()
     {
         return currentAppTime_;
     }

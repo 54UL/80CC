@@ -10,9 +10,6 @@
 #include <glm/glm.hpp>
 #include <cmath>
 
-#undef min
-#undef max
-
 namespace ettycc
 {
     // ── OnStart ───────────────────────────────────────────────────────────────

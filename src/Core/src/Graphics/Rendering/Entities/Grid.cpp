@@ -8,9 +8,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <spdlog/spdlog.h>
 
-#undef min
-#undef max
-
 namespace ettycc
 {
     Grid::Grid() = default;
@@ -106,10 +103,15 @@ namespace ettycc
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+        // Grid is a background overlay — don't write to the depth buffer so it
+        // never occludes sprites that share the same z=0 plane.
+        glDepthMask(GL_FALSE);
+
         glBindVertexArray(VAO_);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
 
+        glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
         cachedShader_->pipeline.Unbind();
     }

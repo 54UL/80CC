@@ -19,11 +19,17 @@ if(CMAKE_TOOLCHAIN_FILE)
 endif()
 
 
+option(80CC_DEDICATED_SERVER "Compile dedicated server only" OFF)
+
 add_subdirectory(Core)
 if(80CC_UNIT_TEST)
     message("Compiling as testers")
-    add_subdirectory(Testers)  
+    add_subdirectory(Testers)
+elseif(80CC_DEDICATED_SERVER)
+    message("Compiling dedicated server")
+    add_subdirectory(Server)
 else()
     message("Compiling as stand alone editor")
     add_subdirectory(Entry)
+    add_subdirectory(Server)
 endif()

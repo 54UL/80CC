@@ -1,6 +1,3 @@
-#undef max
-#undef min
-
 #include <Build/BuildController.hpp>
 #include <Build/BuildStrings.hpp>
 #include <Build/ProjectGenerator.hpp>

@@ -47,7 +47,8 @@ namespace ettycc {
         // OpenAL driver would abort().
         mainScene_.reset();
 
-        audioManager_.Shutdown();
+        if (!isHeadless_)
+            audioManager_.Shutdown();
 
         // TODO: Check if this is appropiate to handle here...
         if (globals_) {
@@ -63,9 +64,11 @@ namespace ettycc {
     // components are initialized. Call once per scene before adding nodes.
     static void SetupSceneSystems(Scene &scene, Engine &engine) {
         scene.systems_.clear();
-        scene.RegisterSystem(std::make_unique<RenderSystem>());
+        if (!engine.IsHeadless())
+            scene.RegisterSystem(std::make_unique<RenderSystem>());
         scene.RegisterSystem(std::make_unique<PhysicsSystem>());
-        scene.RegisterSystem(std::make_unique<AudioSystem>());
+        if (!engine.IsHeadless())
+            scene.RegisterSystem(std::make_unique<AudioSystem>());
         scene.RegisterSystem(std::make_unique<NetworkSystem>());
         scene.Init(engine);
     }
@@ -158,7 +161,7 @@ namespace ettycc {
         // ── Orbiting boxes ──────
         // Spawn boxes in a ring and give each a tangential velocity for a
         // roughly circular orbit:  v = sqrt(strength / radius)
-        constexpr int boxCount = 5000;
+        constexpr int boxCount = 500;
         constexpr float orbitRadius = 50;
 
         for (int i = 0; i < boxCount; ++i) {
@@ -183,12 +186,13 @@ namespace ettycc {
     void Engine::LoadDefaultScene() {
         spdlog::warn("[Engine] loading built-in fallback scene...");
 
-        renderEngine_.ClearRenderables();
+        if (!isHeadless_)
+            renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("default-scene");
         SetupSceneSystems(*mainScene_, *this);
 
-        // Every scene needs a camera — create as a proper scene node.
-        {
+        // Every scene needs a camera — create as a proper scene node (skip in headless).
+        if (!isHeadless_) {
             auto sz  = appInstance_->GetMainWindowSize();
             auto cam = std::make_shared<Camera>(sz.x, sz.y);
             cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
@@ -200,25 +204,28 @@ namespace ettycc {
 
         GravityScene();
 
-        if (!isEditorMode_)
+        if (!isEditorMode_ && !isHeadless_)
             EnsureGameCamera();
     }
 
     void Engine::CreateEmptyScene(const std::string& name) {
         spdlog::info("[Engine] Creating empty scene '{}'...", name);
 
-        renderEngine_.ClearRenderables();
+        if (!isHeadless_)
+            renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>(name);
         SetupSceneSystems(*mainScene_, *this);
 
-        // Every scene needs a camera — create one as a proper scene node.
-        auto sz  = appInstance_->GetMainWindowSize();
-        auto cam = std::make_shared<Camera>(sz.x, sz.y);
-        cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
+        if (!isHeadless_) {
+            // Every scene needs a camera — create one as a proper scene node.
+            auto sz  = appInstance_->GetMainWindowSize();
+            auto cam = std::make_shared<Camera>(sz.x, sz.y);
+            cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
 
-        auto cameraNode = std::make_shared<SceneNode>("game-camera");
-        mainScene_->registry_.Add<RenderableNode>(cameraNode->GetId(), RenderableNode{cam});
-        mainScene_->root_node_->AddChild(cameraNode);
+            auto cameraNode = std::make_shared<SceneNode>("game-camera");
+            mainScene_->registry_.Add<RenderableNode>(cameraNode->GetId(), RenderableNode{cam});
+            mainScene_->root_node_->AddChild(cameraNode);
+        }
     }
 
     void Engine::InitEditorCamera() {
@@ -230,9 +237,19 @@ namespace ettycc {
         // Camera must be first so it populates ctx matrices + frustum before sprites draw.
         renderEngine_.EnsureFirst(editorCamera_);
 
+        // Disable any scene cameras so they don't overwrite the editor camera's
+        // projection/view in the main render pass.  Scene cameras stay in the
+        // hierarchy for serialization and game-view preview (RenderToTarget sets
+        // its own matrices and skips cameras anyway).
+        for (const auto& r : renderEngine_.GetRenderables()) {
+            auto cam = std::dynamic_pointer_cast<Camera>(r);
+            if (cam && cam != editorCamera_)
+                cam->enabled = false;
+        }
+
         editorGrid_ = std::make_shared<Grid>();
         editorGrid_->Init(GetDependency(Engine));
-        renderEngine_.AddRenderable(editorGrid_);
+        renderEngine_.EnsureFirst(editorGrid_);
 
         spdlog::info("Editor camera initialized [1200x800]");
     }
@@ -285,8 +302,10 @@ namespace ettycc {
         LoadScene(lastLoadedScene);
 
         // TODO: MOVE THIS CODE BELOW BECAUSE IS GENERIC ENGINE INITIALIZATION
-        auto mainWindowSize = appInstance_->GetMainWindowSize();
-        renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
+        if (!isHeadless_) {
+            auto mainWindowSize = appInstance_->GetMainWindowSize();
+            renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
+        }
     }
 
     //TODO: INSERT HERE ASSET MANAGEMENT AND NODE BUILDER (TO BUILD TEMPLATES FROM THE ASSET MANAGEMENT)
@@ -304,7 +323,8 @@ namespace ettycc {
             spdlog::error("Can't open file scene [{}]", path);
             LoadDefaultScene();
         } else {
-            renderEngine_.ClearRenderables();
+            if (!isHeadless_)
+                renderEngine_.ClearRenderables();
 
             cereal::JSONInputArchive archive2(ifs);
             try {
@@ -334,7 +354,7 @@ namespace ettycc {
             spdlog::error("Errors occurred when processing scene...");
         }
 
-        if (!isEditorMode_)
+        if (!isEditorMode_ && !isHeadless_)
             EnsureGameCamera();
     }
 
@@ -455,7 +475,7 @@ namespace ettycc {
     // main thread.  Call after scene deserialization but BEFORE SetupSceneSystems
     // so that Renderable::Init() finds everything already cached.
     void Engine::PreloadSceneAssets() {
-        if (!mainScene_ || !resourceCache_)
+        if (!mainScene_ || !resourceCache_ || isHeadless_)
             return;
 
         const std::string workDir = globals_->GetWorkingFolder();
@@ -478,7 +498,7 @@ namespace ettycc {
         }
 
         // ── Collect shader names ─────────────────────────────────────────────
-        std::vector<std::string> shaderNames = {"sprite", "softbody", "grid"};
+        std::vector<std::string> shaderNames = {"sprite", "sprite_instanced", "softbody", "grid"};
 
         spdlog::info("[Engine] Preloading {} textures, {} shaders async...",
                      texPaths.size(), shaderNames.size());
@@ -512,25 +532,32 @@ namespace ettycc {
         bench.Mark("config_resources");
 
         resourceCache_ = std::make_shared<ResourceCache>();
-        const std::string shadersPath = globals_->GetWorkingFolder()
-                                        + globals_->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
-        resourceCache_->Init(shadersPath);
+        if (!isHeadless_) {
+            const std::string shadersPath = globals_->GetWorkingFolder()
+                                            + globals_->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
+            resourceCache_->Init(shadersPath);
+        }
         RegisterDependency(ResourceCache, resourceCache_);
         bench.Mark("resource_cache_init");
 
         physicsWorld_.Init();
         bench.Mark("physics_init");
 
-        audioManager_.Init();
-        bench.Mark("audio_init");
+        if (!isHeadless_) {
+            audioManager_.Init();
+            bench.Mark("audio_init");
 
-        if (isEditorMode_)
-            audioManager_.PlayStartupChime();
+            if (isEditorMode_)
+                audioManager_.PlayStartupChime();
+        } else {
+            bench.Mark("audio_init (skipped — headless)");
+        }
 
-        // isEditorMode_ is set by main.cpp (or any host) before Init() is called.
-        // Editor  -> always restore the last scene; game modules are not run at start.
-        // Standalone -> run game modules (they own scene loading); fall back to last scene.
-        if (!isEditorMode_ && !gameModules_.empty()) {
+        // Headless (dedicated server) skips scene loading -- the server's
+        // main.cpp controls scene + network init explicitly after Init().
+        if (isHeadless_) {
+            bench.Mark("scene_load (skipped -- headless)");
+        } else if (!isEditorMode_ && !gameModules_.empty()) {
             for (const auto &module: gameModules_) {
                 if (!module) {
                     spdlog::error("Null game module in registration list, skipping");
@@ -542,7 +569,7 @@ namespace ettycc {
             bench.Mark("game_modules_init");
         } else {
             if (!isEditorMode_ && gameModules_.empty())
-                spdlog::warn("[Engine] No game modules registered — loading last scene");
+                spdlog::warn("[Engine] No game modules registered -- loading last scene");
 
             LoadLastScene();
             bench.Mark("scene_load");
@@ -550,22 +577,19 @@ namespace ettycc {
 
         if (mainScene_)
             spdlog::info("[Engine] Active scene [{}]", mainScene_->sceneName_);
-        else
+        else if (!isHeadless_)
             spdlog::error("[Engine] No scene available after Init");
 
-        // Write benchmark results — file lives next to the engine config.
+        // Write benchmark results
         const std::string benchPath = globals_->GetWorkingFolder() + "config/startup_benchmark.csv";
         bench.WriteToFile(benchPath);
 
-        // ── Start the network worker thread ──────────────────────────────────
-        auto& netWorker = threadRegistry_.CreateWorker("network");
-        netWorker.Start([this]() {
-            networkManager_.Poll();
-            networkManager_.SendOutbound();
-            // ~60 polls/sec — avoid spinning the CPU
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
-        });
-        spdlog::info("[Engine] Network worker started");
+        // Network worker -- only start here for non-headless (editor/standalone).
+        // Headless mode starts the worker inside InitNetwork() so the host is
+        // already bound before the worker begins polling.
+        if (!isHeadless_) {
+            StartNetworkWorker();
+        }
     }
 
     void Engine::Update() {
@@ -621,6 +645,10 @@ namespace ettycc {
     }
 
     void Engine::PresentFrame() {
+        // Headless (dedicated server) — no rendering or audio presentation.
+        if (isHeadless_)
+            return;
+
         using Clock = std::chrono::high_resolution_clock;
         using Ms = std::chrono::duration<float, std::milli>;
 
@@ -665,11 +693,26 @@ namespace ettycc {
     //     inputSystem_.ProcessInput(type, data);
     // }
 
+    void Engine::StartNetworkWorker() {
+        auto& netWorker = threadRegistry_.CreateWorker("network");
+        netWorker.Start([this]() {
+            networkManager_.Poll();
+            networkManager_.SendOutbound();
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        });
+        spdlog::info("[Engine] Network worker started");
+    }
+
     void Engine::InitNetwork(bool isHost, uint16_t port, const std::string &serverAddress) {
         if (isHost)
             networkManager_.InitHost(port);
         else
             networkManager_.InitClient(serverAddress, port);
+
+        // For headless mode the worker is deferred until here so the
+        // host/client is fully set up before polling begins.
+        if (isHeadless_)
+            StartNetworkWorker();
     }
 
     // Builds the physics arena with a NetworkComponent on every dynamic body.
@@ -683,7 +726,8 @@ namespace ettycc {
     void Engine::LoadNetworkScene() {
         spdlog::info("[Engine] building network physics scene...");
 
-        renderEngine_.ClearRenderables();
+        if (!isHeadless_)
+            renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("network-scene");
         SetupSceneSystems(*mainScene_, *this);
 
@@ -709,12 +753,16 @@ namespace ettycc {
         uint32_t netId = 1;
         static int netBoxIdx = 0;
         auto makeNetBox = [&](glm::vec3 halfExt, glm::vec3 pos) {
-            auto sprite = std::make_shared<Sprite>(tex);
-            sprite->underylingTransform.setGlobalPosition(pos);
-            sprite->underylingTransform.setGlobalScale(glm::vec3(halfExt.x, halfExt.y, 1.0f));
-
             auto node = std::make_shared<SceneNode>("net-box-" + std::to_string(netBoxIdx++));
-            mainScene_->registry_.Add<RenderableNode>(node->GetId(), RenderableNode{sprite});
+
+            // Headless server: skip renderables — no GPU, no sprites.
+            if (!isHeadless_) {
+                auto sprite = std::make_shared<Sprite>(tex);
+                sprite->underylingTransform.setGlobalPosition(pos);
+                sprite->underylingTransform.setGlobalScale(glm::vec3(halfExt.x, halfExt.y, 1.0f));
+                mainScene_->registry_.Add<RenderableNode>(node->GetId(), RenderableNode{sprite});
+            }
+
             mainScene_->registry_.Add<RigidBodyComponent>(node->GetId(),
                                                           RigidBodyComponent{1.0f, halfExt, pos});
             mainScene_->registry_.Add<NetworkComponent>(node->GetId(),

@@ -15,6 +15,7 @@ set(80CC_CORE_HEADERS
     include/App/EnginePipeline.hpp
     include/App/ExecutionPipeline.hpp
     include/App/SDL2App.hpp
+    include/App/HeadlessApp.hpp
     include/Scene/Api.hpp
     include/Scene/NodeComponentInfo.hpp
     include/Scene/NodeComponent.hpp
@@ -86,6 +87,7 @@ set(80CC_CORE_HEADERS
 set(80CC_CORE_SOURCES
     src/80CC.cpp
     src/App/SDL2App.cpp
+    src/App/HeadlessApp.cpp
     src/Scene/Transform.cpp
     src/Scene/Scene.cpp
     src/Scene/SceneNode.cpp
@@ -153,8 +155,21 @@ find_package(Bullet CONFIG REQUIRED)
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(src/Core/external/imgui/**)
 
-# ADD THE CORE LIBRARY 
+# ADD THE CORE LIBRARY
 add_library(80CC_CORE STATIC ${80CC_CORE_SOURCES} ${80CC_CORE_HEADERS})
+
+# -- Suppress Windows header macro pollution --------------------------------
+# NOMINMAX            -> prevents min/max macros from <windows.h>
+# WIN32_LEAN_AND_MEAN -> excludes rarely-used Windows headers
+
+
+
+
+
+target_compile_definitions(80CC_CORE
+    PUBLIC
+        $<$<PLATFORM_ID:Windows>:NOMINMAX>
+        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>)
 
 # TARGET INCLUDES
 target_include_directories(80CC_CORE
