@@ -13,12 +13,14 @@
 #include <Scene/Scene.hpp>
 #include <Dependencies/Globals.hpp>
 #include <Game/GameModule.hpp>
+#include <Game/ModuleLoader.hpp>
 #include <Physics/PhysicsWorld.hpp>
 #include <Networking/NetworkManager.hpp>
 #include <Audio/AudioManager.hpp>
 #include <Threading/ThreadRegistry.hpp>
 
 #include <Scene/Assets/ResourceCache.hpp>
+#include <UI/ComponentRegistry.hpp>
 
 #include <memory>
 #include <vector>
@@ -88,6 +90,8 @@ namespace ettycc
         std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
         ThreadDebugInfo        threadDebugInfo_;
         ThreadRegistry         threadRegistry_;
+        ModuleLoader           moduleLoader_;
+        ComponentRegistry      componentRegistry_;
 
     private:
         bool isEditorMode_ = false;
@@ -141,6 +145,7 @@ namespace ettycc
 
 
         void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
+        bool LoadDynamicModule(const std::string& dllPath);
         void LoadGlobals(const std::string &fileName);
         void StoreGlobals(const std::string &fileName) const;
         void ConfigResource();

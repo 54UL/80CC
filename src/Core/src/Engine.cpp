@@ -65,11 +65,13 @@ namespace ettycc {
     static void SetupSceneSystems(Scene &scene, Engine &engine) {
         scene.systems_.clear();
         if (!engine.IsHeadless())
+        {
             scene.RegisterSystem(std::make_unique<RenderSystem>());
-        scene.RegisterSystem(std::make_unique<PhysicsSystem>());
-        if (!engine.IsHeadless())
             scene.RegisterSystem(std::make_unique<AudioSystem>());
+        }
+        scene.RegisterSystem(std::make_unique<PhysicsSystem>());
         scene.RegisterSystem(std::make_unique<NetworkSystem>());
+
         scene.Init(engine);
     }
 
@@ -390,6 +392,10 @@ namespace ettycc {
         }
     }
 
+    bool Engine::LoadDynamicModule(const std::string& dllPath) {
+        return moduleLoader_.LoadModule(dllPath, this);
+    }
+
     // ── Persistence ──────
     void Engine::LoadGlobals(const std::string &fileName) {
         const auto filePath = globals_->GetWorkingFolder() + fileName;
@@ -580,6 +586,15 @@ namespace ettycc {
         else if (!isHeadless_)
             spdlog::error("[Engine] No scene available after Init");
 
+        // ── Auto-load DLL modules from the modules/ directory ─────────────
+        {
+            const std::string modulesDir = globals_->GetWorkingFolder() + "modules/";
+            int loaded = moduleLoader_.LoadModulesFromDirectory(modulesDir, this);
+            bench.Mark("dll_modules_load");
+            if (loaded > 0)
+                spdlog::info("[Engine] {} DLL module(s) loaded from '{}'", loaded, modulesDir);
+        }
+
         // Write benchmark results
         const std::string benchPath = globals_->GetWorkingFolder() + "config/startup_benchmark.csv";
         bench.WriteToFile(benchPath);
@@ -624,6 +639,13 @@ namespace ettycc {
 
         for (const auto &module: gameModules_)
             module->OnUpdate(dt);
+
+        // DLL modules loaded via ModuleLoader
+        for (auto* mod : moduleLoader_.GetModules())
+            mod->OnUpdate(dt);
+
+        // Poll for DLL hot-reloads (internally throttled to ~1 check/sec)
+        moduleLoader_.PollForReloads(this, dt);
 
         // ── 4. Kick physics step for THIS frame (runs during PresentFrame) ───
         // Bullet Step overlaps with rendering.  Safe because all Bullet
@@ -724,12 +746,14 @@ namespace ettycc {
     // OnStart entirely, leaving syncTransform_ / rigidBody_ as nullptr and
     // the component never registered with NetworkManager.
     void Engine::LoadNetworkScene() {
+
         spdlog::info("[Engine] building network physics scene...");
 
         if (!isHeadless_)
             renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("network-scene");
         SetupSceneSystems(*mainScene_, *this);
+        physicsWorld_.SetGravity(btVector3(0.f, -9.81f, 0.f));
 
         const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;

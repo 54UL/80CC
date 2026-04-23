@@ -82,6 +82,67 @@ namespace ettycc
         return glm::degrees(eulerAngles);
     }
 
+    // ── Local setters/getters (aliases until parent hierarchy is added) ────────
+
+    void Transform::setLocalPosition(glm::vec3 position) { setGlobalPosition(position); }
+    void Transform::setLocalRotation(glm::vec3 eulerDegrees) { setGlobalRotation(eulerDegrees); }
+    void Transform::setLocalScale(glm::vec3 scale) { setGlobalScale(scale); }
+    glm::vec3 Transform::getLocalPosition() const { return getGlobalPosition(); }
+    glm::vec3 Transform::getLocalRotation() const { return rotation_; }
+    glm::vec3 Transform::getLocalScale() const { return getGlobalScale(); }
+
+    // ── Convenience ─────────────────────────────────────────────────────────────
+
+    void Transform::set(glm::vec3 eulerDegrees)
+    {
+        setGlobalRotation(eulerDegrees);
+    }
+
+    // ── Incremental operations ──────────────────────────────────────────────────
+
+    void Transform::rotate(glm::vec3 eulerDegrees)
+    {
+        setGlobalRotation(rotation_ + eulerDegrees);
+    }
+
+    void Transform::rotate(float angleDegrees, glm::vec3 axis)
+    {
+        glm::quat current = glm::quat(glm::radians(rotation_));
+        glm::quat delta   = glm::angleAxis(glm::radians(angleDegrees), glm::normalize(axis));
+        glm::quat result  = delta * current;
+        setGlobalRotation(glm::degrees(glm::eulerAngles(result)));
+    }
+
+    // ── Direction vectors ───────────────────────────────────────────────────────
+
+    glm::vec3 Transform::forward() const
+    {
+        return glm::normalize(glm::vec3(rotationMatrix * glm::vec4(0, 0, 1, 0)));
+    }
+
+    glm::vec3 Transform::right() const
+    {
+        return glm::normalize(glm::vec3(rotationMatrix * glm::vec4(1, 0, 0, 0)));
+    }
+
+    glm::vec3 Transform::up() const
+    {
+        return glm::normalize(glm::vec3(rotationMatrix * glm::vec4(0, 1, 0, 0)));
+    }
+
+    // ── Look-at ─────────────────────────────────────────────────────────────────
+
+    void Transform::lookAt(glm::vec3 target, glm::vec3 worldUp)
+    {
+        glm::vec3 dir = glm::normalize(target - position_);
+        // glm::lookAt builds a view matrix (inverted); we want the object rotation.
+        glm::mat4 look = glm::inverse(glm::lookAt(position_, target, worldUp));
+        glm::quat rot  = glm::quat_cast(look);
+        setGlobalRotation(glm::degrees(glm::eulerAngles(rot)));
+    }
+
+    // ── TRS ─────────────────────────────────────────────────────────────────────
+
     void Transform::SetFromTRS(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scale)
     {
         position_  = pos;

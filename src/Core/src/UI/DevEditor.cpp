@@ -7,6 +7,7 @@
 #include <Scene/Components/AudioListenerComponent.hpp>
 #include <Scene/Components/GravityAttractorComponent.hpp>
 #include <Networking/NetworkComponent.hpp>
+#include <UI/ComponentRegistry.hpp>
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
@@ -1179,6 +1180,51 @@ namespace ettycc
             if (!canStep) ImGui::EndDisabled();
         }
 
+        ImGui::SameLine();
+
+        // ↻ Refresh (rebuild + hot-reload modules)
+        {
+            const bool building = moduleBuildHelper_.IsRunning();
+            if (building) ImGui::BeginDisabled();
+            if (iconBtn("##refresh", IM_COL32(180, 140, 255, 255),
+                [](ImDrawList* d, ImVec2 mn, ImVec2 mx, ImU32 c) {
+                    // Circular arrow icon
+                    float cx = (mn.x + mx.x) * 0.5f;
+                    float cy = (mn.y + mx.y) * 0.5f;
+                    float r  = (mx.x - mn.x) * 0.30f;
+                    const int segs = 10;
+                    for (int i = 0; i < segs; ++i)
+                    {
+                        float a0 = -1.57f + (i       * 4.71f / segs);
+                        float a1 = -1.57f + ((i + 1) * 4.71f / segs);
+                        d->AddLine(
+                            {cx + r * cosf(a0), cy + r * sinf(a0)},
+                            {cx + r * cosf(a1), cy + r * sinf(a1)},
+                            c, 2.0f);
+                    }
+                    float ae = -1.57f + 4.71f;
+                    float ex = cx + r * cosf(ae), ey = cy + r * sinf(ae);
+                    d->AddTriangleFilled(
+                        {ex - 3.f, ey - 2.f},
+                        {ex + 2.f, ey - 2.f},
+                        {ex,       ey + 3.f}, c);
+                }))
+            {
+                auto paths = engineInstance_->moduleLoader_.GetModuleSourcePaths();
+                moduleBuildHelper_.Start(paths,
+                    configurationsWindow_.GetBuildConfig());
+                pressed = true;
+            }
+            if (building) ImGui::EndDisabled();
+
+            // When module build finishes, auto-reload DLLs
+            if (moduleBuildHelper_.IsReloadPending())
+            {
+                moduleBuildHelper_.ConsumeReload();
+                engineInstance_->moduleLoader_.ForceReloadAll(engineInstance_.get());
+            }
+        }
+
         return pressed;
     }
 
@@ -1610,7 +1656,8 @@ namespace ettycc
         // ── Components ────────────────────────────────────────────────────────
         if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::SmallButton("Add Component"))
+            float avail = ImGui::GetContentRegionAvail().x;
+            if (ImGui::Button("Add Component", ImVec2(avail, 0)))
                 ImGui::OpenPopup("add_component_popup");
 
             if (ImGui::BeginPopup("add_component_popup"))
@@ -1633,23 +1680,32 @@ namespace ettycc
                 {
                     const std::string& typeName = typeNames[i];
 
-                    // Channel badge color derived from component type.
-                    ImVec4 badgeCol;
-                    if      (typeName == RenderableNode::componentType)          badgeCol = {0.35f, 0.75f, 1.f,   1.f}; // blue
-                    else if (typeName == AudioSourceComponent::componentType ||
-                             typeName == AudioListenerComponent::componentType)  badgeCol = {0.90f, 0.40f, 0.80f, 1.f}; // magenta
-                    else                                                         badgeCol = {1.f,   0.75f, 0.2f,  1.f}; // yellow
+                    // Badge color from registry; unregistered types are module components.
+                    const auto* regEntry = engineInstance_->componentRegistry_.FindByType(typeName);
+                    bool isModuleComponent = (regEntry == nullptr);
+                    ImVec4 badgeCol = regEntry ? regEntry->badgeColor
+                                               : badge::kModule;
 
                     char headerLabel[128];
-                    snprintf(headerLabel, sizeof(headerLabel), "%s##comp_%d", typeName.c_str(), i);
+                    if (isModuleComponent)
+                        snprintf(headerLabel, sizeof(headerLabel), "[MOD] %s##comp_%d", typeName.c_str(), i);
+                    else
+                        snprintf(headerLabel, sizeof(headerLabel), "%s##comp_%d", typeName.c_str(), i);
 
                     ImGui::PushStyleColor(ImGuiCol_Text, badgeCol);
                     ImGui::Bullet();
                     ImGui::PopStyleColor();
                     ImGui::SameLine();
 
+                    // Tint the header background for module components
+                    if (isModuleComponent)
+                        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.15f, 0.35f, 0.20f, 0.60f));
+
                     // Header + remove button on the same line
                     bool open = ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap);
+
+                    if (isModuleComponent)
+                        ImGui::PopStyleColor();
 
                     // Draw X button aligned to the right of the header
                     {
@@ -1672,41 +1728,8 @@ namespace ettycc
 
                     EditorPropertyVisitor visitor;
 
-                    if (typeName == RenderableNode::componentType)
-                    {
-                        if (auto* c = selectedNode->GetComponent<RenderableNode>())
-                            c->InspectProperties(visitor);
-                    }
-                    else if (typeName == RigidBodyComponent::componentType)
-                    {
-                        if (auto* c = selectedNode->GetComponent<RigidBodyComponent>())
-                            c->InspectProperties(visitor);
-                    }
-                    else if (typeName == SoftBodyComponent::componentType)
-                    {
-                        if (auto* c = selectedNode->GetComponent<SoftBodyComponent>())
-                            c->InspectProperties(visitor);
-                    }
-                    else if (typeName == GravityAttractorComponent::componentType)
-                    {
-                        if (auto* c = selectedNode->GetComponent<GravityAttractorComponent>())
-                            c->InspectProperties(visitor);
-                    }
-                    else if (typeName == AudioSourceComponent::componentType)
-                    {
-                        if (auto* c = selectedNode->GetComponent<AudioSourceComponent>())
-                            c->InspectProperties(visitor);
-                    }
-                    else if (typeName == AudioListenerComponent::componentType)
-                    {
-                        if (auto* c = selectedNode->GetComponent<AudioListenerComponent>())
-                            c->InspectProperties(visitor);
-                    }
-                    else if (typeName == NetworkComponent::componentType)
-                    {
-                        if (auto* c = selectedNode->GetComponent<NetworkComponent>())
-                            c->InspectProperties(visitor);
-                    }
+                    if (regEntry && regEntry->inspectFn)
+                        regEntry->inspectFn(selectedNode, visitor);
 
                     if (visitor.propertyCount == 0)
                         ImGui::TextDisabled("No exposed properties");
@@ -1849,39 +1872,21 @@ namespace ettycc
     void DevEditor::DrawAddComponentMenu(const std::shared_ptr<SceneNode>& node)
     {
         if (!node) return;
-        auto& scene = *engineInstance_->mainScene_;
-        auto  eid   = node->GetId();
 
-        auto addIfMissing = [&](auto tag, const char* label) {
-            using T = std::remove_pointer_t<decltype(tag)>;
-            bool has = node->HasComponent<T>();
-            if (ImGui::MenuItem(label, nullptr, false, !has))
-            {
-                node->AddComponent<T>(T{});
-                scene.NotifyEntityAdded(eid, *engineInstance_);
-            }
-        };
+        const auto& entries = engineInstance_->componentRegistry_.Entries();
+        std::string lastCategory;
 
-        // Renderable (Sprite)
-        if (ImGui::MenuItem("Sprite", nullptr, false, !node->HasComponent<RenderableNode>()))
+        for (const auto& entry : entries)
         {
-            auto globals = GetDependency(Globals);
-            const std::string tex = globals->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
-            auto sprite = std::make_shared<Sprite>(tex);
-            sprite->underylingTransform = node->transform_;
-            node->AddComponent<RenderableNode>(RenderableNode(sprite));
-            scene.NotifyEntityAdded(eid, *engineInstance_);
-        }
+            // Insert separator between categories
+            if (!lastCategory.empty() && entry.category != lastCategory)
+                ImGui::Separator();
+            lastCategory = entry.category;
 
-        ImGui::Separator();
-        addIfMissing(static_cast<RigidBodyComponent*>(nullptr),    "Rigid Body");
-        addIfMissing(static_cast<SoftBodyComponent*>(nullptr),     "Soft Body");
-        addIfMissing(static_cast<GravityAttractorComponent*>(nullptr), "Gravity Attractor");
-        ImGui::Separator();
-        addIfMissing(static_cast<AudioSourceComponent*>(nullptr),  "Audio Source");
-        addIfMissing(static_cast<AudioListenerComponent*>(nullptr),"Audio Listener");
-        ImGui::Separator();
-        addIfMissing(static_cast<NetworkComponent*>(nullptr),      "Network");
+            bool has = entry.hasFn(node);
+            if (ImGui::MenuItem(entry.displayLabel.c_str(), nullptr, false, !has))
+                entry.addFn(node, *engineInstance_);
+        }
     }
 
     // ── Centralized node context menu ────────────────────────────────────────
@@ -1929,21 +1934,11 @@ namespace ettycc
     {
         if (!node) return;
 
-        if      (typeName == RenderableNode::componentType)
-        {
-            // Also remove from the render engine
-            auto* rn = node->GetComponent<RenderableNode>();
-            if (rn && rn->renderable_)
-                engineInstance_->renderEngine_.RemoveRenderable(rn->renderable_);
-            node->RemoveComponent<RenderableNode>();
-        }
-        else if (typeName == RigidBodyComponent::componentType)       node->RemoveComponent<RigidBodyComponent>();
-        else if (typeName == SoftBodyComponent::componentType)        node->RemoveComponent<SoftBodyComponent>();
-        else if (typeName == GravityAttractorComponent::componentType)node->RemoveComponent<GravityAttractorComponent>();
-        else if (typeName == AudioSourceComponent::componentType)     node->RemoveComponent<AudioSourceComponent>();
-        else if (typeName == AudioListenerComponent::componentType)   node->RemoveComponent<AudioListenerComponent>();
-        else if (typeName == NetworkComponent::componentType)         node->RemoveComponent<NetworkComponent>();
-        else spdlog::warn("[DevEditor] Unknown component type to remove: {}", typeName);
+        const auto* entry = engineInstance_->componentRegistry_.FindByType(typeName);
+        if (entry && entry->removeFn)
+            entry->removeFn(node, *engineInstance_);
+        else
+            spdlog::warn("[DevEditor] Unknown component type to remove: {}", typeName);
     }
 
     // ── Duplicate node ───────────────────────────────────────────────────────
@@ -2728,6 +2723,146 @@ namespace ettycc
             false);
         gameViewFBO_->Init();
         gameViewFBOReady_ = true;
+
+        // ── Register built-in components ─────────────────────────────────────
+        auto& reg = engineInstance_->componentRegistry_;
+        if (!reg.FindByType(RenderableNode::componentType))
+        {
+            // Shared lambdas for Renderable-based components (Sprite & Camera)
+            auto renderableHas = [](const std::shared_ptr<SceneNode>& n) {
+                return n->HasComponent<RenderableNode>();
+            };
+            auto renderableRemove = [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                auto* rn = n->GetComponent<RenderableNode>();
+                if (rn && rn->renderable_)
+                    eng.renderEngine_.RemoveRenderable(rn->renderable_);
+                n->RemoveComponent<RenderableNode>();
+            };
+            auto renderableInspect = [](const std::shared_ptr<SceneNode>& n, EditorPropertyVisitor& v) {
+                if (auto* c = n->GetComponent<RenderableNode>()) c->InspectProperties(v);
+            };
+
+            // Sprite
+            reg.Register({
+                RenderableNode::componentType, "Sprite", "Rendering",
+                badge::kRendering,
+                renderableHas,
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    auto globals = GetDependency(Globals);
+                    const std::string tex = globals->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+                    auto sprite = std::make_shared<Sprite>(tex);
+                    sprite->underylingTransform = n->transform_;
+                    n->AddComponent<RenderableNode>(RenderableNode(sprite));
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                renderableRemove,
+                renderableInspect
+            });
+
+            // Camera
+            reg.Register({
+                "Camera", "Camera", "Rendering",
+                badge::kRendering,
+                renderableHas,
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    auto sz = eng.appInstance_->GetMainWindowSize();
+                    auto cam = std::make_shared<Camera>(sz.x, sz.y);
+                    cam->underylingTransform = n->transform_;
+                    cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
+                    n->AddComponent<RenderableNode>(RenderableNode(cam));
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                renderableRemove,
+                renderableInspect
+            });
+
+            // Physics
+            reg.Register({
+                RigidBodyComponent::componentType, "Rigid Body", "Physics",
+                badge::kPhysics,
+                [](const std::shared_ptr<SceneNode>& n) { return n->HasComponent<RigidBodyComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    n->AddComponent<RigidBodyComponent>(RigidBodyComponent{});
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                [](const std::shared_ptr<SceneNode>& n, Engine&) { n->RemoveComponent<RigidBodyComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, EditorPropertyVisitor& v) {
+                    if (auto* c = n->GetComponent<RigidBodyComponent>()) c->InspectProperties(v);
+                }
+            });
+
+            reg.Register({
+                SoftBodyComponent::componentType, "Soft Body", "Physics",
+                badge::kPhysics,
+                [](const std::shared_ptr<SceneNode>& n) { return n->HasComponent<SoftBodyComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    n->AddComponent<SoftBodyComponent>(SoftBodyComponent{});
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                [](const std::shared_ptr<SceneNode>& n, Engine&) { n->RemoveComponent<SoftBodyComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, EditorPropertyVisitor& v) {
+                    if (auto* c = n->GetComponent<SoftBodyComponent>()) c->InspectProperties(v);
+                }
+            });
+
+            reg.Register({
+                GravityAttractorComponent::componentType, "Gravity Attractor", "Physics",
+                badge::kPhysics,
+                [](const std::shared_ptr<SceneNode>& n) { return n->HasComponent<GravityAttractorComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    n->AddComponent<GravityAttractorComponent>(GravityAttractorComponent{});
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                [](const std::shared_ptr<SceneNode>& n, Engine&) { n->RemoveComponent<GravityAttractorComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, EditorPropertyVisitor& v) {
+                    if (auto* c = n->GetComponent<GravityAttractorComponent>()) c->InspectProperties(v);
+                }
+            });
+
+            // Audio
+            reg.Register({
+                AudioSourceComponent::componentType, "Audio Source", "Audio",
+                badge::kAudio,
+                [](const std::shared_ptr<SceneNode>& n) { return n->HasComponent<AudioSourceComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    n->AddComponent<AudioSourceComponent>(AudioSourceComponent{});
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                [](const std::shared_ptr<SceneNode>& n, Engine&) { n->RemoveComponent<AudioSourceComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, EditorPropertyVisitor& v) {
+                    if (auto* c = n->GetComponent<AudioSourceComponent>()) c->InspectProperties(v);
+                }
+            });
+
+            reg.Register({
+                AudioListenerComponent::componentType, "Audio Listener", "Audio",
+                badge::kAudio,
+                [](const std::shared_ptr<SceneNode>& n) { return n->HasComponent<AudioListenerComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    n->AddComponent<AudioListenerComponent>(AudioListenerComponent{});
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                [](const std::shared_ptr<SceneNode>& n, Engine&) { n->RemoveComponent<AudioListenerComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, EditorPropertyVisitor& v) {
+                    if (auto* c = n->GetComponent<AudioListenerComponent>()) c->InspectProperties(v);
+                }
+            });
+
+            // Networking
+            reg.Register({
+                NetworkComponent::componentType, "Network", "Networking",
+                badge::kNetwork,
+                [](const std::shared_ptr<SceneNode>& n) { return n->HasComponent<NetworkComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
+                    n->AddComponent<NetworkComponent>(NetworkComponent{});
+                    eng.mainScene_->NotifyEntityAdded(n->GetId(), eng);
+                },
+                [](const std::shared_ptr<SceneNode>& n, Engine&) { n->RemoveComponent<NetworkComponent>(); },
+                [](const std::shared_ptr<SceneNode>& n, EditorPropertyVisitor& v) {
+                    if (auto* c = n->GetComponent<NetworkComponent>()) c->InspectProperties(v);
+                }
+            });
+        }
     }
 
     void DevEditor::UpdateUI() { DrawEditor(); }

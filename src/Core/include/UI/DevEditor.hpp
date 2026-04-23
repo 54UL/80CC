@@ -10,6 +10,7 @@
 #include <UI/SpriteEditor.hpp>
 #include <Scene/Assets/AssetBuilder.hpp>
 #include <Graphics/Rendering/PickerBuffer.hpp>
+#include <Build/ModuleBuildHelper.hpp>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -18,6 +19,7 @@
 #include <memory>
 #include <filesystem>
 #include <Scene/Components/RenderableNode.hpp>
+#include <UI/ComponentRegistry.hpp>
 
 namespace ettycc
 {
@@ -123,6 +125,9 @@ namespace ettycc
 
         // SPRITE EDITOR
         SpriteEditor         spriteEditor_;
+
+        // MODULE REBUILD
+        build::ModuleBuildHelper moduleBuildHelper_;
 
         // EDITOR OVERLAY TOGGLES
         bool showColliderDebug_  = true;
