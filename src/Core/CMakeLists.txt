@@ -49,11 +49,14 @@ set(80CC_CORE_HEADERS
     include/Input/Controls/GhostCamera.hpp
     include/Input/Controls/EditorCamera.hpp
     include/Game/GameModule.hpp
+    include/Game/ModuleLibrary.hpp
+    include/Game/ModuleLoader.hpp
     include/GlobalKeys.hpp
     include/Dependencies/Globals.hpp
     include/Build/BuildStrings.hpp
     include/Build/BuildConfig.hpp
     include/Build/BuildController.hpp
+    include/Build/ModuleBuildHelper.hpp
     include/UI/Build/BuildPanelUI.hpp
     include/UI/ConfigurationsWindow.hpp
     include/UI/DevEditor.hpp
@@ -123,11 +126,13 @@ set(80CC_CORE_SOURCES
     src/Build/BuildController.cpp
     src/UI/Build/BuildPanelUI.cpp
     src/UI/ConfigurationsWindow.cpp
+    src/UI/ComponentRegistry.cpp
     src/UI/DevEditor.cpp
     src/UI/SpriteEditor.cpp
     src/UI/BuildPanel.cpp
     src/UI/Widgets/PathFieldWidget.cpp
     src/Engine.cpp
+    src/Game/ModuleLoader.cpp
     src/Networking/NetworkManager.cpp
     src/Networking/NetworkComponent.cpp
     # IMGUI LIBRARY SOURCES
@@ -157,6 +162,10 @@ include_directories(src/Core/external/imgui/**)
 
 # ADD THE CORE LIBRARY
 add_library(80CC_CORE STATIC ${80CC_CORE_SOURCES} ${80CC_CORE_HEADERS})
+
+# DLL modules link this static lib — PIC is required on Linux, and both
+# the EXE and DLLs must use the same dynamic CRT on Windows (/MD).
+set_target_properties(80CC_CORE PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # -- Suppress Windows header macro pollution --------------------------------
 # NOMINMAX            -> prevents min/max macros from <windows.h>
