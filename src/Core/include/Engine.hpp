@@ -80,18 +80,18 @@ namespace ettycc
         std::shared_ptr<Camera>                     editorCamera_;
         std::shared_ptr<Grid>                       editorGrid_;
 
+        std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
         Rendering              renderEngine_;
         PhysicsWorld           physicsWorld_;
         bool                   simulationPaused_ = false;
         AudioManager           audioManager_;
-        std::shared_ptr<ResourceCache> resourceCache_;
         PlayerInput            inputSystem_;
         NetworkManager         networkManager_;
-        std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
         ThreadDebugInfo        threadDebugInfo_;
         ThreadRegistry         threadRegistry_;
         ModuleLoader           moduleLoader_;
         ComponentRegistry      componentRegistry_;
+        std::shared_ptr<ResourceCache> resourceCache_;
 
     private:
         bool isEditorMode_ = false;

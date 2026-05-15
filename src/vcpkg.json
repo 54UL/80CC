@@ -15,6 +15,7 @@
         "name": "bullet3",
         "features": ["multithreading"]
       },
-      "openal-soft"
+      "openal-soft",
+      "cpr"
     ]
   }

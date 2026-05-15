@@ -155,6 +155,8 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(cereal CONFIG REQUIRED)
 find_package(unofficial-enet CONFIG REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
+find_package(cpr CONFIG REQUIRED)
+
 
 # DIR INCLUDES (avoid this...)
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -199,4 +201,5 @@ target_link_libraries(80CC_CORE
     PUBLIC cereal::cereal
     PUBLIC unofficial::enet::enet
     PUBLIC ${BULLET_LIBRARIES}
-    PUBLIC OpenAL::OpenAL)
+    PUBLIC OpenAL::OpenAL
+    PUBLIC cpr::cpr)
