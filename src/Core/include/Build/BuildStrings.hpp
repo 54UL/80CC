@@ -2,7 +2,7 @@
 
 namespace ettycc::build::str
 {
-    // ── Window / section / field labels ──────────────────────────────────────
+    // -- Window / section / field labels --------------------------------------
     inline constexpr const char* WIN_BUILD            = "Build";
     inline constexpr const char* WIN_CONFIGURATIONS   = "Configurations";
 
@@ -22,7 +22,7 @@ namespace ettycc::build::str
     inline constexpr const char* FLD_VCVARSALL        = "vcvarsall";
     inline constexpr const char* FLD_VCPKG_TOOLCHAIN  = "vcpkg toolchain";
 
-    // ── Button labels ─────────────────────────────────────────────────────────
+    // -- Button labels ---------------------------------------------------------
     inline constexpr const char* BTN_BUILD            = "  Build  ";
     inline constexpr const char* BTN_BUILDING         = "Building...";
     inline constexpr const char* BTN_BROWSE           = "...";
@@ -34,12 +34,12 @@ namespace ettycc::build::str
     inline constexpr const char* BTN_EXPORT_CFG       = "Export...##cfg";
     inline constexpr const char* BTN_SAVE_GLOBALS     = "Save Globals";
 
-    // ── Log prefixes ──────────────────────────────────────────────────────────
+    // -- Log prefixes ----------------------------------------------------------
     inline constexpr const char* LOG_80CC             = "[80CC]";
     inline constexpr const char* LOG_ERROR            = "[ERROR]";
     inline constexpr const char* LOG_WARNING          = "[WARNING]";
 
-    // ── Status messages ───────────────────────────────────────────────────────
+    // -- Status messages -------------------------------------------------------
     inline constexpr const char* STS_STARTING         = "Starting...";
     inline constexpr const char* STS_CLEANING         = "Cleaning...";
     inline constexpr const char* STS_RUNNING_GEN      = "Running generator...";
@@ -51,9 +51,9 @@ namespace ettycc::build::str
     inline constexpr const char* STS_FAILED           = "Failed.";
     inline constexpr const char* STS_GEN_FAILED       = "Generator failed.";
 
-    // ── Tooltip texts ─────────────────────────────────────────────────────────
+    // -- Tooltip texts ---------------------------------------------------------
     inline constexpr const char* TIP_SOURCE =
-        "Game source root — must contain include/ and src/ directly.\n"
+        "Game source root -- must contain include/ and src/ directly.\n"
         "e.g. assets/src  (not assets/)";
 
     inline constexpr const char* TIP_OUTPUT =
@@ -65,7 +65,7 @@ namespace ettycc::build::str
         "(auto-detected if next to the editor executable)";
 
     inline constexpr const char* TIP_CORE_INCLUDE =
-        "80CC_CORE include/ directory — contains Engine.hpp, 80CC.hpp, etc.";
+        "80CC_CORE include/ directory -- contains Engine.hpp, 80CC.hpp, etc.";
 
     inline constexpr const char* TIP_GENERATOR =
         "cmake -G value (e.g. \"Ninja\", \"Visual Studio 17 2022\").\n"
@@ -73,11 +73,11 @@ namespace ettycc::build::str
         "Leave blank = cmake default (may pick NMake on Windows).";
 
     inline constexpr const char* TIP_VCVARSALL =
-        "Path to vcvarsall.bat — used to initialize the MSVC environment\n"
+        "Path to vcvarsall.bat -- used to initialize the MSVC environment\n"
         "before cmake runs (required for Ninja + MSVC on Windows).";
 
     inline constexpr const char* TIP_VCPKG =
-        "Path to vcpkg.cmake — NOT vcpkg.exe.\n"
+        "Path to vcpkg.cmake -- NOT vcpkg.exe.\n"
         "Full path: <vcpkg-root>/scripts/buildsystems/vcpkg.cmake\n"
         "e.g. D:\\repos2\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake\n\n"
         "Passed to cmake as -DCMAKE_TOOLCHAIN_FILE so that\n"
@@ -93,7 +93,7 @@ namespace ettycc::build::str
     inline constexpr const char* TIP_BUILD_DISABLED_CLIB = "Set Core lib path first";
     inline constexpr const char* TIP_BUILD_DISABLED_CINC = "Set Core include path first";
 
-    // ── Auto-detection paths ──────────────────────────────────────────────────
+    // -- Auto-detection paths --------------------------------------------------
     inline constexpr const char* PATH_VSWHERE_EXE =
         "C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe";
 
@@ -107,22 +107,22 @@ namespace ettycc::build::str
     inline constexpr const char* PATH_VCVARSALL_REL =
         "\\VC\\Auxiliary\\Build\\vcvarsall.bat";
 
-    // ── Generator names ───────────────────────────────────────────────────────
+    // -- Generator names -------------------------------------------------------
     inline constexpr const char* GEN_NINJA            = "Ninja";
     inline constexpr const char* GEN_VS_2022          = "Visual Studio 17 2022";
 
-    // ── cmake / vcpkg constants ───────────────────────────────────────────────
+    // -- cmake / vcpkg constants -----------------------------------------------
     inline constexpr const char* CMAKE_TOOLCHAIN_KEY  = "CMAKE_TOOLCHAIN_FILE:FILEPATH=";
     inline constexpr const char* VCPKG_TOOLCHAIN_REL  = "/scripts/buildsystems/vcpkg.cmake";
     inline constexpr const char* NINJA_CHECK_CMD      = "ninja --version 2>nul";
 
-    // ── Category names ────────────────────────────────────────────────────────
+    // -- Category names --------------------------------------------------------
     inline constexpr const char* CAT_BUILD            = "Build";
     inline constexpr const char* CAT_GLOBALS          = "Globals";
 
-    // ── vcpkg exe warning ─────────────────────────────────────────────────────
+    // -- vcpkg exe warning -----------------------------------------------------
     inline constexpr const char* WARN_VCPKG_EXE_1 =
-        "  [!] This looks like vcpkg.exe — select vcpkg.cmake instead:";
+        "  [!] This looks like vcpkg.exe -- select vcpkg.cmake instead:";
     inline constexpr const char* WARN_VCPKG_EXE_2 =
         "      <vcpkg-root>/scripts/buildsystems/vcpkg.cmake";
 

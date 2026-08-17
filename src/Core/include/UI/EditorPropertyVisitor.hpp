@@ -1,9 +1,9 @@
 #ifndef EDITOR_PROPERTY_VISITOR_HPP
 #define EDITOR_PROPERTY_VISITOR_HPP
 
-// ── EditorPropertyVisitor ─────────────────────────────────────────────────────
+// -- EditorPropertyVisitor -----------------------------------------------------
 // ImGui-rendering visitor.  Only compiled when building the editor.
-// Components include this ONLY in their .cpp — never in their .hpp — so that
+// Components include this ONLY in their .cpp -- never in their .hpp -- so that
 // imgui never leaks into game-build headers.
 //
 // Usage:
@@ -44,7 +44,7 @@ namespace ettycc
 
             const bool ro = (flags & PROP_READ_ONLY) != 0;
 
-            // ── Two-column layout: label left, widget right ────────────────
+            // -- Two-column layout: label left, widget right ----------------
             const float avail      = ImGui::GetContentRegionAvail().x;
             const float labelWidth = ImMax(80.f, avail * 0.38f);
             const float widgetWidth = avail - labelWidth - ImGui::GetStyle().ItemSpacing.x;

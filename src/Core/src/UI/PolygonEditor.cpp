@@ -1,4 +1,4 @@
-#include <UI/SpriteEditor.hpp>
+#include <UI/PolygonEditor.hpp>
 #include <UI/Widgets/PathFieldWidget.hpp>
 #include <Engine.hpp>
 #include <Scene/Assets/ResourceCache.hpp>
@@ -16,40 +16,40 @@ namespace ettycc
 {
     // -- Coordinate conversions -----------------------------------------------
 
-    ImVec2 SpriteEditor::WorldToCanvas(glm::vec2 world, ImVec2 cp, ImVec2 cs) const
+    ImVec2 PolygonEditor::WorldToCanvas(glm::vec2 world, ImVec2 cp, ImVec2 cs) const
     {
         float cx = cp.x + cs.x * 0.5f + (world.x + canvasOffset_.x) * canvasZoom_;
         float cy = cp.y + cs.y * 0.5f - (world.y + canvasOffset_.y) * canvasZoom_;
         return { cx, cy };
     }
 
-    glm::vec2 SpriteEditor::CanvasToWorld(ImVec2 screen, ImVec2 cp, ImVec2 cs) const
+    glm::vec2 PolygonEditor::CanvasToWorld(ImVec2 screen, ImVec2 cp, ImVec2 cs) const
     {
         float x = (screen.x - cp.x - cs.x * 0.5f) / canvasZoom_ - canvasOffset_.x;
         float y = -(screen.y - cp.y - cs.y * 0.5f) / canvasZoom_ - canvasOffset_.y;
         return { x, y };
     }
 
-    ImVec2 SpriteEditor::UVToCanvas(glm::vec2 uv, ImVec2 cp, ImVec2 cs) const
+    ImVec2 PolygonEditor::UVToCanvas(glm::vec2 uv, ImVec2 cp, ImVec2 cs) const
     {
         float cx = cp.x + 20.f + uv.x * uvCanvasZoom_;
         float cy = cp.y + cs.y - 20.f - uv.y * uvCanvasZoom_;
         return { cx, cy };
     }
 
-    glm::vec2 SpriteEditor::CanvasToUV(ImVec2 screen, ImVec2 cp, ImVec2 cs) const
+    glm::vec2 PolygonEditor::CanvasToUV(ImVec2 screen, ImVec2 cp, ImVec2 cs) const
     {
         float u = (screen.x - cp.x - 20.f) / uvCanvasZoom_;
         float v = -(screen.y - cp.y - cs.y + 20.f) / uvCanvasZoom_;
         return { u, v };
     }
 
-    float SpriteEditor::SnapValue(float val, float grid) const
+    float PolygonEditor::SnapValue(float val, float grid) const
     {
         return std::round(val / grid) * grid;
     }
 
-    void SpriteEditor::MarkCustom()
+    void PolygonEditor::MarkCustom()
     {
         shape_.preset = SpriteShape::Preset::Custom;
         shape_.name = "Custom";
@@ -57,7 +57,7 @@ namespace ettycc
 
     // -- Selection helpers ----------------------------------------------------
 
-    void SpriteEditor::SelectVert(int i, bool additive)
+    void PolygonEditor::SelectVert(int i, bool additive)
     {
         if (i < 0 || i >= static_cast<int>(shape_.vertices.size())) return;
         if (!additive) selectedVerts_.clear();
@@ -65,14 +65,14 @@ namespace ettycc
         selectedVert_ = i;
     }
 
-    void SpriteEditor::ClearSelection()
+    void PolygonEditor::ClearSelection()
     {
         selectedVerts_.clear();
         selectedVert_ = -1;
         selectedEdge_ = Edge::None();
     }
 
-    void SpriteEditor::RemapSelectionAfterDelete(int deletedIdx)
+    void PolygonEditor::RemapSelectionAfterDelete(int deletedIdx)
     {
         std::set<int> remapped;
         for (int v : selectedVerts_)
@@ -96,7 +96,7 @@ namespace ettycc
 
     // -- Edge helpers ---------------------------------------------------------
 
-    std::set<SpriteEditor::Edge> SpriteEditor::CollectEdges() const
+    std::set<PolygonEditor::Edge> PolygonEditor::CollectEdges() const
     {
         std::set<Edge> edges;
         for (size_t i = 0; i + 2 < shape_.indices.size(); i += 3)
@@ -111,7 +111,7 @@ namespace ettycc
         return edges;
     }
 
-    float SpriteEditor::PointToEdgeDist(ImVec2 p, ImVec2 a, ImVec2 b) const
+    float PolygonEditor::PointToEdgeDist(ImVec2 p, ImVec2 a, ImVec2 b) const
     {
         float dx = b.x - a.x, dy = b.y - a.y;
         float lenSq = dx * dx + dy * dy;
@@ -123,7 +123,7 @@ namespace ettycc
         return std::sqrt(ex * ex + ey * ey);
     }
 
-    float SpriteEditor::PointToEdgeDistWorld(glm::vec2 p, glm::vec2 a, glm::vec2 b, float& outT) const
+    float PolygonEditor::PointToEdgeDistWorld(glm::vec2 p, glm::vec2 a, glm::vec2 b, float& outT) const
     {
         glm::vec2 ab = b - a;
         float lenSq = glm::dot(ab, ab);
@@ -135,7 +135,7 @@ namespace ettycc
 
     // -- Local-space helpers --------------------------------------------------
 
-    glm::vec2 SpriteEditor::ComputeVertexNormal(int index) const
+    glm::vec2 PolygonEditor::ComputeVertexNormal(int index) const
     {
         if (index < 0 || index >= static_cast<int>(shape_.vertices.size()))
             return { 0.f, 1.f };
@@ -176,7 +176,7 @@ namespace ettycc
         return { 0.f, 1.f };
     }
 
-    glm::vec2 SpriteEditor::ComputeEdgeNormal(Edge edge) const
+    glm::vec2 PolygonEditor::ComputeEdgeNormal(Edge edge) const
     {
         if (!edge.Valid()) return { 0.f, 1.f };
         glm::vec2 a = shape_.vertices[edge.a].position;
@@ -186,7 +186,7 @@ namespace ettycc
         return glm::normalize(glm::vec2(-dir.y, dir.x));
     }
 
-    glm::vec2 SpriteEditor::ComputeEdgeTangent(Edge edge) const
+    glm::vec2 PolygonEditor::ComputeEdgeTangent(Edge edge) const
     {
         if (!edge.Valid()) return { 1.f, 0.f };
         glm::vec2 a = shape_.vertices[edge.a].position;
@@ -198,7 +198,7 @@ namespace ettycc
 
     // -- Vertex operations ----------------------------------------------------
 
-    void SpriteEditor::AddVertexAtWorld(glm::vec2 worldPos)
+    void PolygonEditor::AddVertexAtWorld(glm::vec2 worldPos)
     {
         if (snapEnabled_ && snapToGrid_)
         {
@@ -212,7 +212,7 @@ namespace ettycc
         SelectVert(idx, false);
     }
 
-    void SpriteEditor::DeleteVertex(int index)
+    void PolygonEditor::DeleteVertex(int index)
     {
         if (index < 0 || index >= static_cast<int>(shape_.vertices.size())) return;
 
@@ -241,12 +241,12 @@ namespace ettycc
         RemapSelectionAfterDelete(index);
     }
 
-    void SpriteEditor::DeleteSelectedVertex()
+    void PolygonEditor::DeleteSelectedVertex()
     {
         DeleteVertex(selectedVert_);
     }
 
-    void SpriteEditor::DeleteSelectedVerts()
+    void PolygonEditor::DeleteSelectedVerts()
     {
         // Delete in reverse order to keep indices valid
         std::vector<int> sorted(selectedVerts_.begin(), selectedVerts_.end());
@@ -258,7 +258,7 @@ namespace ettycc
 
     // -- Geometry operations --------------------------------------------------
 
-    void SpriteEditor::ExtrudeVertex(int index, glm::vec2 direction)
+    void PolygonEditor::ExtrudeVertex(int index, glm::vec2 direction)
     {
         if (index < 0 || index >= static_cast<int>(shape_.vertices.size())) return;
 
@@ -273,7 +273,7 @@ namespace ettycc
         MarkCustom();
     }
 
-    void SpriteEditor::ExtrudeEdge(Edge edge, glm::vec2 direction)
+    void PolygonEditor::ExtrudeEdge(Edge edge, glm::vec2 direction)
     {
         if (!edge.Valid()) return;
         int n = static_cast<int>(shape_.vertices.size());
@@ -303,7 +303,7 @@ namespace ettycc
         MarkCustom();
     }
 
-    void SpriteEditor::SubdivideEdge(Edge edge)
+    void PolygonEditor::SubdivideEdge(Edge edge)
     {
         if (!edge.Valid()) return;
         int n = static_cast<int>(shape_.vertices.size());
@@ -357,7 +357,7 @@ namespace ettycc
         MarkCustom();
     }
 
-    void SpriteEditor::MergeVertices(int a, int b)
+    void PolygonEditor::MergeVertices(int a, int b)
     {
         if (a < 0 || b < 0) return;
         int n = static_cast<int>(shape_.vertices.size());
@@ -395,7 +395,7 @@ namespace ettycc
         MarkCustom();
     }
 
-    void SpriteEditor::FlipEdge(Edge edge)
+    void PolygonEditor::FlipEdge(Edge edge)
     {
         if (!edge.Valid()) return;
 
@@ -437,13 +437,13 @@ namespace ettycc
         MarkCustom();
     }
 
-    void SpriteEditor::DissolveVertex(int index)
+    void PolygonEditor::DissolveVertex(int index)
     {
         if (index < 0 || index >= static_cast<int>(shape_.vertices.size())) return;
         DeleteVertex(index);
     }
 
-    void SpriteEditor::DissolveSelectedVerts()
+    void PolygonEditor::DissolveSelectedVerts()
     {
         // Delete in reverse index order so removals don't invalidate earlier indices
         std::vector<int> sorted(selectedVerts_.begin(), selectedVerts_.end());
@@ -453,7 +453,7 @@ namespace ettycc
         ClearSelection();
     }
 
-    void SpriteEditor::DissolveEdge(Edge edge)
+    void PolygonEditor::DissolveEdge(Edge edge)
     {
         if (!edge.Valid()) return;
 
@@ -481,7 +481,7 @@ namespace ettycc
 
     // -- Auto-merge / edge-clip on extrude confirm ----------------------------
 
-    int SpriteEditor::FindNearestVertex(glm::vec2 pos, float maxDist, const std::set<int>& exclude) const
+    int PolygonEditor::FindNearestVertex(glm::vec2 pos, float maxDist, const std::set<int>& exclude) const
     {
         int best = -1;
         float bestDist = maxDist;
@@ -494,7 +494,7 @@ namespace ettycc
         return best;
     }
 
-    int SpriteEditor::SplitEdgeAtPoint(Edge edge, glm::vec2 point)
+    int PolygonEditor::SplitEdgeAtPoint(Edge edge, glm::vec2 point)
     {
         if (!edge.Valid()) return -1;
         int n = static_cast<int>(shape_.vertices.size());
@@ -552,7 +552,7 @@ namespace ettycc
         return midIdx;
     }
 
-    void SpriteEditor::AutoMergeExtruded()
+    void PolygonEditor::AutoMergeExtruded()
     {
         if (!autoMerge_ || extrudeNewVerts_.empty()) return;
 
@@ -694,13 +694,13 @@ namespace ettycc
 
     // -- Main draw ------------------------------------------------------------
 
-    void SpriteEditor::Draw(const std::shared_ptr<Engine>& engine)
+    void PolygonEditor::Draw(const std::shared_ptr<Engine>& engine)
     {
         if (!isOpen) return;
         frameEngine_ = engine;
 
         ImGui::SetNextWindowSize(ImVec2(1200, 650), ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin("Sprite Editor", &isOpen))
+        if (!ImGui::Begin("Polygon Editor", &isOpen))
         {
             ImGui::End();
             frameEngine_ = nullptr;
@@ -710,8 +710,8 @@ namespace ettycc
         DrawToolbar();
         ImGui::Separator();
 
-        // -- DockSpace inside Sprite Editor ------------------------------
-        dockspaceId_ = ImGui::GetID("##SpriteEditorDock");
+        // -- DockSpace inside Polygon Editor ------------------------------
+        dockspaceId_ = ImGui::GetID("##PolygonEditorDock");
 
         // Build the default dock layout BEFORE the DockSpace() call.
         // DockBuilderGetNode returns NULL when the node doesn't exist yet
@@ -796,13 +796,13 @@ namespace ettycc
             DrawShapeInfo();
         ImGui::End();
 
-        ImGui::End(); // Sprite Editor
+        ImGui::End(); // Polygon Editor
         frameEngine_ = nullptr;
     }
 
     // -- Toolbar --------------------------------------------------------------
 
-    void SpriteEditor::DrawToolbar()
+    void PolygonEditor::DrawToolbar()
     {
         bool isVertMode = (editMode_ == EditMode::Vertex);
         bool isEdgeMode = (editMode_ == EditMode::Edge);
@@ -895,7 +895,7 @@ namespace ettycc
 
     // -- Material preview ----------------------------------------------------
 
-    void SpriteEditor::DrawMaterialPreview()
+    void PolygonEditor::DrawMaterialPreview()
     {
         ImGui::SeparatorText("Material Preview");
 
@@ -992,7 +992,7 @@ namespace ettycc
 
     // -- Shape presets --------------------------------------------------------
 
-    void SpriteEditor::DrawShapePresets()
+    void PolygonEditor::DrawShapePresets()
     {
         ImGui::SeparatorText("Shape Presets");
 
@@ -1025,7 +1025,7 @@ namespace ettycc
 
     // -- Snap configuration ---------------------------------------------------
 
-    void SpriteEditor::DrawSnapConfig()
+    void PolygonEditor::DrawSnapConfig()
     {
         ImGui::SeparatorText("Snap");
 
@@ -1051,7 +1051,7 @@ namespace ettycc
 
     // -- Geometry operations panel --------------------------------------------
 
-    void SpriteEditor::DrawGeometryOps()
+    void PolygonEditor::DrawGeometryOps()
     {
         ImGui::SeparatorText("Geometry");
 
@@ -1131,7 +1131,7 @@ namespace ettycc
 
     // -- Vertex inspector -----------------------------------------------------
 
-    void SpriteEditor::DrawVertexInspector()
+    void PolygonEditor::DrawVertexInspector()
     {
         ImGui::SeparatorText("Properties");
 
@@ -1214,7 +1214,7 @@ namespace ettycc
 
     // -- Shape info -----------------------------------------------------------
 
-    void SpriteEditor::DrawShapeInfo()
+    void PolygonEditor::DrawShapeInfo()
     {
         ImGui::SeparatorText("Info");
         ImGui::Text("Shape: %s", shape_.name.c_str());
@@ -1226,12 +1226,12 @@ namespace ettycc
         ImGui::Text("Selected: %d", static_cast<int>(selectedVerts_.size()));
 
         if (extruding_) ImGui::TextColored(ImVec4(1, .8f, .2f, 1), "EXTRUDING... (click confirm, Esc cancel)");
-        if (boxSelecting_) ImGui::TextColored(ImVec4(.5f, .8f, 1, 1), "BOX SELECT...");
+        if (boxSelector_.active) ImGui::TextColored(ImVec4(.5f, .8f, 1, 1), "BOX SELECT...");
     }
 
     // -- Mini-gizmo (local-space axes at selection) ---------------------------
 
-    void SpriteEditor::DrawMiniGizmo(ImDrawList* dl, ImVec2 origin, ImVec2 canvasPos, ImVec2 canvasSize)
+    void PolygonEditor::DrawMiniGizmo(ImDrawList* dl, ImVec2 origin, ImVec2 canvasPos, ImVec2 canvasSize)
     {
         constexpr float HANDLE_LEN = 45.f;
         constexpr float HIT_R      = 10.f;
@@ -1366,7 +1366,7 @@ namespace ettycc
 
     // -- Vertex canvas --------------------------------------------------------
 
-    void SpriteEditor::DrawVertexCanvas(ImVec2 canvasPos, ImVec2 canvasSize)
+    void PolygonEditor::DrawVertexCanvas(ImVec2 canvasPos, ImVec2 canvasSize)
     {
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
@@ -1474,21 +1474,13 @@ namespace ettycc
         }
 
         // -- Draw box selection rectangle ---------------------------------
-        if (boxSelecting_)
-        {
-            ImVec2 bMin = { std::min(boxStart_.x, boxEnd_.x), std::min(boxStart_.y, boxEnd_.y) };
-            ImVec2 bMax = { std::max(boxStart_.x, boxEnd_.x), std::max(boxStart_.y, boxEnd_.y) };
-            ImU32 fillCol = boxDeselectMode_ ? IM_COL32(255, 100, 100, 40)  : IM_COL32(100, 150, 255, 40);
-            ImU32 lineCol = boxDeselectMode_ ? IM_COL32(255, 100, 100, 200) : IM_COL32(100, 150, 255, 200);
-            dl->AddRectFilled(bMin, bMax, fillCol);
-            dl->AddRect(bMin, bMax, lineCol, 0.f, 0, 1.5f);
-        }
+        boxSelector_.Draw(dl);
 
         // -- Draw mini-gizmo at selection ---------------------------------
         bool hasGizmoTarget = false;
         ImVec2 gizmoOrigin = {};
 
-        if (editMode_ == EditMode::Vertex && !selectedVerts_.empty() && !extruding_ && !boxSelecting_)
+        if (editMode_ == EditMode::Vertex && !selectedVerts_.empty() && !extruding_ && !boxSelector_.active)
         {
             // Gizmo at centroid of selection
             glm::vec2 centroid(0.f);
@@ -1508,7 +1500,7 @@ namespace ettycc
                 hasGizmoTarget = true;
             }
         }
-        else if (editMode_ == EditMode::Edge && selectedEdge_.Valid() && !extruding_ && !boxSelecting_)
+        else if (editMode_ == EditMode::Edge && selectedEdge_.Valid() && !extruding_ && !boxSelector_.active)
         {
             glm::vec2 mid = (shape_.vertices[selectedEdge_.a].position +
                              shape_.vertices[selectedEdge_.b].position) * 0.5f;
@@ -1628,51 +1620,37 @@ namespace ettycc
             }
         }
         // -- Box selection mode -------------------------------------------
-        else if (boxSelecting_)
+        else if (boxSelector_.active)
         {
-            boxEnd_ = mp;
+            bool cancelled = false;
+            boxSelector_.Update(mp, &cancelled);
 
-            // Middle-mouse toggles deselect mode (Blender-style)
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
-                boxDeselectMode_ = !boxDeselectMode_;
-
-            // Update selection: all verts inside the box
-            ImVec2 bMin = { std::min(boxStart_.x, boxEnd_.x), std::min(boxStart_.y, boxEnd_.y) };
-            ImVec2 bMax = { std::max(boxStart_.x, boxEnd_.x), std::max(boxStart_.y, boxEnd_.y) };
-
-            bool shift = ImGui::GetIO().KeyShift;
-            if (!shift && !boxDeselectMode_) selectedVerts_.clear();
-
-            for (int i = 0; i < static_cast<int>(shape_.vertices.size()); ++i)
+            if (cancelled)
             {
-                ImVec2 sp = WorldToCanvas(shape_.vertices[i].position, canvasPos, canvasSize);
-                if (sp.x >= bMin.x && sp.x <= bMax.x && sp.y >= bMin.y && sp.y <= bMax.y)
+                if (!ImGui::GetIO().KeyShift) ClearSelection();
+            }
+            else
+            {
+                // Update selection: all verts inside the box
+                bool shift = ImGui::GetIO().KeyShift;
+                if (!shift && !boxSelector_.deselectMode) selectedVerts_.clear();
+
+                for (int i = 0; i < static_cast<int>(shape_.vertices.size()); ++i)
                 {
-                    if (boxDeselectMode_)
-                        selectedVerts_.erase(i);
-                    else
-                        selectedVerts_.insert(i);
+                    ImVec2 sp = WorldToCanvas(shape_.vertices[i].position, canvasPos, canvasSize);
+                    if (boxSelector_.HitTest(sp))
+                    {
+                        if (boxSelector_.deselectMode)
+                            selectedVerts_.erase(i);
+                        else
+                            selectedVerts_.insert(i);
+                    }
                 }
-            }
 
-            if (!selectedVerts_.empty())
-                selectedVert_ = *selectedVerts_.rbegin();
-            else if (!boxDeselectMode_)
-                selectedVert_ = -1;
-
-            // Finish on mouse release
-            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-            {
-                boxSelecting_ = false;
-                boxDeselectMode_ = false;
-            }
-
-            // Cancel
-            if (ImGui::IsKeyPressed(ImGuiKey_Escape) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))
-            {
-                boxSelecting_ = false;
-                boxDeselectMode_ = false;
-                if (!shift) ClearSelection();
+                if (!selectedVerts_.empty())
+                    selectedVert_ = *selectedVerts_.rbegin();
+                else if (!boxSelector_.deselectMode)
+                    selectedVert_ = -1;
             }
         }
         // -- Normal interaction -------------------------------------------
@@ -1821,9 +1799,7 @@ namespace ettycc
                 {
                     // User dragged -- start box selection
                     bool shift = ImGui::GetIO().KeyShift;
-                    boxSelecting_ = true;
-                    boxStart_ = clickPendingPos_;
-                    boxEnd_ = mp;
+                    boxSelector_.Begin(clickPendingPos_);
                     if (!shift)
                     {
                         selectedVerts_.clear();
@@ -1964,9 +1940,7 @@ namespace ettycc
                 // B = start box select
                 if (ImGui::IsKeyPressed(ImGuiKey_B))
                 {
-                    boxSelecting_ = true;
-                    boxStart_ = mp;
-                    boxEnd_ = mp;
+                    boxSelector_.Begin(mp);
                     editMode_ = EditMode::Vertex;
                 }
 
@@ -2092,7 +2066,7 @@ namespace ettycc
 
     // -- UV canvas ------------------------------------------------------------
 
-    void SpriteEditor::DrawUVCanvas(ImVec2 canvasPos, ImVec2 canvasSize)
+    void PolygonEditor::DrawUVCanvas(ImVec2 canvasPos, ImVec2 canvasSize)
     {
         ImDrawList* dl = ImGui::GetWindowDrawList();
 

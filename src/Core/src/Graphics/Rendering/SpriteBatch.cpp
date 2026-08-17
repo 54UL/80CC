@@ -14,7 +14,7 @@
 namespace ettycc
 {
 
-// ─── Lifecycle ──────────────────────────────────────────────────────────────
+// --- Lifecycle --------------------------------------------------------------
 
 SpriteBatch::SpriteBatch()  = default;
 SpriteBatch::~SpriteBatch()
@@ -65,7 +65,7 @@ void SpriteBatch::Init()
                  instancedShader_->programId);
 }
 
-// ─── Per-frame API ──────────────────────────────────────────────────────────
+// --- Per-frame API ----------------------------------------------------------
 
 void SpriteBatch::Begin(const std::shared_ptr<RenderingContext>& ctx, float dt)
 {
@@ -123,7 +123,7 @@ void SpriteBatch::End()
     instancedShader_->pipeline.Bind();
     glUniformMatrix4fv(glGetUniformLocation(prog, "uPV"), 1, GL_FALSE, glm::value_ptr(PV));
 
-    // ── 1. Instanced path: one draw call per (texture, shape) group ─────────
+    // -- 1. Instanced path: one draw call per (texture, shape) group ---------
     for (auto& [key, batch] : batches_)
     {
         if (batch.instances.empty()) continue;
@@ -151,7 +151,7 @@ void SpriteBatch::End()
         glBindVertexArray(0);
     }
 
-    // ── 2. Custom geometry path ─────────────────────────────────────────────
+    // -- 2. Custom geometry path ---------------------------------------------
     if (!customSprites_.empty())
         RenderCustomSprites();
 
@@ -165,7 +165,7 @@ void SpriteBatch::End()
     ctx_.reset();
 }
 
-// ─── Preset geometry ────────────────────────────────────────────────────────
+// --- Preset geometry --------------------------------------------------------
 
 void SpriteBatch::BuildPresetGeo(int preset)
 {
@@ -188,7 +188,7 @@ void SpriteBatch::BuildPresetGeo(int preset)
 
     glBindVertexArray(geo.vao);
 
-    // Geometry VBO (static — shared by all instances of this preset)
+    // Geometry VBO (static -- shared by all instances of this preset)
     glBindBuffer(GL_ARRAY_BUFFER, geo.vbo);
     glBufferData(GL_ARRAY_BUFFER,
                  static_cast<GLsizeiptr>(vbuf.size() * sizeof(float)),
@@ -225,7 +225,7 @@ SpriteBatch::PresetGeo& SpriteBatch::GetPresetGeo(int preset)
     return it->second;
 }
 
-// ─── Custom geometry (mega-buffer) ──────────────────────────────────────────
+// --- Custom geometry (mega-buffer) ------------------------------------------
 
 void SpriteBatch::RenderCustomSprites()
 {
@@ -331,7 +331,7 @@ void SpriteBatch::RenderCustomSprites()
         // Set up instance attributes on the custom VAO
         SetupInstanceAttributes(customVAO_);
 
-        // SetupInstanceAttributes unbinds the VAO — rebind before drawing
+        // SetupInstanceAttributes unbinds the VAO -- rebind before drawing
         glBindVertexArray(customVAO_);
 
         glDrawElementsBaseVertex(
@@ -345,7 +345,7 @@ void SpriteBatch::RenderCustomSprites()
     glBindVertexArray(0);
 }
 
-// ─── Instance VBO management ────────────────────────────────────────────────
+// --- Instance VBO management ------------------------------------------------
 
 void SpriteBatch::EnsureInstanceVBO(size_t count)
 {
@@ -372,7 +372,7 @@ void SpriteBatch::SetupInstanceAttributes(GLuint vao)
 
     const GLsizei stride = sizeof(InstanceData);
 
-    // mat4 model → locations 2, 3, 4, 5 (one vec4 per column)
+    // mat4 model -> locations 2, 3, 4, 5 (one vec4 per column)
     for (int col = 0; col < 4; ++col)
     {
         GLuint loc = 2 + col;
@@ -382,7 +382,7 @@ void SpriteBatch::SetupInstanceAttributes(GLuint vao)
         glVertexAttribDivisor(loc, 1);
     }
 
-    // vec2 tiling → location 6
+    // vec2 tiling -> location 6
     glEnableVertexAttribArray(6);
     glVertexAttribPointer(6, 2, GL_FLOAT, GL_FALSE, stride,
                           (void*)offsetof(InstanceData, tiling));

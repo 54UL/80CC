@@ -1,5 +1,6 @@
 #include <Game/ModuleLoader.hpp>
 #include <Engine.hpp>
+#include <imgui.h>
 #include <spdlog/spdlog.h>
 
 #include <chrono>
@@ -10,7 +11,7 @@ namespace fs = std::filesystem;
 namespace ettycc
 {
 
-// ── Lifecycle ────────────────────────────────────────────────────────────────
+// -- Lifecycle ----------------------------------------------------------------
 
 ModuleLoader::~ModuleLoader()
 {
@@ -23,11 +24,38 @@ ModuleLoader::~ModuleLoader()
                 mod.destroyFn(mod.instance);
             mod.instance = nullptr;
         }
+        // Unload the library and delete the temp file.
+        mod.library.Unload();
+        {
+            std::error_code ec;
+            fs::remove(mod.loadedPath, ec);
+        }
     }
-    // oldLibraries_ and modules_ destructors don't FreeLibrary — intentional.
 }
 
-// ── Copy-on-load ─────────────────────────────────────────────────────────────
+// -- Stale file cleanup -------------------------------------------------------
+
+void ModuleLoader::CleanupStaleHotFiles(const std::string& dirPath)
+{
+    std::error_code ec;
+    if (!fs::is_directory(dirPath, ec)) return;
+
+    int removed = 0;
+    for (const auto& entry : fs::directory_iterator(dirPath, ec))
+    {
+        if (!entry.is_regular_file()) continue;
+        if (entry.path().stem().string().find("_hot_") != std::string::npos)
+        {
+            fs::remove(entry.path(), ec);
+            if (!ec) ++removed;
+        }
+    }
+    if (removed > 0)
+        spdlog::info("[ModuleLoader] Cleaned up {} stale _hot_ file(s) from '{}'",
+                     removed, dirPath);
+}
+
+// -- Copy-on-load -------------------------------------------------------------
 
 std::string ModuleLoader::CopyToTemp(const std::string& sourcePath)
 {
@@ -52,7 +80,7 @@ std::string ModuleLoader::CopyToTemp(const std::string& sourcePath)
     return tempPath.string();
 }
 
-// ── Load ─────────────────────────────────────────────────────────────────────
+// -- Load ---------------------------------------------------------------------
 
 bool ModuleLoader::LoadModule(const std::string& dllPath, Engine* engine)
 {
@@ -80,20 +108,33 @@ bool ModuleLoader::LoadModule(const std::string& dllPath, Engine* engine)
     {
         spdlog::error("[ModuleLoader] '{}' missing ettycc_CreateModule / "
                       "ettycc_DestroyModule exports", dllPath);
+        mod.library.Unload();
+        { std::error_code ec2; fs::remove(loadedPath, ec2); }
         return false;
     }
+
+    // Share the engine's ImGui context with the DLL so that module code
+    // calling ImGui (e.g. PROP macro in InspectProperties) uses the
+    // correct context instead of the DLL's own uninitialized GImGui.
+    auto setCtxFn = mod.library.GetSymbol<SetImGuiContextFn>("ettycc_SetImGuiContext");
+    if (setCtxFn)
+        setCtxFn(ImGui::GetCurrentContext());
 
     mod.instance = createFn();
     if (!mod.instance)
     {
         spdlog::error("[ModuleLoader] ettycc_CreateModule returned null for '{}'",
                       dllPath);
+        mod.library.Unload();
+        { std::error_code ec2; fs::remove(loadedPath, ec2); }
         return false;
     }
 
-    mod.lastWriteTime = fs::last_write_time(mod.sourcePath, ec);
+    mod.lastWriteTime  = fs::last_write_time(mod.sourcePath, ec);
+    mod.firstLoadTime  = std::chrono::steady_clock::now();
+    mod.lastReloadTime = mod.firstLoadTime;
+    mod.reloadCount    = 0;
 
-    // Let the module initialize — it can register systems, add components, etc.
     mod.instance->OnStart(engine);
     spdlog::info("[ModuleLoader] Module '{}' loaded from '{}'",
                  mod.instance->name_, dllPath);
@@ -102,7 +143,7 @@ bool ModuleLoader::LoadModule(const std::string& dllPath, Engine* engine)
     return true;
 }
 
-// ── Directory scan ───────────────────────────────────────────────────────────
+// -- Directory scan -----------------------------------------------------------
 
 int ModuleLoader::LoadModulesFromDirectory(const std::string& dirPath,
                                            Engine* engine)
@@ -110,10 +151,13 @@ int ModuleLoader::LoadModulesFromDirectory(const std::string& dirPath,
     std::error_code ec;
     if (!fs::is_directory(dirPath, ec))
     {
-        spdlog::warn("[ModuleLoader] modules directory '{}' not found — skipping",
+        spdlog::warn("[ModuleLoader] modules directory '{}' not found -- skipping",
                      dirPath);
         return 0;
     }
+
+    // Remove stale _hot_ DLLs left by a previous session.
+    CleanupStaleHotFiles(dirPath);
 
     int loaded = 0;
     for (const auto& entry : fs::directory_iterator(dirPath, ec))
@@ -121,7 +165,7 @@ int ModuleLoader::LoadModulesFromDirectory(const std::string& dirPath,
         if (!entry.is_regular_file()) continue;
         const auto ext = entry.path().extension().string();
 
-        // Skip hot-reload temp copies from previous sessions
+        // Skip hot-reload temp copies (shouldn't exist after cleanup, but guard)
         if (entry.path().stem().string().find("_hot_") != std::string::npos)
             continue;
 
@@ -138,7 +182,7 @@ int ModuleLoader::LoadModulesFromDirectory(const std::string& dirPath,
     return loaded;
 }
 
-// ── Hot-reload polling ───────────────────────────────────────────────────────
+// -- Hot-reload polling -------------------------------------------------------
 
 void ModuleLoader::PollForReloads(Engine* engine, float deltaTime)
 {
@@ -156,7 +200,7 @@ void ModuleLoader::PollForReloads(Engine* engine, float deltaTime)
         auto currentTime = fs::last_write_time(mod.sourcePath, ec);
         if (ec || currentTime == mod.lastWriteTime) continue;
 
-        // File changed — give the compiler a moment to finish writing
+        // File changed -- give the compiler a moment to finish writing
         // (linker may still be flushing).  A short sleep avoids partial reads.
 #ifdef _WIN32
         Sleep(200);
@@ -167,16 +211,17 @@ void ModuleLoader::PollForReloads(Engine* engine, float deltaTime)
     }
 }
 
-// ── Reload ───────────────────────────────────────────────────────────────────
+// -- Reload -------------------------------------------------------------------
 
 bool ModuleLoader::ReloadModule(size_t index, Engine* engine)
 {
     auto& mod = modules_[index];
     const std::string oldName = mod.instance ? mod.instance->name_ : "<unknown>";
 
-    spdlog::info("[ModuleLoader] Hot-reloading '{}'...", oldName);
+    spdlog::info("[ModuleLoader] Hot-reloading '{}' (reload #{})",
+                 oldName, mod.reloadCount + 1);
 
-    // ── Tear down old instance ───────────────────────────────────────────────
+    // -- 1. Tear down old instance --------------------------------------------
     if (mod.instance)
     {
         mod.instance->OnDestroy();
@@ -185,16 +230,22 @@ bool ModuleLoader::ReloadModule(size_t index, Engine* engine)
         mod.instance = nullptr;
     }
 
-    // Keep old library loaded (template vtables may still be referenced).
-    oldLibraries_.push_back(std::move(mod.library));
+    // -- 2. Purge empty pools so no vtables from the old DLL remain -----------
+    if (engine->mainScene_)
+        engine->mainScene_->registry_.PurgeEmptyPools();
 
-    // Clean up old temp file (best effort).
+    // -- 3. Unload old library and delete old temp file -----------------------
+    const std::string oldTempPath = mod.loadedPath;
+    mod.library.Unload();
     {
         std::error_code ec;
-        fs::remove(mod.loadedPath, ec);
+        fs::remove(oldTempPath, ec);
+        if (ec)
+            spdlog::warn("[ModuleLoader] Could not delete old temp '{}': {}",
+                         oldTempPath, ec.message());
     }
 
-    // ── Load new copy ────────────────────────────────────────────────────────
+    // -- 4. Load new copy -----------------------------------------------------
     std::string newLoadedPath = CopyToTemp(mod.sourcePath);
     if (newLoadedPath.empty()) return false;
 
@@ -209,18 +260,26 @@ bool ModuleLoader::ReloadModule(size_t index, Engine* engine)
         return false;
     }
 
+    // Re-share ImGui context with the freshly loaded DLL.
+    auto setCtxFn = mod.library.GetSymbol<SetImGuiContextFn>("ettycc_SetImGuiContext");
+    if (setCtxFn)
+        setCtxFn(ImGui::GetCurrentContext());
+
     mod.instance = createFn();
     if (!mod.instance) return false;
 
     std::error_code ec;
-    mod.lastWriteTime = fs::last_write_time(mod.sourcePath, ec);
+    mod.lastWriteTime  = fs::last_write_time(mod.sourcePath, ec);
+    mod.lastReloadTime = std::chrono::steady_clock::now();
+    mod.reloadCount++;
 
     mod.instance->OnStart(engine);
-    spdlog::info("[ModuleLoader] Hot-reload complete: '{}'", mod.instance->name_);
+    spdlog::info("[ModuleLoader] Hot-reload #{} complete: '{}'",
+                 mod.reloadCount, mod.instance->name_);
     return true;
 }
 
-// ── Force-reload all ─────────────────────────────────────────────────────
+// -- Force-reload all -----------------------------------------------------
 
 void ModuleLoader::ForceReloadAll(Engine* engine)
 {
@@ -229,7 +288,7 @@ void ModuleLoader::ForceReloadAll(Engine* engine)
         ReloadModule(i, engine);
 }
 
-// ── Query ────────────────────────────────────────────────────────────────────
+// -- Query --------------------------------------------------------------------
 
 std::vector<GameModule*> ModuleLoader::GetModules() const
 {

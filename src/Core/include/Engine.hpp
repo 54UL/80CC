@@ -32,7 +32,7 @@
 
 namespace ettycc
 {
-    // ── Per-frame thread timing data ──────────────────────────────────────────
+    // -- Per-frame thread timing data ------------------------------------------
     // Written by Engine each frame, read by DevEditor for the Threads debug tab.
     // All values are in milliseconds.
     struct ChannelSample
@@ -96,8 +96,9 @@ namespace ettycc
     private:
         bool isEditorMode_ = false;
         bool isHeadless_   = false;
+        bool isPlaying_    = false;
 
-        // ── Async physics pipelining ─────────────────────────────────────────
+        // -- Async physics pipelining -----------------------------------------
         // Physics Step runs on a pool thread.  We kick it at the end of Update()
         // and wait for it at the START of the next frame's Update().
         // This overlaps Bullet simulation with rendering.
@@ -154,9 +155,19 @@ namespace ettycc
         void InitNetwork(bool isHost, uint16_t port = 7777,
                          const std::string& serverAddress = "127.0.0.1");
         void StartNetworkWorker();
+        void StopNetworkWorker();
         void LoadNetworkScene();
 
-        // Async asset preloading — reads images/shaders on a worker thread,
+        // -- Editor playback lifecycle ----------------------------------------
+        // Called by the editor to cleanly start/stop the simulation loop.
+        // Handles module restart, network worker, and simulation pause state.
+        void BeginPlay();   // unpause + restart modules + start network
+        void EndPlay();     // pause + destroy modules + stop network
+
+        // Restart all DLL modules: OnDestroy -> OnStart cycle.
+        void RestartDllModules();
+
+        // Async asset preloading -- reads images/shaders on a worker thread,
         // then uploads GL objects on the main thread.  Call after scene
         // deserialization but before SetupSceneSystems().
         void PreloadSceneAssets();

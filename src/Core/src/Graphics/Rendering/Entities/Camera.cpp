@@ -58,6 +58,8 @@ namespace ettycc
     void Camera::AttachEditorControl(PlayerInput *inputSystem)
     {
         editorCameraControl_ = std::make_shared<EditorCamera>(inputSystem, this->offScreenFrameBuffer.get());
+        // Bind the renderable's own transform so the control operates on it
+        editorCameraControl_->BindTransform(&underylingTransform);
     }
 
     // Renderable
@@ -89,7 +91,9 @@ namespace ettycc
         }
 
         // Compute frustum planes from the combined PV matrix
-        if (frustumCullingEnabled_)
+        if (useFrustumOverride_)
+            ctx->frustum = frustumOverride_;
+        else if (frustumCullingEnabled_)
             ctx->frustum = Frustum::FromPV(ctx->Projection * ctx->View);
         else
             ctx->frustum.enabled = false;

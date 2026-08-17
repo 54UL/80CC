@@ -13,8 +13,8 @@ namespace ettycc
 {
     struct EditorPropertyVisitor;
 
-    // ── RigidBodyComponent ────────────────────────────────────────────────────
-    // Pure data component — no virtual methods, no back-pointer to its entity.
+    // -- RigidBodyComponent ----------------------------------------------------
+    // Pure data component -- no virtual methods, no back-pointer to its entity.
     // Runtime initialization and per-frame sync are performed by PhysicsSystem.
     class RigidBodyComponent
     {
@@ -65,7 +65,7 @@ namespace ettycc
             return *this;
         }
 
-        // ── System-facing API (called by PhysicsSystem) ───────────────────────
+        // -- System-facing API (called by PhysicsSystem) -----------------------
         // Creates the Bullet rigid body and links it to the node transform.
         // Optional siblingRenderable pointer seeds the initial transform.
         void InitBody(btDiscreteDynamicsWorld* world,
@@ -79,7 +79,7 @@ namespace ettycc
         bool IsDynamic()     const { return mass_ > 0.f; }
         float GetMass()      const { return mass_; }
 
-        // Fusion cooldown — prevents chain reactions.
+        // Fusion cooldown -- prevents chain reactions.
         bool  CanFuse()  const { return fusionCooldown_ <= 0.f; }
         void  SetFusionCooldown(float seconds) { fusionCooldown_ = seconds; }
         void  TickCooldown(float dt) { if (fusionCooldown_ > 0.f) fusionCooldown_ -= dt; }
@@ -95,16 +95,16 @@ namespace ettycc
         // position.  Used by the fusion system after merging two bodies.
         void Reinitialize(float newMass, const glm::vec3& newHalfExtents);
 
-        // ── Editor gizmo API ──────────────────────────────────────────────────
+        // -- Editor gizmo API --------------------------------------------------
         void BeginManipulation();
         void EndManipulation();
-        void SyncFromRenderable();          // push node transform → Bullet
+        void SyncFromRenderable();          // push node transform -> Bullet
         bool IsManipulated() const         { return isManipulated_; }
 
-        // ── Editor inspector ──────────────────────────────────────────────────
+        // -- Editor inspector --------------------------------------------------
         void InspectProperties(EditorPropertyVisitor& v);
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template <class Archive>
         void serialize(Archive& ar)
         {
@@ -118,12 +118,12 @@ namespace ettycc
         }
 
     private:
-        // ── Serialized fields ─────────────────────────────────────────────────
+        // -- Serialized fields -------------------------------------------------
         float     mass_            = 1.0f;
         glm::vec3 halfExtents_     = { 0.5f, 0.5f, 0.5f };
         glm::vec3 initialPosition_ = { 0.0f, 0.0f, 0.0f };
 
-        // ── Runtime (not serialized, set by PhysicsSystem::InitBody) ─────────
+        // -- Runtime (not serialized, set by PhysicsSystem::InitBody) ---------
         Transform*                           syncTransform_  = nullptr;  // non-owning
         btDiscreteDynamicsWorld*             physWorld_      = nullptr;  // non-owning
         std::unique_ptr<btCollisionShape>    shape_;

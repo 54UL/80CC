@@ -16,7 +16,7 @@ namespace ettycc::ecs {
 class Registry
 {
 public:
-    // ── Entity lifecycle ──────────────────────────────────────────────────────
+    // -- Entity lifecycle ------------------------------------------------------
 
     // Allocate a fresh entity ID.
     Entity Create()
@@ -47,7 +47,7 @@ public:
         return std::find(alive_.begin(), alive_.end(), e) != alive_.end(); // hmmmmmm da hell is this
     }
 
-    // ── Component add / get / has / remove ────────────────────────────────────
+    // -- Component add / get / has / remove ------------------------------------
 
     template<typename T>
     T& Add(Entity e, T comp = T{})
@@ -101,11 +101,22 @@ public:
         }
     }
 
-    // Direct pool access — useful for systems that iterate all components.
+    // Direct pool access -- useful for systems that iterate all components.
+    // NOTE: creates the pool if it doesn't exist. Prefer TryGetPool for
+    //       conditional access (e.g. cleanup code in DLL modules).
     template<typename T>
     ComponentPool<T>& Pool()
     {
         return GetHolder<T>().pool;
+    }
+
+    // Returns a pointer to the pool if it already exists, nullptr otherwise.
+    // Unlike Pool<T>(), this never allocates -- safe for cross-DLL cleanup.
+    template<typename T>
+    ComponentPool<T>* TryGetPool()
+    {
+        auto* p = FindPool<T>();
+        return p;
     }
 
     // View: returns all entities that have EVERY one of the listed types.
@@ -139,19 +150,34 @@ public:
         nextId_ = 1;
     }
 
+    // Remove all pool holders that contain zero components.
+    // Call after a module's OnDestroy to release vtables from the DLL
+    // so the DLL can be safely unloaded via FreeLibrary/dlclose.
+    void PurgeEmptyPools()
+    {
+        for (auto it = pools_.begin(); it != pools_.end(); )
+        {
+            if (it->second->Empty())
+                it = pools_.erase(it);
+            else
+                ++it;
+        }
+    }
+
 private:
-    // ── Compile-time helpers ──────────────────────────────────────────────────
+    // -- Compile-time helpers --------------------------------------------------
     template<typename T, typename = void>
     struct HasComponentType : std::false_type {};
     template<typename T>
     struct HasComponentType<T, std::void_t<decltype(T::componentType)>>
         : std::true_type {};
 
-    // ── Type-erased pool wrapper ──────────────────────────────────────────────
+    // -- Type-erased pool wrapper ----------------------------------------------
     struct IHolder
     {
         virtual ~IHolder() = default;
         virtual void Remove(Entity e) = 0;
+        virtual bool Empty() const = 0;
     };
 
     template<typename T>
@@ -159,9 +185,10 @@ private:
     {
         ComponentPool<T> pool;
         void Remove(Entity e) override { pool.Remove(e); }
+        bool Empty() const override    { return pool.Empty(); }
     };
 
-    // ── Pool lookup helpers ───────────────────────────────────────────────────
+    // -- Pool lookup helpers ---------------------------------------------------
     // Returns nullptr if no pool for T has been created yet.
     template<typename T>
     ComponentPool<T>* FindPool()
@@ -195,7 +222,7 @@ private:
         return *static_cast<Holder<T>*>(it->second.get());
     }
 
-    // ── Data ──────────────────────────────────────────────────────────────────
+    // -- Data ------------------------------------------------------------------
     std::unordered_map<std::type_index, std::unique_ptr<IHolder>> pools_;
     std::vector<Entity>                                            alive_;
     std::unordered_map<Entity, std::vector<std::string>>          typeNames_;

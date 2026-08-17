@@ -3,11 +3,11 @@
 
 namespace ettycc
 {
-    // ── NetworkSystem ─────────────────────────────────────────────────────────
+    // -- NetworkSystem ---------------------------------------------------------
     // MAIN channel.
     // Handles NetworkComponent:
-    //   OnStart / OnEntityAdded — register with NetworkManager, bind sibling refs.
-    //   OnUpdate                — host broadcasts transform each frame.
+    //   OnStart / OnEntityAdded -- register with NetworkManager, bind sibling refs.
+    //   OnUpdate                -- host broadcasts transform each frame.
     class NetworkSystem : public ISystem
     {
     public:

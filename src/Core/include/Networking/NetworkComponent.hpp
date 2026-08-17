@@ -19,7 +19,7 @@ namespace ettycc
     class NetworkManager;
     class RigidBodyComponent;
 
-    // ── NetworkComponent ──────────────────────────────────────────────────────
+    // -- NetworkComponent ------------------------------------------------------
     // Marks the entity as network-replicated.
     //
     // Host:   BroadcastUpdate() is called by NetworkSystem each MAIN frame.
@@ -37,7 +37,7 @@ namespace ettycc
         ~NetworkComponent();
 
         // Non-copyable, movable.  The destructor calls Unregister(), so the
-        // move constructor MUST null the source's networkManager_ — otherwise
+        // move constructor MUST null the source's networkManager_ -- otherwise
         // a vector reallocation inside ComponentPool moves the element and
         // the moved-from destructor silently unregisters the live component.
         NetworkComponent(const NetworkComponent&)            = delete;
@@ -46,7 +46,7 @@ namespace ettycc
         NetworkComponent(NetworkComponent&& o) noexcept;
         NetworkComponent& operator=(NetworkComponent&& o) noexcept;
 
-        // ── System-facing API (called by NetworkSystem) ───────────────────────
+        // -- System-facing API (called by NetworkSystem) -----------------------
         void Init(NetworkManager& mgr,
                   Transform& syncTransform,
                   ecs::Entity entity,
@@ -54,19 +54,19 @@ namespace ettycc
         void BroadcastUpdate();
         bool IsInitialized() const { return networkManager_ != nullptr; }
 
-        // ── Called by NetworkManager on packet receive ─────────────────────────
+        // -- Called by NetworkManager on packet receive -------------------------
         void ApplyRemoteTransform(const glm::vec3& pos,
                                   const glm::quat& rot,
                                   const glm::vec3& scale);
         void ReleasePhysics();
 
-        // ── Accessors ─────────────────────────────────────────────────────────
+        // -- Accessors ---------------------------------------------------------
         uint32_t GetNetworkId() const { return networkId_; }
 
-        // ── Editor inspector ──────────────────────────────────────────────────
+        // -- Editor inspector --------------------------------------------------
         void InspectProperties(EditorPropertyVisitor& v);
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template <class Archive>
         void save(Archive& ar) const
         {
@@ -80,10 +80,10 @@ namespace ettycc
         }
 
     private:
-        // ── Serialized ────────────────────────────────────────────────────────
+        // -- Serialized --------------------------------------------------------
         uint32_t networkId_ = 0;
 
-        // ── Runtime (not serialized, set by NetworkSystem) ────────────────────
+        // -- Runtime (not serialized, set by NetworkSystem) --------------------
         NetworkManager*     networkManager_ = nullptr;
         Transform*          syncTransform_  = nullptr;
         ecs::Entity         entity_         = ecs::NullEntity;

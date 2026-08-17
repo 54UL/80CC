@@ -1,19 +1,19 @@
 #ifndef PROPERTY_SYSTEM_HPP
 #define PROPERTY_SYSTEM_HPP
 
-// ── Property system ───────────────────────────────────────────────────────────
+// -- Property system -----------------------------------------------------------
 //
 // Components expose their serializable / inspectable fields with one-liner macros
 // inside a templated Inspect(Visitor& v) method.  The same function drives:
 //
-//   • Editor inspector  — instantiated with EditorPropertyVisitor  (imgui widgets)
-//   • Scene serializer  — instantiated with CerealVisitor<Archive> (cereal read/write)
+//   * Editor inspector  -- instantiated with EditorPropertyVisitor  (imgui widgets)
+//   * Scene serializer  -- instantiated with CerealVisitor<Archive> (cereal read/write)
 //
 // Any Visitor must implement:
 //   template<typename T>
 //   void Property(const char* label, T& value, uint32_t flags = PROP_NONE);
 //
-// ── Macro usage ───────────────────────────────────────────────────────────────
+// -- Macro usage ---------------------------------------------------------------
 //
 //   template<typename Visitor>
 //   void Inspect(Visitor& v)
@@ -24,7 +24,7 @@
 //       PROP_F (scale_,         "Scale", PROP_READ_ONLY | PROP_NO_SERIAL);
 //   }
 //
-// ── Game-build stripping ──────────────────────────────────────────────────────
+// -- Game-build stripping ------------------------------------------------------
 // When EDITOR_BUILD is not defined the PROP macros expand to nothing, and
 // InspectProperties() on NodeComponent is compiled out entirely.  Components
 // therefore have zero editor overhead in shipping builds.
@@ -33,7 +33,7 @@
 #include <cereal/archives/json.hpp>
 #include <glm/glm.hpp>
 
-// ── GLM cereal support ────────────────────────────────────────────────────────
+// -- GLM cereal support --------------------------------------------------------
 // Teach cereal how to serialize glm vector/quaternion types so that
 // CerealVisitor can handle PROP(someVec3_, ...) without extra boilerplate.
 namespace glm
@@ -53,7 +53,7 @@ namespace glm
 
 namespace ettycc
 {
-    // ── Property flags ────────────────────────────────────────────────────────
+    // -- Property flags --------------------------------------------------------
     enum PropFlag : uint32_t
     {
         PROP_NONE      = 0,
@@ -62,7 +62,7 @@ namespace ettycc
         PROP_NO_SERIAL = 1 << 2,  // shown in editor but excluded from save/load
     };
 
-    // ── CerealVisitor ─────────────────────────────────────────────────────────
+    // -- CerealVisitor ---------------------------------------------------------
     // Drop-in replacement for hand-written cereal save/load bodies.
     // Use inside a component's save()/load() or serialize():
     //
@@ -89,13 +89,13 @@ namespace ettycc
 
 } // namespace ettycc
 
-// ── Macros ────────────────────────────────────────────────────────────────────
+// -- Macros --------------------------------------------------------------------
 #ifndef COMPILE_80CC_STAND_ALONE_EXECUTABLE
 #  define PROP(field, label)           v.Property(label, field)
 #  define PROP_RO(field, label)        v.Property(label, field, ettycc::PROP_READ_ONLY)
 #  define PROP_NS(field, label)        v.Property(label, field, ettycc::PROP_NO_SERIAL)
 #  define PROP_F(field, label, flags)  v.Property(label, field, flags)
-// Visual separator inside an Inspect() body — shows a labelled divider in the editor.
+// Visual separator inside an Inspect() body -- shows a labelled divider in the editor.
 // Expands to nothing in game builds and in cereal visitors.
 #  define PROP_SECTION(label)          v.Section(label)
 #else

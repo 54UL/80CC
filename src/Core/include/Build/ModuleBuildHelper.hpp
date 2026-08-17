@@ -11,7 +11,7 @@
 //   4. Set atomic flags so the caller (DevEditor) knows when to
 //      call ModuleLoader::ForceReloadAll().
 //
-// No engine dependencies beyond forward declarations — only std:: + spdlog.
+// No engine dependencies beyond forward declarations -- only std:: + spdlog.
 
 #include <Build/BuildConfig.hpp>
 #include <Build/BuildController.hpp>
@@ -32,10 +32,10 @@
 namespace ettycc::build
 {
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 // Extract cmake target names from the list of loaded module DLL source paths.
-// e.g.  "D:/…/assets/modules/SampleModule.dll"  →  "SampleModule"
+// e.g.  "D:/.../assets/modules/SampleModule.dll"  ->  "SampleModule"
 inline std::vector<std::string> GatherModuleTargets(
     const std::vector<std::string>& dllSourcePaths)
 {
@@ -100,7 +100,7 @@ inline std::string BuildCmakeCommand(const std::string& buildDir,
     return cmd;
 }
 
-// ── ModuleBuildHelper ────────────────────────────────────────────────────────
+// -- ModuleBuildHelper --------------------------------------------------------
 // Fire-and-forget background build.  The caller polls isRunning() and
 // reloadPending() each frame.
 
@@ -124,7 +124,7 @@ public:
         const std::string buildDir = FindBuildDirectory();
         if (buildDir.empty())
         {
-            spdlog::error("[ModuleBuild] Cannot find cmake build directory — "
+            spdlog::error("[ModuleBuild] Cannot find cmake build directory -- "
                           "CMakeCache.txt not found above executable path");
             return false;
         }
@@ -200,7 +200,7 @@ private:
 
         if (rc == 0)
         {
-            spdlog::info("[ModuleBuild] Build succeeded — pending reload");
+            spdlog::info("[ModuleBuild] Build succeeded -- pending reload");
             reloadPending_.store(true);
         }
         else

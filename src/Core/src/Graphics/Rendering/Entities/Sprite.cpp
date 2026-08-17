@@ -60,7 +60,7 @@ namespace ettycc {
     void Sprite::SetShape(const SpriteShape& shape)
     {
         shape_ = shape;
-        if (VAO != 0) // already initialized — re-upload
+        if (VAO != 0) // already initialized -- re-upload
             UploadGeometry();
     }
 
@@ -73,12 +73,12 @@ namespace ettycc {
         // Upload shape geometry
         UploadGeometry();
 
-        // ── Shader (shared via ResourceCache) ────────────────────────────────
+        // -- Shader (shared via ResourceCache) --------------------------------
         auto cache = GetDependency(ResourceCache);
         const std::string& shader = shaderName.empty() ? std::string(kDefaultShader) : shaderName;
         cachedShader_ = cache->GetShader(shader);
 
-        // ── Texture (shared via ResourceCache) ───────────────────────────────
+        // -- Texture (shared via ResourceCache) -------------------------------
         TEXTURE = cache->GetTexture(texturePath);
 
         // Set the texture sampler uniform once
@@ -91,7 +91,7 @@ namespace ettycc {
     }
 
     Sprite::~Sprite() {
-        // Clean up geometry only — shader and texture are owned by ResourceCache
+        // Clean up geometry only -- shader and texture are owned by ResourceCache
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
         glDeleteBuffers(1, &EBO);
@@ -202,7 +202,7 @@ namespace ettycc {
         Renderable::Inspect(v); // Enabled + Transform section
         PROP_SECTION("Sprite");
 
-        // ── Material slot (drag-drop target) ─────────────────────────────
+        // -- Material slot (drag-drop target) -----------------------------
         {
             ++v.propertyCount;
             const float avail      = ImGui::GetContentRegionAvail().x;

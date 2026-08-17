@@ -4,6 +4,7 @@
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Scene/Components/AudioSourceComponent.hpp>
 #include <Scene/Components/AudioListenerComponent.hpp>
+#include <Scene/Components/CameraControllerComponent.hpp>
 #include <Networking/NetworkComponent.hpp>
 #include <Dependency.hpp>
 
@@ -20,7 +21,7 @@ namespace ettycc
 
     Scene::~Scene() {}
 
-    // ── Initialization ─────────────────────────────────────────────────────────
+    // -- Initialization ---------------------------------------------------------
     auto Scene::Init(Engine& engine) -> void
     {
         RebuildIndex();
@@ -29,7 +30,7 @@ namespace ettycc
             sys->OnStart(*this, engine);
     }
 
-    // ── Private: rebuild fast lookup from nodes_flat_ ─────────────────────────
+    // -- Private: rebuild fast lookup from nodes_flat_ -------------------------
     void Scene::RebuildIndex()
     {
         nodeIndex_.clear();
@@ -49,7 +50,7 @@ namespace ettycc
         }
     }
 
-    // ── Node lookup ────────────────────────────────────────────────────────────
+    // -- Node lookup ------------------------------------------------------------
     auto Scene::GetNode(ecs::Entity id) -> SceneNode*
     {
         auto it = nodeIndex_.find(id);
@@ -77,7 +78,7 @@ namespace ettycc
         return node ? &node->transform_ : nullptr;
     }
 
-    // ── ECS ────────────────────────────────────────────────────────────────────
+    // -- ECS --------------------------------------------------------------------
     auto Scene::RegisterSystem(std::unique_ptr<ISystem> system) -> void
     {
         systems_.push_back(std::move(system));
@@ -89,7 +90,7 @@ namespace ettycc
             sys->OnEntityAdded(*this, engine, e);
     }
 
-    // ── Per-frame update ───────────────────────────────────────────────────────
+    // -- Per-frame update -------------------------------------------------------
     auto Scene::Process(float dt, ProcessingChannel channel) -> void
     {
         for (auto& sys : systems_)
@@ -97,7 +98,7 @@ namespace ettycc
                 sys->OnUpdate(*this, dt);
     }
 
-    // ── Serialization (explicit specialisations to avoid linker issues) ────────
+    // -- Serialization (explicit specialisations to avoid linker issues) --------
     template<>
     void Scene::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& ar)
     {
@@ -119,7 +120,7 @@ namespace ettycc
         Utils::FastForwardEntityCounter(maxEntityId_);
     }
 
-    // ── Component pool serialization ───────────────────────────────────────────
+    // -- Component pool serialization -------------------------------------------
     // Each pool is stored as a vector of {entity, componentData} pairs.
     // We use cereal::make_nvp for clear JSON keys.
 
@@ -127,7 +128,7 @@ namespace ettycc
     {
         // Components like RigidBodyComponent are move-only (copy deleted), so we
         // can't build vector<pair<Entity,T>>.  Instead we build a vector of
-        // non-owning proxy views that serialize as {"first":e,"second":{...}} —
+        // non-owning proxy views that serialize as {"first":e,"second":{...}} --
         // the exact same JSON layout cereal produces for pair<Entity,T>, so the
         // JSONInputArchive load path (which uses vector<pair<Entity,T>>) is compatible.
         auto save = [&](auto& pool, const char* key)
@@ -148,6 +149,7 @@ namespace ettycc
         save(registry_.Pool<AudioSourceComponent>(),   "audio_sources");
         save(registry_.Pool<AudioListenerComponent>(), "audio_listeners");
         save(registry_.Pool<NetworkComponent>(),       "network_components");
+        save(registry_.Pool<CameraControllerComponent>(), "camera_controllers");
     }
 
     void Scene::SerializeComponents(cereal::JSONInputArchive& ar)
@@ -171,6 +173,7 @@ namespace ettycc
         loadPool(static_cast<AudioSourceComponent*>(nullptr),   "audio_sources");
         loadPool(static_cast<AudioListenerComponent*>(nullptr), "audio_listeners");
         loadPool(static_cast<NetworkComponent*>(nullptr),       "network_components");
+        loadPool(static_cast<CameraControllerComponent*>(nullptr), "camera_controllers");
     }
 
 } // namespace ettycc

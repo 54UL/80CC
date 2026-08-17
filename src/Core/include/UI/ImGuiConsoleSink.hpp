@@ -27,7 +27,7 @@ namespace ettycc
             std::tm tm{};
             localtime_s(&tm, &t);
 
-            // Map level to tag — indices match spdlog::level::level_enum
+            // Map level to tag -- indices match spdlog::level::level_enum
             static constexpr const char *kTags[] = {
                 "[trace]", "[debug]", "[info]", "[warn]", "[error]", "[critical]", ""
             };

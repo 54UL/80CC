@@ -12,13 +12,13 @@ namespace ettycc
     class Sprite;
     struct CachedShader;
 
-    // ── SpriteBatch ──────────────────────────────────────────────────────────
+    // -- SpriteBatch ----------------------------------------------------------
     // Batched instanced renderer for Sprite renderables.
     //
     // Two rendering paths:
-    //   1. Instanced — sprites sharing the same (shader, texture, shape preset)
+    //   1. Instanced -- sprites sharing the same (shader, texture, shape preset)
     //      are drawn with one glDrawElementsInstanced call.
-    //   2. Base-vertex mega-buffer — sprites with custom/edited geometry are
+    //   2. Base-vertex mega-buffer -- sprites with custom/edited geometry are
     //      packed into a shared VBO and drawn with glMultiDrawElementsBaseVertex.
     //
     // Per-instance data (model matrix + tiling) is uploaded via an instance VBO
@@ -37,7 +37,7 @@ namespace ettycc
         // Call once after GL context is ready (loads instanced shader).
         void Init();
 
-        // ── Per-frame API ─────────────────────────────────────────────────────
+        // -- Per-frame API -----------------------------------------------------
         // Collect sprites, build batches, render, clear.
         void Begin(const std::shared_ptr<RenderingContext>& ctx, float dt);
         void Submit(Sprite* sprite);
@@ -49,7 +49,7 @@ namespace ettycc
         {
             glm::mat4 model;    // 64 bytes
             glm::vec2 tiling;   // 8 bytes
-            float     _pad[2];  // 8 bytes → 80 bytes total (aligned)
+            float     _pad[2];  // 8 bytes -> 80 bytes total (aligned)
         };
 
         // A batch groups sprites that can share ONE draw call.
@@ -83,7 +83,7 @@ namespace ettycc
             GLuint texture = 0;
         };
 
-        // ── Shared preset geometry (one VAO per shape preset) ─────────────────
+        // -- Shared preset geometry (one VAO per shape preset) -----------------
         struct PresetGeo
         {
             GLuint vao = 0;
@@ -95,7 +95,7 @@ namespace ettycc
         void BuildPresetGeo(int preset);
         PresetGeo& GetPresetGeo(int preset);
 
-        // ── Custom geometry mega-buffer ───────────────────────────────────────
+        // -- Custom geometry mega-buffer ---------------------------------------
         struct CustomEntry
         {
             Sprite*      sprite;
@@ -104,7 +104,7 @@ namespace ettycc
 
         void RenderCustomSprites();
 
-        // ── GL resources ──────────────────────────────────────────────────────
+        // -- GL resources ------------------------------------------------------
         std::unordered_map<int, PresetGeo> presetGeos_;
 
         GLuint instanceVBO_ = 0;    // reused across batches each frame
@@ -121,7 +121,7 @@ namespace ettycc
         // Instanced shader (shared, loaded once)
         std::shared_ptr<CachedShader> instancedShader_;
 
-        // ── Per-frame state ───────────────────────────────────────────────────
+        // -- Per-frame state ---------------------------------------------------
         std::unordered_map<BatchKey, Batch, BatchKeyHash> batches_;
         std::vector<CustomEntry> customSprites_;
         std::shared_ptr<RenderingContext> ctx_;

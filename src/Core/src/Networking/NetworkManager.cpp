@@ -38,7 +38,7 @@ namespace ettycc
     {
         if (host_)
         {
-            spdlog::warn("[NetworkManager] Already active — call Shutdown() first");
+            spdlog::warn("[NetworkManager] Already active -- call Shutdown() first");
             return false;
         }
 
@@ -65,7 +65,7 @@ namespace ettycc
     {
         if (host_)
         {
-            spdlog::warn("[NetworkManager] Already active — call Shutdown() first");
+            spdlog::warn("[NetworkManager] Already active -- call Shutdown() first");
             return false;
         }
 
@@ -97,25 +97,25 @@ namespace ettycc
         return true;
     }
 
-    // ── Network-thread: service ENet events ──────────────────────────────────
+    // -- Network-thread: service ENet events ----------------------------------
 
     void NetworkManager::Poll()
     {
         if (!host_) return;
 
-        // ── Delta time for bandwidth sampling ─────────────────────────────────
+        // -- Delta time for bandwidth sampling ---------------------------------
         auto now = std::chrono::steady_clock::now();
         double dt = std::chrono::duration<double>(now - lastPollTime_).count();
         lastPollTime_ = now;
 
-        // ── Connection timeout (client CONNECTING state) ───────────────────────
+        // -- Connection timeout (client CONNECTING state) -----------------------
         if (GetState() == NetState::CONNECTING)
         {
             double elapsed = std::chrono::duration<double>(now - connectStart_).count();
             if (elapsed > kConnectTimeoutSec)
             {
                 spdlog::warn("[NetworkManager] Connection timed out after {:.1f}s", elapsed);
-                // Can't call full Shutdown from worker — just mark disconnected.
+                // Can't call full Shutdown from worker -- just mark disconnected.
                 // Main thread will handle cleanup via HandlePendingDisconnect.
                 state_.store(NetState::DISCONNECTED, std::memory_order_release);
                 disconnectPending_.store(true, std::memory_order_release);
@@ -123,7 +123,7 @@ namespace ettycc
             }
         }
 
-        // ── ENet event loop (non-blocking: timeout = 0) ──────────────────────
+        // -- ENet event loop (non-blocking: timeout = 0) ----------------------
         ENetEvent event;
         while (enet_host_service(host_, &event, 0) > 0)
         {
@@ -158,7 +158,7 @@ namespace ettycc
             }
         }
 
-        // ── Bandwidth sampling (one sample per second) ────────────────────────
+        // -- Bandwidth sampling (one sample per second) ------------------------
         auto currentState = GetState();
         if (currentState == NetState::CONNECTED || currentState == NetState::CONNECTING)
         {
@@ -182,7 +182,7 @@ namespace ettycc
             }
         }
 
-        // ── Live connection duration ───────────────────────────────────────────
+        // -- Live connection duration -------------------------------------------
         if (currentState == NetState::CONNECTED)
         {
             bwStats_.connectedForSecs =
@@ -190,7 +190,7 @@ namespace ettycc
         }
     }
 
-    // ── Network-thread: drain outbound queue and send via ENet ───────────────
+    // -- Network-thread: drain outbound queue and send via ENet ---------------
 
     void NetworkManager::SendOutbound()
     {
@@ -215,7 +215,7 @@ namespace ettycc
         });
     }
 
-    // ── Main-thread: drain inbound queue and apply transforms ────────────────
+    // -- Main-thread: drain inbound queue and apply transforms ----------------
 
     size_t NetworkManager::ApplyInboundTransforms()
     {
@@ -231,7 +231,7 @@ namespace ettycc
         });
     }
 
-    // ── Main-thread: handle deferred disconnect ──────────────────────────────
+    // -- Main-thread: handle deferred disconnect ------------------------------
 
     void NetworkManager::HandlePendingDisconnect()
     {
@@ -242,7 +242,7 @@ namespace ettycc
         disconnectPending_.store(false, std::memory_order_release);
     }
 
-    // ── Main-thread: queue a broadcast for the network worker ────────────────
+    // -- Main-thread: queue a broadcast for the network worker ----------------
 
     void NetworkManager::QueueBroadcast(uint32_t networkId,
                                         const glm::vec3& pos,
@@ -256,10 +256,10 @@ namespace ettycc
         pkt.sx = scale.x; pkt.sy = scale.y; pkt.sz = scale.z;
 
         if (!outboundTransforms_.TryPush(std::move(pkt)))
-            spdlog::warn("[NetworkManager] Outbound queue full — dropping broadcast for id={}", networkId);
+            spdlog::warn("[NetworkManager] Outbound queue full -- dropping broadcast for id={}", networkId);
     }
 
-    // ── Shutdown ──────────────────────────────────────────────────────────────
+    // -- Shutdown --------------------------------------------------------------
 
     void NetworkManager::Shutdown()
     {
@@ -297,7 +297,7 @@ namespace ettycc
         bwHistoryOffset_ = 0;
     }
 
-    // ── Registry ──────────────────────────────────────────────────────────────
+    // -- Registry --------------------------------------------------------------
 
     void NetworkManager::Register(uint32_t networkId, NetworkComponent* comp)
     {
@@ -318,7 +318,7 @@ namespace ettycc
         }
     }
 
-    // ── Legacy synchronous broadcast (network-thread only) ───────────────────
+    // -- Legacy synchronous broadcast (network-thread only) -------------------
 
     void NetworkManager::BroadcastTransform(uint32_t networkId,
                                             const glm::vec3& pos,
@@ -349,7 +349,7 @@ namespace ettycc
         dbg.count++;
     }
 
-    // ── Receive (called on network thread) ───────────────────────────────────
+    // -- Receive (called on network thread) -----------------------------------
 
     void NetworkManager::HandlePacket(const uint8_t* data, size_t length)
     {
@@ -364,9 +364,9 @@ namespace ettycc
             TransformPacket pkt;
             std::memcpy(&pkt, data, sizeof(TransformPacket));
 
-            // Push to inbound queue — main thread will apply via ApplyInboundTransforms()
+            // Push to inbound queue -- main thread will apply via ApplyInboundTransforms()
             if (!inboundTransforms_.TryPush(pkt))
-                spdlog::warn("[NetworkManager] Inbound queue full — dropping transform for id={}", pkt.networkId);
+                spdlog::warn("[NetworkManager] Inbound queue full -- dropping transform for id={}", pkt.networkId);
 
             ++totalReceived_;
             bytesRecvWindow_            += length;

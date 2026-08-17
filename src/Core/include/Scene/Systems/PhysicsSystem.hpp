@@ -9,7 +9,7 @@ namespace ettycc
 {
     class RigidBodyComponent;
 
-    // ── PhysicsSystem ─────────────────────────────────────────────────────────
+    // -- PhysicsSystem ---------------------------------------------------------
     // MAIN channel.
     // Owns initialization and per-frame update for:
     //   * RigidBodyComponent (Bullet btRigidBody)
@@ -20,7 +20,7 @@ namespace ettycc
     //
     // Gravity computation is offloaded to the ThreadRegistry pool.
     // Data flows through flat contiguous buffers (no queues) with an
-    // atomic flag handoff — one frame of latency, zero main-thread stalls.
+    // atomic flag handoff -- one frame of latency, zero main-thread stalls.
     class PhysicsSystem : public ISystem
     {
     public:
@@ -37,10 +37,10 @@ namespace ettycc
         void InitSoftBody (Scene& scene, Engine& engine, ecs::Entity e);
         void ProcessFusions(Scene& scene);
 
-        // ── Async gravity (flat buffers, no queue) ────────────────────────────
+        // -- Async gravity (flat buffers, no queue) ----------------------------
         // Ownership contract:
-        //   gravityJobRunning_ == false  → main thread owns all buffers
-        //   gravityJobRunning_ == true   → worker owns bodySnap_ + forceResults_
+        //   gravityJobRunning_ == false  -> main thread owns all buffers
+        //   gravityJobRunning_ == true   -> worker owns bodySnap_ + forceResults_
         //                                  (main must not touch them)
 
         struct AttractorSnapshot {

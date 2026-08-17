@@ -37,7 +37,7 @@ namespace ettycc
         glGenFramebuffers(1, &fbo_);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
 
-        // RGBA8 color attachment — displayable as ImGui::Image
+        // RGBA8 color attachment -- displayable as ImGui::Image
         glGenTextures(1, &texture_);
         glBindTexture(GL_TEXTURE_2D, texture_);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size_.x, size_.y, 0,
@@ -66,7 +66,7 @@ namespace ettycc
 
     void PickerBuffer::InitShader(const std::string& shadersPath)
     {
-        // ── Legacy per-object picker shader ─────────────────────────────────
+        // -- Legacy per-object picker shader ---------------------------------
         {
             auto vertSrc = LoadFile(shadersPath + "picker.vert");
             auto fragSrc = LoadFile(shadersPath + "picker.frag");
@@ -95,13 +95,13 @@ namespace ettycc
             idColorLoc_ = glGetUniformLocation(program_, "idColor");
         }
 
-        // ── Instanced picker shader ─────────────────────────────────────────
+        // -- Instanced picker shader -----------------------------------------
         {
             auto vertSrc = LoadFile(shadersPath + "picker_instanced.vert");
             auto fragSrc = LoadFile(shadersPath + "picker_instanced.frag");
             if (vertSrc.empty() || fragSrc.empty())
             {
-                spdlog::warn("[PickerBuffer] Instanced picker shaders not found — falling back to per-object path");
+                spdlog::warn("[PickerBuffer] Instanced picker shaders not found -- falling back to per-object path");
                 return;
             }
 
@@ -154,9 +154,9 @@ namespace ettycc
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
-        glDisable(GL_BLEND);  // no blending — solid flat IDs only
+        glDisable(GL_BLEND);  // no blending -- solid flat IDs only
 
-        // ── Separate sprites from non-sprites and assign IDs ────────────────
+        // -- Separate sprites from non-sprites and assign IDs ----------------
         // Batches keyed by shape preset
         std::unordered_map<int, PickerBatch> batches;
         std::vector<CustomPickerEntry> customSprites;
@@ -176,7 +176,7 @@ namespace ettycc
 
             auto* sprite = dynamic_cast<Sprite*>(renderables[i].get());
 
-            // Frustum culling — skip sprites entirely outside the view
+            // Frustum culling -- skip sprites entirely outside the view
             if (sprite && sprite->initialized && ctx->frustum.enabled)
             {
                 const glm::vec3 pos   = sprite->underylingTransform.getGlobalPosition();
@@ -216,7 +216,7 @@ namespace ettycc
             }
         }
 
-        // ── Instanced path: one draw call per shape preset ──────────────────
+        // -- Instanced path: one draw call per shape preset ------------------
         if (canBatch && !batches.empty())
         {
             const glm::mat4 PV = ctx->Projection * ctx->View;
@@ -246,7 +246,7 @@ namespace ettycc
             }
         }
 
-        // ── Custom geometry sprites: individual draws with instanced shader ─
+        // -- Custom geometry sprites: individual draws with instanced shader -
         if (canBatch && !customSprites.empty())
         {
             const glm::mat4 PV = ctx->Projection * ctx->View;
@@ -278,7 +278,7 @@ namespace ettycc
     {
         if (!initialized_) return 0;
 
-        // Flip Y — OpenGL origin is bottom-left, screen origin is top-left
+        // Flip Y -- OpenGL origin is bottom-left, screen origin is top-left
         const int flippedY = size_.y - 1 - y;
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_);
@@ -313,7 +313,7 @@ namespace ettycc
 
     GLuint PickerBuffer::GetTextureId() const { return texture_; }
 
-    // ─── Preset geometry ────────────────────────────────────────────────────
+    // --- Preset geometry ----------------------------------------------------
 
     void PickerBuffer::BuildPresetGeo(int preset)
     {
@@ -336,9 +336,9 @@ namespace ettycc
 
         glBindVertexArray(geo.vao);
 
-        // Geometry VBO (static — shared by all instances of this preset)
+        // Geometry VBO (static -- shared by all instances of this preset)
         // Only position needed for picker (no tex coords), but we keep the same
-        // vertex layout (5 floats: x,y,z,u,v) for simplicity — only location 0 is read.
+        // vertex layout (5 floats: x,y,z,u,v) for simplicity -- only location 0 is read.
         glBindBuffer(GL_ARRAY_BUFFER, geo.vbo);
         glBufferData(GL_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(vbuf.size() * sizeof(float)),
@@ -373,7 +373,7 @@ namespace ettycc
         return it->second;
     }
 
-    // ─── Instance VBO management ────────────────────────────────────────────
+    // --- Instance VBO management --------------------------------------------
 
     void PickerBuffer::EnsureInstanceVBO(size_t count)
     {
@@ -421,7 +421,7 @@ namespace ettycc
         constexpr float goldenRatio = 0.618033988749895f;
         const float hue = glm::fract(static_cast<float>(id) * goldenRatio);
 
-        // HSV -> RGB  (S=1, V=1 — always full brightness)
+        // HSV -> RGB  (S=1, V=1 -- always full brightness)
         const float h6 = hue * 6.0f;
         const int   hi = static_cast<int>(h6) % 6;
         const float f  = h6 - static_cast<float>(static_cast<int>(h6));

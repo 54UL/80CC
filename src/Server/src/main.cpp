@@ -17,29 +17,45 @@ static void PrintUsage(const char* exe)
     spdlog::info("  --help             Show this message");
 }
 
+bool parseArgs(int argc, char **argv, uint16_t &port, int &tickRate, std::string &scenePath) {
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::strcmp(argv[i], "--port") == 0 && i + 1 < argc)
+        {
+            port = static_cast<uint16_t>(std::atoi(argv[++i]));
+        }
+        else if (std::strcmp(argv[i], "--tick-rate") == 0 && i + 1 < argc)
+        {
+            tickRate = std::atoi(argv[++i]);
+        }
+        else if (std::strcmp(argv[i], "--scene") == 0 && i + 1 < argc)
+        {
+            scenePath = argv[++i];
+        }
+        else if (std::strcmp(argv[i], "--help") == 0)
+        {
+            PrintUsage(argv[0]);
+            return true;
+        }
+        else
+        {
+            spdlog::error("Unknown argument: {}", argv[i]);
+            PrintUsage(argv[0]);
+            return true;
+        }
+    }
+    return false;
+}
+
 int main(int argc, char* argv[])
 {
+    //TODO: Extract defaults from json...
     uint16_t    port     = 7777;
     int         tickRate = 60;
     std::string scenePath;
 
-    // ── Parse CLI args ──────────────────────────────────────────────────────
-    for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "--port") == 0 && i + 1 < argc) {
-            port = static_cast<uint16_t>(std::atoi(argv[++i]));
-        } else if (std::strcmp(argv[i], "--tick-rate") == 0 && i + 1 < argc) {
-            tickRate = std::atoi(argv[++i]);
-        } else if (std::strcmp(argv[i], "--scene") == 0 && i + 1 < argc) {
-            scenePath = argv[++i];
-        } else if (std::strcmp(argv[i], "--help") == 0) {
-            PrintUsage(argv[0]);
-            return 0;
-        } else {
-            spdlog::error("Unknown argument: {}", argv[i]);
-            PrintUsage(argv[0]);
-            return 1;
-        }
-    }
+    // -- Parse CLI args ------------------------------------------------------
+    if (parseArgs(argc, argv, port, tickRate, scenePath)) return 1;
 
     spdlog::info("========================================");
     spdlog::info("  80CC Dedicated Server");
@@ -47,7 +63,7 @@ int main(int argc, char* argv[])
     spdlog::info("  Tick rate: {} Hz", tickRate);
     spdlog::info("========================================");
 
-    // ── Bootstrap ───────────────────────────────────────────────────────────
+    // -- Bootstrap -----------------------------------------------------------
     auto app    = std::make_shared<HeadlessApp>(tickRate);
     auto engine = std::make_shared<Engine>(app);
     auto globals = std::make_shared<Globals>();
@@ -60,10 +76,10 @@ int main(int argc, char* argv[])
     if (app->Init(argc, argv))
         return 1;
 
-    // ── Network: always host ────────────────────────────────────────────────
+    // -- Network: always host ------------------------------------------------
     engine->InitNetwork(/*isHost=*/true, port);
 
-    // ── Scene ───────────────────────────────────────────────────────────────
+    // -- Scene ---------------------------------------------------------------
     if (!scenePath.empty()) {
         spdlog::info("[Server] Loading scene from: {}", scenePath);
         engine->LoadScene(scenePath, /*defaultPath=*/false);
@@ -74,7 +90,7 @@ int main(int argc, char* argv[])
 
     spdlog::info("[Server] Listening on port {}...", port);
 
-    // ── Run ─────────────────────────────────────────────────────────────────
+    // -- Run -----------------------------------------------------------------
     int exitCode = app->Exec();
 
     Dependency::getInstance().Clear();

@@ -82,7 +82,7 @@ namespace ettycc
         return glm::degrees(eulerAngles);
     }
 
-    // ── Local setters/getters (aliases until parent hierarchy is added) ────────
+    // -- Local setters/getters (aliases until parent hierarchy is added) --------
 
     void Transform::setLocalPosition(glm::vec3 position) { setGlobalPosition(position); }
     void Transform::setLocalRotation(glm::vec3 eulerDegrees) { setGlobalRotation(eulerDegrees); }
@@ -91,14 +91,14 @@ namespace ettycc
     glm::vec3 Transform::getLocalRotation() const { return rotation_; }
     glm::vec3 Transform::getLocalScale() const { return getGlobalScale(); }
 
-    // ── Convenience ─────────────────────────────────────────────────────────────
+    // -- Convenience -------------------------------------------------------------
 
     void Transform::set(glm::vec3 eulerDegrees)
     {
         setGlobalRotation(eulerDegrees);
     }
 
-    // ── Incremental operations ──────────────────────────────────────────────────
+    // -- Incremental operations --------------------------------------------------
 
     void Transform::rotate(glm::vec3 eulerDegrees)
     {
@@ -113,7 +113,7 @@ namespace ettycc
         setGlobalRotation(glm::degrees(glm::eulerAngles(result)));
     }
 
-    // ── Direction vectors ───────────────────────────────────────────────────────
+    // -- Direction vectors -------------------------------------------------------
 
     glm::vec3 Transform::forward() const
     {
@@ -130,7 +130,7 @@ namespace ettycc
         return glm::normalize(glm::vec3(rotationMatrix * glm::vec4(0, 1, 0, 0)));
     }
 
-    // ── Look-at ─────────────────────────────────────────────────────────────────
+    // -- Look-at -----------------------------------------------------------------
 
     void Transform::lookAt(glm::vec3 target, glm::vec3 worldUp)
     {
@@ -141,7 +141,7 @@ namespace ettycc
         setGlobalRotation(glm::degrees(glm::eulerAngles(rot)));
     }
 
-    // ── TRS ─────────────────────────────────────────────────────────────────────
+    // -- TRS ---------------------------------------------------------------------
 
     void Transform::SetFromTRS(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scale)
     {
@@ -151,7 +151,7 @@ namespace ettycc
 
         rotationMatrix  = glm::mat4_cast(rot);
 
-        // Build canonical T * R * S — rotation is about the object's local origin,
+        // Build canonical T * R * S -- rotation is about the object's local origin,
         // then the result is translated to world position.  This avoids the
         // order-dependency bugs in the individual setters.
         modelMatrix     = glm::translate(glm::mat4(1.f), pos)

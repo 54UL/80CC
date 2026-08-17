@@ -6,7 +6,7 @@
 namespace ettycc
 {
     // Six-plane frustum extracted from a Projection * View matrix.
-    // Planes point inward — a point is inside when dot(plane, point) >= 0.
+    // Planes point inward -- a point is inside when dot(plane, point) >= 0.
     struct Frustum
     {
         enum Plane { Left = 0, Right, Bottom, Top, Near, Far, Count };
@@ -21,7 +21,7 @@ namespace ettycc
             Frustum f;
             f.enabled = true;
 
-            // Gribb-Hartmann method — extract planes from rows of the PV matrix.
+            // Gribb-Hartmann method -- extract planes from rows of the PV matrix.
             const glm::vec4 r0(pv[0][0], pv[1][0], pv[2][0], pv[3][0]);
             const glm::vec4 r1(pv[0][1], pv[1][1], pv[2][1], pv[3][1]);
             const glm::vec4 r2(pv[0][2], pv[1][2], pv[2][2], pv[3][2]);

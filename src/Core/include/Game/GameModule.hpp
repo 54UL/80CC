@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-// ── DLL export / import macros ───────────────────────────────────────────────
+// -- DLL export / import macros -----------------------------------------------
 // Module DLLs define ETTYCC_MODULE_EXPORT before including this header
 // (set automatically by the CMake target_compile_definitions).
 #ifdef _WIN32
@@ -33,7 +33,7 @@ namespace ettycc
     };
 } // namespace ettycc
 
-// ── DLL entry point macro ────────────────────────────────────────────────────
+// -- DLL entry point macro ----------------------------------------------------
 // Place ETTYCC_MODULE(YourModuleClass) in exactly one .cpp file per module DLL.
 // It exports the C functions that ModuleLoader uses to create/destroy instances.
 #define ETTYCC_MODULE(ClassName)                                              \
@@ -43,6 +43,16 @@ namespace ettycc
     extern "C" ETTYCC_MODULE_API void ettycc_DestroyModule(                   \
             ettycc::GameModule* m) {                                          \
         delete m;                                                             \
+    }
+
+// Place ETTYCC_MODULE_IMGUI() after ETTYCC_MODULE() in the same .cpp file
+// if the module uses ImGui (e.g. PROP macro in InspectProperties).
+// Requires <imgui.h> to be included before this macro.
+// The engine calls this after loading the DLL to share its ImGui context.
+#define ETTYCC_MODULE_IMGUI()                                                \
+    extern "C" ETTYCC_MODULE_API void ettycc_SetImGuiContext(                \
+            ImGuiContext* ctx) {                                              \
+        ImGui::SetCurrentContext(ctx);                                        \
     }
 
 #endif

@@ -12,7 +12,7 @@ namespace ettycc
     struct EditorPropertyVisitor;
     class  AudioManager;
 
-    // ── AudioListenerComponent ────────────────────────────────────────────────
+    // -- AudioListenerComponent ------------------------------------------------
     // Marks the entity whose position drives the OpenAL listener each frame.
     // AudioSystem calls Init() once and UpdateListener() every AUDIO frame.
     class AudioListenerComponent
@@ -24,7 +24,7 @@ namespace ettycc
         AudioListenerComponent() = default;
         ~AudioListenerComponent() = default;
 
-        // Non-copyable, movable — consistent with all other components so
+        // Non-copyable, movable -- consistent with all other components so
         // ComponentPool swap-and-pop always uses move, never accidental copy.
         AudioListenerComponent(const AudioListenerComponent&)            = delete;
         AudioListenerComponent& operator=(const AudioListenerComponent&) = delete;
@@ -47,15 +47,15 @@ namespace ettycc
             return *this;
         }
 
-        // ── System-facing API (called by AudioSystem) ─────────────────────────
+        // -- System-facing API (called by AudioSystem) -------------------------
         void Init(AudioManager& mgr, const Transform& initialTransform);
         void UpdateListener(float dt, const Transform& t);
         bool IsInitialized() const { return audioMgr_ != nullptr; }
 
-        // ── Editor inspector ──────────────────────────────────────────────────
+        // -- Editor inspector --------------------------------------------------
         void InspectProperties(EditorPropertyVisitor& v);
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template<class Archive>
         void serialize(Archive& ar)
         {
@@ -70,10 +70,10 @@ namespace ettycc
             PROP(gain_, "Master Gain");
         }
 
-        // ── Serialized ────────────────────────────────────────────────────────
+        // -- Serialized --------------------------------------------------------
         float gain_ = 1.0f;
 
-        // ── Runtime (not serialized, set by AudioSystem::Init) ────────────────
+        // -- Runtime (not serialized, set by AudioSystem::Init) ----------------
         glm::vec3     prevPos_ = {0.f, 0.f, 0.f};
         AudioManager* audioMgr_ = nullptr;
     };

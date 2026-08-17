@@ -14,18 +14,18 @@
 
 namespace ettycc
 {
-    // ── ThreadRegistry ───────────────────────────────────────────────────────────
+    // -- ThreadRegistry -----------------------------------------------------------
     // Central owner of all engine threads.
     //
-    // Every thread the engine creates — persistent workers AND one-shot pool
-    // tasks — goes through this class.  This gives a single place to:
-    //   • query what threads exist and their state (for the debugger UI)
-    //   • shut everything down cleanly on exit
-    //   • prevent runaway thread creation by future systems
+    // Every thread the engine creates -- persistent workers AND one-shot pool
+    // tasks -- goes through this class.  This gives a single place to:
+    //   * query what threads exist and their state (for the debugger UI)
+    //   * shut everything down cleanly on exit
+    //   * prevent runaway thread creation by future systems
     //
     // Two flavours of concurrency:
-    //   1. Named WorkerThreads  — long-lived loops (network poller, etc.)
-    //   2. Pool tasks           — fire-and-forget via Submit() → std::future
+    //   1. Named WorkerThreads  -- long-lived loops (network poller, etc.)
+    //   2. Pool tasks           -- fire-and-forget via Submit() -> std::future
     //                             (physics step, audio tick, asset loads)
     class ThreadRegistry
     {
@@ -54,7 +54,7 @@ namespace ettycc
         ThreadRegistry(const ThreadRegistry&)            = delete;
         ThreadRegistry& operator=(const ThreadRegistry&) = delete;
 
-        // ── Persistent workers ───────────────────────────────────────────────────
+        // -- Persistent workers ---------------------------------------------------
 
         // Create a named worker thread.  Returns a reference to the new worker.
         // Caller is responsible for calling worker.Start(fn) when ready.
@@ -64,7 +64,7 @@ namespace ettycc
             auto [it, inserted] = workers_.emplace(
                 name, std::make_unique<WorkerThread>(name));
             if (!inserted)
-                spdlog::warn("[ThreadRegistry] Worker '{}' already exists — returning existing", name);
+                spdlog::warn("[ThreadRegistry] Worker '{}' already exists -- returning existing", name);
             return *it->second;
         }
 
@@ -76,7 +76,7 @@ namespace ettycc
             return (it != workers_.end()) ? it->second.get() : nullptr;
         }
 
-        // ── Pool tasks (one-shot) ────────────────────────────────────────────────
+        // -- Pool tasks (one-shot) ------------------------------------------------
 
         // Submit a task to the thread pool and return a future for the result.
         // This is the replacement for raw std::async calls scattered in Engine.
@@ -86,7 +86,7 @@ namespace ettycc
             return taskPool_.enqueue(std::forward<F>(f), std::forward<Args>(args)...);
         }
 
-        // ── Parallel iteration ─────────────────────────────────────────────────────
+        // -- Parallel iteration -----------------------------------------------------
 
         // Split [0, count) into chunks across pool threads and run fn(begin, end)
         // on each chunk.  Blocks until all chunks complete.
@@ -131,7 +131,7 @@ namespace ettycc
             for (auto& f : futures) f.get();
         }
 
-        // ── Debug / introspection ────────────────────────────────────────────────
+        // -- Debug / introspection ------------------------------------------------
 
         struct ThreadInfo
         {
@@ -161,7 +161,7 @@ namespace ettycc
 
         size_t GetPoolSize() const { return poolThreadCount_; }
 
-        // ── Lifecycle ────────────────────────────────────────────────────────────
+        // -- Lifecycle ------------------------------------------------------------
 
         void Shutdown()
         {

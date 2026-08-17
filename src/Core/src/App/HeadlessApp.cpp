@@ -8,12 +8,12 @@
 
 namespace ettycc
 {
-    // ── Global shutdown hook for SIGINT / SIGTERM ────────────────────────────
+    // -- Global shutdown hook for SIGINT / SIGTERM ----------------------------
     static std::atomic<bool>* g_running = nullptr;
 
     static void SignalHandler(int sig)
     {
-        spdlog::warn("[HeadlessApp] Signal {} received — shutting down...", sig);
+        spdlog::warn("[HeadlessApp] Signal {} received -- shutting down...", sig);
         if (g_running)
             g_running->store(false, std::memory_order_release);
     }
@@ -35,7 +35,7 @@ namespace ettycc
 
         lastTick_ = Clock::now();
 
-        spdlog::info("[HeadlessApp] Initialized — tick rate: {} Hz", tickRate_);
+        spdlog::info("[HeadlessApp] Initialized -- tick rate: {} Hz", tickRate_);
         return 0;
     }
 
@@ -56,7 +56,7 @@ namespace ettycc
             lastTick_  = now;
 
             engine_->Update();
-            // No PrepareFrame / PresentFrame — headless has no rendering
+            // No PrepareFrame / PresentFrame -- headless has no rendering
 
             // Sleep to maintain tick rate
             auto elapsed = Clock::now() - now;
@@ -80,13 +80,13 @@ namespace ettycc
 
     glm::ivec2 HeadlessApp::GetMainWindowSize()
     {
-        // No window — return a dummy size for any code that queries it
+        // No window -- return a dummy size for any code that queries it
         return {0, 0};
     }
 
     void HeadlessApp::AddExecutionPipeline(std::shared_ptr<ExecutionPipeline> /*pipeline*/)
     {
-        // No-op — headless mode doesn't support execution pipelines (editor UI, etc.)
+        // No-op -- headless mode doesn't support execution pipelines (editor UI, etc.)
         spdlog::warn("[HeadlessApp] AddExecutionPipeline ignored in headless mode");
     }
 } // namespace ettycc

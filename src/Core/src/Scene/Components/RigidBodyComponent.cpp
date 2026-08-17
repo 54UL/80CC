@@ -16,7 +16,7 @@ namespace ettycc
             physWorld_->removeRigidBody(body_.get());
     }
 
-    // ── System-facing: initialize Bullet rigid body ───────────────────────────
+    // -- System-facing: initialize Bullet rigid body ---------------------------
     void RigidBodyComponent::InitBody(btDiscreteDynamicsWorld* world,
                                       Transform& syncTransform,
                                       const Transform* seedTransform)
@@ -64,11 +64,11 @@ namespace ettycc
 
         physWorld_->addRigidBody(body_.get());
 
-        spdlog::info("[RigidBodyComponent] body created — mass={:.1f}  pos=({:.2f},{:.2f},{:.2f})",
+        spdlog::info("[RigidBodyComponent] body created -- mass={:.1f}  pos=({:.2f},{:.2f},{:.2f})",
                      mass_, spawnPos.x, spawnPos.y, spawnPos.z);
     }
 
-    // ── System-facing: pull physics result into node transform ────────────────
+    // -- System-facing: pull physics result into node transform ----------------
     void RigidBodyComponent::SyncToTransform(Transform& t) const
     {
         if (!body_ || !syncTransform_ || mass_ == 0.f || isManipulated_) return;
@@ -86,7 +86,7 @@ namespace ettycc
         t.SetFromTRS(pos, rot, scale);
     }
 
-    // ── Force / velocity helpers ────────────────────────────────────────────────
+    // -- Force / velocity helpers ------------------------------------------------
     void RigidBodyComponent::ApplyCentralForce(const glm::vec3& f)
     {
         if (!body_) return;
@@ -179,7 +179,7 @@ namespace ettycc
             syncTransform_->setGlobalScale(newHalfExtents);
     }
 
-    // ── Editor gizmo API ──────────────────────────────────────────────────────
+    // -- Editor gizmo API ------------------------------------------------------
     void RigidBodyComponent::BeginManipulation()
     {
         if (!body_) return;
@@ -222,7 +222,7 @@ namespace ettycc
         body_->setWorldTransform(t);
     }
 
-    // ── Editor inspector ──────────────────────────────────────────────────────
+    // -- Editor inspector ------------------------------------------------------
     void RigidBodyComponent::InspectProperties(EditorPropertyVisitor& v)
     {
         PROP  (mass_,            "Mass");

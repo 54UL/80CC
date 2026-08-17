@@ -2,7 +2,7 @@
 #include <UI/EditorPropertyVisitor.hpp>
 #include <Engine.hpp>
 
-// stb_image is already implemented in Sprite.cpp — include header only here
+// stb_image is already implemented in Sprite.cpp -- include header only here
 #include <stb_image.h>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -48,7 +48,7 @@ namespace ettycc
         if (initialized)
             return;
 
-        // ── Shader + Texture via ResourceCache ───────────────────────────────
+        // -- Shader + Texture via ResourceCache -------------------------------
         auto cache = GetDependency(ResourceCache);
         cachedShader_ = cache->GetShader(kShaderName);
 
@@ -80,27 +80,27 @@ namespace ettycc
 
         glBindVertexArray(VAO_);
 
-        // VBO — dynamic because positions are updated every frame
+        // VBO -- dynamic because positions are updated every frame
         glBindBuffer(GL_ARRAY_BUFFER, VBO_);
         glBufferData(GL_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(vertexBuffer_.size() * sizeof(float)),
                      vertexBuffer_.data(),
                      GL_DYNAMIC_DRAW);
 
-        // EBO — static; topology never changes
+        // EBO -- static; topology never changes
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(indices_.size() * sizeof(int)),
                      indices_.data(),
                      GL_STATIC_DRAW);
 
-        // attrib 0 — position (vec3, offset 0)
+        // attrib 0 -- position (vec3, offset 0)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
                               5 * static_cast<GLsizei>(sizeof(float)),
                               reinterpret_cast<void*>(0));
         glEnableVertexAttribArray(0);
 
-        // attrib 1 — uv (vec2, offset 12 bytes)
+        // attrib 1 -- uv (vec2, offset 12 bytes)
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
                               5 * static_cast<GLsizei>(sizeof(float)),
                               reinterpret_cast<void*>(3 * sizeof(float)));
@@ -109,7 +109,7 @@ namespace ettycc
         glBindVertexArray(0);
 
         initialized = true;
-        spdlog::info("[SoftBodyRenderable] initialized — {} verts, {} indices",
+        spdlog::info("[SoftBodyRenderable] initialized -- {} verts, {} indices",
                      numVerts_, indices_.size());
     }
 
@@ -139,7 +139,7 @@ namespace ettycc
 
         const GLuint prog = cachedShader_->programId;
 
-        // Soft body nodes are already in world space — no model matrix needed
+        // Soft body nodes are already in world space -- no model matrix needed
         glm::mat4 PV = ctx->Projection * ctx->View;
 
         glActiveTexture(GL_TEXTURE0);
@@ -169,7 +169,7 @@ namespace ettycc
     {
         if (!initialized || !body_) return;
 
-        // Soft body nodes are world-space — no model matrix, just PV
+        // Soft body nodes are world-space -- no model matrix, just PV
         const glm::mat4 PV = ctx->Projection * ctx->View;
         glUniformMatrix4fv(glGetUniformLocation(program, "PVM"), 1, GL_FALSE,
                            glm::value_ptr(PV));

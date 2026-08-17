@@ -46,7 +46,7 @@ namespace ettycc
                 EntityCounter() = pastId + 1;
         }
 
-        // Legacy alias — kept so any remaining code compiles.
+        // Legacy alias -- kept so any remaining code compiles.
         inline uint64_t GetNextIncrementalId()
         {
             return GetNextEntityId();

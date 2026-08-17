@@ -15,7 +15,7 @@
 
 namespace ettycc
 {
-    // Internal: one group of key→value pairs sharing the same prefix.
+    // Internal: one group of key->value pairs sharing the same prefix.
     class GlobalGroup
     {
     public:
@@ -26,8 +26,8 @@ namespace ettycc
     };
 
     // Engine-wide string configuration store.
-    // Loads/saves prefix→key→value maps from/to a JSON file.
-    // Replaces the old "Resources" class — the name better reflects that
+    // Loads/saves prefix->key->value maps from/to a JSON file.
+    // Replaces the old "Resources" class -- the name better reflects that
     // this holds global *configuration*, not game assets.
     class Globals
     {
@@ -37,7 +37,7 @@ namespace ettycc
             const char* root = std::getenv(gk::ENV_ASSETS_ROOT);
             if (root == nullptr)
             {
-                spdlog::warn("'{}' not set — using default: {}", gk::ENV_ASSETS_ROOT, paths::ASSETS_DEFAULT);
+                spdlog::warn("'{}' not set -- using default: {}", gk::ENV_ASSETS_ROOT, paths::ASSETS_DEFAULT);
                 SetWorkingFolder(paths::ASSETS_DEFAULT);
             }
             else
@@ -47,7 +47,7 @@ namespace ettycc
             }
         }
 
-        // ── Working folder ─────────────────────────────────────────────────
+        // -- Working folder -------------------------------------------------
         // Always normalizes to end with '/' so callers can just concatenate.
         void SetWorkingFolder(const std::string& path)
         {
@@ -55,7 +55,7 @@ namespace ettycc
             if (!workingFolderPath_.empty())
             {
                 char& last = workingFolderPath_.back();
-                if (last == '\\') last = '/';          // backslash → forward slash
+                if (last == '\\') last = '/';          // backslash -> forward slash
                 else if (last != '/') workingFolderPath_ += '/';  // add if missing
             }
         }
@@ -67,7 +67,7 @@ namespace ettycc
             if (root == nullptr)
             {
                 SetWorkingFolder(paths::ASSETS_DEFAULT);
-                spdlog::info("'{}' not set — using: {}", gk::ENV_ASSETS_ROOT, paths::ASSETS_DEFAULT);
+                spdlog::info("'{}' not set -- using: {}", gk::ENV_ASSETS_ROOT, paths::ASSETS_DEFAULT);
             }
             else
             {
@@ -104,7 +104,7 @@ namespace ettycc
             ar(cereal::make_nvp(gk::JSON_ROOT, groups_));
         }
 
-        // ── Key-value access ───────────────────────────────────────────────
+        // -- Key-value access -----------------------------------------------
         void Set(const std::string& prefix, std::string key, std::string value)
         {
             if (groups_.find(prefix) == groups_.end())
@@ -129,7 +129,7 @@ namespace ettycc
             return kit->second;
         }
 
-        // Iterate every prefix/key/value — value passed by ref so the caller can edit it.
+        // Iterate every prefix/key/value -- value passed by ref so the caller can edit it.
         void ForEach(std::function<void(const std::string& prefix,
                                         const std::string& key,
                                         std::string& value)> fn)

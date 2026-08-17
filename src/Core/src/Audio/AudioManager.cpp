@@ -14,7 +14,7 @@
 
 namespace ettycc
 {
-    // ── Simple PCM WAV loader ─────────────────────────────────────────────────
+    // -- Simple PCM WAV loader -------------------------------------------------
     namespace
     {
         struct WavData
@@ -131,7 +131,7 @@ namespace ettycc
         }
     } // anonymous namespace
 
-    // ── AudioManager ─────────────────────────────────────────────────────────
+    // -- AudioManager ---------------------------------------------------------
 
     void AudioManager::Init()
     {
@@ -161,7 +161,7 @@ namespace ettycc
         alDopplerFactor(1.0f);
         alSpeedOfSound(343.3f);
 
-        spdlog::info("[AudioManager] OpenAL initialized — device: {}",
+        spdlog::info("[AudioManager] OpenAL initialized -- device: {}",
                      alcGetString(device_, ALC_DEVICE_SPECIFIER));
     }
 
@@ -282,13 +282,13 @@ namespace ettycc
         alListenerfv(AL_ORIENTATION, ori);
     }
 
-    // ── Utility / debug sound API ─────────────────────────────────────────────
+    // -- Utility / debug sound API ---------------------------------------------
 
     void AudioManager::PlayOneShot(const std::string& absoluteFilePath, float volume)
     {
         if (!context_) return;
 
-        // Reuse the component-side buffer cache — same file = same buffer
+        // Reuse the component-side buffer cache -- same file = same buffer
         ALuint buf = LoadBuffer(absoluteFilePath);
         if (buf == AL_NONE) return;
 
@@ -364,7 +364,7 @@ namespace ettycc
         spdlog::info("[AudioManager] Startup chime playing");
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // -- Private helpers -------------------------------------------------------
 
     void AudioManager::DispatchOneShot(ALuint buffer, float volume, bool ownsBuffer)
     {
@@ -373,7 +373,7 @@ namespace ettycc
 
         alSourcei (src, AL_BUFFER,          static_cast<ALint>(buffer));
         alSourcef (src, AL_GAIN,            glm::clamp(volume, 0.f, 1.f));
-        alSourcei (src, AL_SOURCE_RELATIVE, AL_TRUE);   // flat — no position
+        alSourcei (src, AL_SOURCE_RELATIVE, AL_TRUE);   // flat -- no position
         alSource3f(src, AL_POSITION,        0.f, 0.f, 0.f);
         alSource3f(src, AL_VELOCITY,        0.f, 0.f, 0.f);
         alSourcef (src, AL_ROLLOFF_FACTOR,  0.f);
@@ -397,7 +397,7 @@ namespace ettycc
 
         for (size_t i = 0; i < N; ++i)
         {
-            // Envelope: linear attack → sustain → linear release
+            // Envelope: linear attack -> sustain -> linear release
             float env = 1.0f;
             if (i < atkSamples && atkSamples > 0)
                 env = static_cast<float>(i) / static_cast<float>(atkSamples);

@@ -15,7 +15,7 @@
 
 namespace ettycc
 {
-    // ── Cached shader program ────────────────────────────────────────────────
+    // -- Cached shader program ------------------------------------------------
     // One compiled GL program shared by all renderables that use the same
     // vertex/fragment pair (e.g. every Sprite shares a single "sprite" program).
     struct CachedShader
@@ -24,7 +24,7 @@ namespace ettycc
         GLuint         programId = 0;
     };
 
-    // ── Cached GPU texture ───────────────────────────────────────────────────
+    // -- Cached GPU texture ---------------------------------------------------
     // One GL texture object shared by all renderables that reference the same
     // image file on disk.
     struct CachedTexture
@@ -35,7 +35,7 @@ namespace ettycc
         int    channels = 0;
     };
 
-    // ── Pre-loaded image data (CPU side, no GL calls) ────────────────────────
+    // -- Pre-loaded image data (CPU side, no GL calls) ------------------------
     // Used by the async loader: pixel data is read on a worker thread, then
     // uploaded to GL on the main thread.
     struct PreloadedImage
@@ -57,7 +57,7 @@ namespace ettycc
         PreloadedImage& operator=(PreloadedImage&& o) noexcept;
     };
 
-    // ── ResourceCache ────────────────────────────────────────────────────────
+    // -- ResourceCache --------------------------------------------------------
     // Central cache for GPU resources.  Owned by Engine, accessible via the
     // Dependency system.  All GL calls happen on the main thread; disk I/O
     // can be offloaded with PreloadImagesAsync().
@@ -67,17 +67,17 @@ namespace ettycc
         ResourceCache() = default;
         ~ResourceCache() = default;
 
-        // Must be called before use — stores the base shaders path.
+        // Must be called before use -- stores the base shaders path.
         void Init(const std::string& shadersPath);
 
-        // ── Shader API ───────────────────────────────────────────────────────
+        // -- Shader API -------------------------------------------------------
         // Returns a shared, compiled shader program for the given base name
         // (e.g. "sprite" -> loads sprite.vert + sprite.frag once).
         // Thread-safe: only the first call compiles; subsequent calls return
         // the cached program.
         std::shared_ptr<CachedShader> GetShader(const std::string& baseName);
 
-        // ── Texture API ──────────────────────────────────────────────────────
+        // -- Texture API ------------------------------------------------------
         // Returns a shared GL texture for the given absolute file path.
         // Loads from disk + uploads to GPU on first call; returns cached
         // handle afterwards.
@@ -87,7 +87,7 @@ namespace ettycc
         // Returns the GL texture handle and caches it.
         GLuint UploadTexture(PreloadedImage& img);
 
-        // ── Async preloading ─────────────────────────────────────────────────
+        // -- Async preloading -------------------------------------------------
         // Reads image files from disk on a background thread.
         // Returns a future that resolves to a vector of PreloadedImages.
         // Caller must then call UploadTexture() on the main thread for each.
@@ -104,7 +104,7 @@ namespace ettycc
         // Finalize preloaded shaders on the main thread (compiles GL programs).
         void UploadShaders(const std::unordered_map<std::string, ShaderSource>& sources);
 
-        // ── Stats ────────────────────────────────────────────────────────────
+        // -- Stats ------------------------------------------------------------
         size_t GetCachedShaderCount()  const { return shaders_.size(); }
         size_t GetCachedTextureCount() const { return textures_.size(); }
 

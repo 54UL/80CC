@@ -1,15 +1,15 @@
-// 80CC Generator — standalone CLI wrapper around ettycc::build::RunGenerator.
+// 80CC Generator -- standalone CLI wrapper around ettycc::build::RunGenerator.
 //
 // Usage:
 //   Generator <source_dir> <assets_dir> <output_dir> <project_name> <core_lib> <core_include> [<entry_template_dir>]
 //
-//   source_dir      — root of the user's game source (contains include/ and src/)
-//   assets_dir      — root assets folder to bundle (config/, images/, scenes/, ...) — "none" to skip
-//   output_dir      — parent folder; Generator creates <output_dir>/<project_name>/
-//   project_name    — name of the generated project / executable
-//   core_lib        — path to the pre-built 80CC_CORE.lib / lib80CC_CORE.a
-//   core_include    — path to the 80CC_CORE include/ directory
-//   entry_template  — (optional) directory that contains the main.cpp template
+//   source_dir      -- root of the user's game source (contains include/ and src/)
+//   assets_dir      -- root assets folder to bundle (config/, images/, scenes/, ...) -- "none" to skip
+//   output_dir      -- parent folder; Generator creates <output_dir>/<project_name>/
+//   project_name    -- name of the generated project / executable
+//   core_lib        -- path to the pre-built 80CC_CORE.lib / lib80CC_CORE.a
+//   core_include    -- path to the 80CC_CORE include/ directory
+//   entry_template  -- (optional) directory that contains the main.cpp template
 //
 // The cmake configure + build step is handled by the caller (DevEditor or CI).
 

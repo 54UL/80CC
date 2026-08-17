@@ -22,7 +22,7 @@ namespace ettycc
     {
         if (initialized) return;
 
-        // ── Shader via ResourceCache ─────────────────────────────────────────
+        // -- Shader via ResourceCache -----------------------------------------
         auto cache = GetDependency(ResourceCache);
         cachedShader_ = cache->GetShader(kShaderName);
 
@@ -103,7 +103,7 @@ namespace ettycc
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        // Grid is a background overlay — don't write to the depth buffer so it
+        // Grid is a background overlay -- don't write to the depth buffer so it
         // never occludes sprites that share the same z=0 plane.
         glDepthMask(GL_FALSE);
 

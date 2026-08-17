@@ -127,24 +127,24 @@ namespace ettycc
             out << "\n";
             out.flush();
 
-            spdlog::info("╔══════════════════════════════════════════════════════╗");
-            spdlog::info("║            BENCHMARK RESULTS                         ║");
-            spdlog::info("╠══════════════════════════════════════════════════════╣");
+            spdlog::info("+======================================================+");
+            spdlog::info("|            BENCHMARK RESULTS                         |");
+            spdlog::info("+======================================================+");
             for (const auto& cp : checkpoints_)
-                spdlog::info("║  {:<28s} {:>10.2f} ms    ║", cp.name, cp.ms);
-            spdlog::info("╠══════════════════════════════════════════════════════╣");
-            spdlog::info("║  {:<28s} {:>10.2f} ms    ║", "TOTAL", total);
+                spdlog::info("|  {:<28s} {:>10.2f} ms    |", cp.name, cp.ms);
+            spdlog::info("+======================================================+");
+            spdlog::info("|  {:<28s} {:>10.2f} ms    |", "TOTAL", total);
             if (prevTotal > 0.f)
             {
                 const char* tag = improvement > 0 ? "FASTER" : (improvement < 0 ? "SLOWER" : "SAME");
-                spdlog::info("║  {:<28s} {:>+10.2f} %     ║",
+                spdlog::info("|  {:<28s} {:>+10.2f} %     |",
                              std::string("vs last run (") + tag + ")", improvement);
             }
             else
             {
-                spdlog::info("║  {:<28s} {:>10s}       ║", "vs last run", "first run");
+                spdlog::info("|  {:<28s} {:>10s}       |", "vs last run", "first run");
             }
-            spdlog::info("╚══════════════════════════════════════════════════════╝");
+            spdlog::info("+======================================================+");
             spdlog::info("[Benchmark] Results appended to {}", filePath);
         }
 

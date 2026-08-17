@@ -13,17 +13,19 @@ namespace ettycc
     class Engine;
     struct EditorPropertyVisitor;
 
-    // ── Badge colors for component categories ────────────────────────────────
+    // -- Badge colors for component categories --------------------------------
+    // TODO: MOVE THIS STUFF...
     namespace badge
     {
         inline constexpr ImVec4 kRendering = {0.35f, 0.75f, 1.00f, 1.f};  // blue
         inline constexpr ImVec4 kPhysics   = {1.00f, 0.75f, 0.20f, 1.f};  // yellow
         inline constexpr ImVec4 kAudio     = {0.90f, 0.40f, 0.80f, 1.f};  // magenta
         inline constexpr ImVec4 kNetwork   = {1.00f, 0.75f, 0.20f, 1.f};  // yellow
+        inline constexpr ImVec4 kInput     = {0.70f, 0.85f, 0.45f, 1.f};  // lime
         inline constexpr ImVec4 kModule    = {0.40f, 0.90f, 0.60f, 1.f};  // green
     }
 
-    // ── ComponentEntry ────────────────────────────────────────────────────────
+    // -- ComponentEntry --------------------------------------------------------
     // Describes a component type for the editor UI: how to add/remove/inspect it,
     // and how to display it in menus and the inspector.
     struct ComponentEntry
@@ -46,7 +48,7 @@ namespace ettycc
         std::function<void(const std::shared_ptr<SceneNode>&, EditorPropertyVisitor&)> inspectFn;
     };
 
-    // ── ComponentRegistry ─────────────────────────────────────────────────────
+    // -- ComponentRegistry -----------------------------------------------------
     // A simple singleton list of registered component types.  Both built-in and
     // module components register here so every "Add Component" menu in the editor
     // is automatically populated from the same source.

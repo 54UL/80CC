@@ -6,7 +6,7 @@
 
 namespace ettycc
 {
-    // ── System-facing: initialize AL listener ─────────────────────────────────
+    // -- System-facing: initialize AL listener ---------------------------------
     void AudioListenerComponent::Init(AudioManager& mgr, const Transform& initialTransform)
     {
         audioMgr_ = &mgr;
@@ -18,7 +18,7 @@ namespace ettycc
         spdlog::info("[AudioListenerComponent] Listener initialized");
     }
 
-    // ── System-facing: per-frame update ───────────────────────────────────────
+    // -- System-facing: per-frame update ---------------------------------------
     void AudioListenerComponent::UpdateListener(float dt, const Transform& t)
     {
         if (!audioMgr_ || !audioMgr_->IsInitialized()) return;
@@ -35,7 +35,7 @@ namespace ettycc
         alListenerf(AL_GAIN, glm::clamp(gain_, 0.f, 1.f));
     }
 
-    // ── Editor inspector ──────────────────────────────────────────────────────
+    // -- Editor inspector ------------------------------------------------------
     void AudioListenerComponent::InspectProperties(EditorPropertyVisitor& v)
     {
         Inspect(v);

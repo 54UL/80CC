@@ -20,7 +20,7 @@ namespace ettycc::ecs { class Registry; }
 
 namespace ettycc
 {
-    class Scene; // forward — template helpers defined in Scene/SceneNode.inl
+    class Scene; // forward -- template helpers defined in Scene/SceneNode.inl
 
     class SceneNode : public std::enable_shared_from_this<SceneNode>
     {
@@ -44,7 +44,7 @@ namespace ettycc
         // Flushed into the registry inside AddNode().
         std::vector<std::function<void(ecs::Registry&, ecs::Entity)>> pendingComponents_;
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template <class Archive>
         void serialize(Archive& ar)
         {
@@ -77,7 +77,7 @@ namespace ettycc
         auto RemoveNode(ecs::Entity id)                           -> void;
         auto AddChild  (std::shared_ptr<SceneNode> childNode)     -> void;
 
-        // ── ECS component helpers (defined in SceneNode.inl, included by Scene.hpp) ──
+        // -- ECS component helpers (defined in SceneNode.inl, included by Scene.hpp) --
         // Add a component of type T. If the node is not yet in a scene the
         // component is queued and flushed into the registry when the node enters.
         template<typename T>  void AddComponent(T comp);

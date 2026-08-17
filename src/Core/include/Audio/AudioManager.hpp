@@ -10,15 +10,15 @@
 
 namespace ettycc
 {
-    // ── AudioManager ──────────────────────────────────────────────────────────
+    // -- AudioManager ----------------------------------------------------------
     // Owns the OpenAL device and context.  One instance lives on Engine.
     //
     // Two independent APIs live here side by side:
     //
-    //  [Component API]  — used by AudioSourceComponent / AudioListenerComponent.
+    //  [Component API]  -- used by AudioSourceComponent / AudioListenerComponent.
     //                     LoadBuffer / CreateSource / DestroySource / Listener.
     //
-    //  [Utility API]    — fire-and-forget sounds with no scene coupling.
+    //  [Utility API]    -- fire-and-forget sounds with no scene coupling.
     //                     PlayOneShot / PlayTone / PlayStartupChime.
     //                     Manages its own temporary AL sources; cleaned up in Update().
     class AudioManager
@@ -29,9 +29,9 @@ namespace ettycc
 
         void Init();
         void Shutdown();
-        void Update(); // ticks one-shot GC — call every frame
+        void Update(); // ticks one-shot GC -- call every frame
 
-        // ── Component API ─────────────────────────────────────────────────────
+        // -- Component API -----------------------------------------------------
         // Returns AL_NONE on failure.  Buffer is owned by AudioManager and shared
         // across all component sources that reference the same path.
         ALuint LoadBuffer(const std::string& absoluteFilePath);
@@ -48,18 +48,18 @@ namespace ettycc
 
         bool IsInitialized() const { return context_ != nullptr; }
 
-        // ── Utility / debug sound API ─────────────────────────────────────────
+        // -- Utility / debug sound API -----------------------------------------
         // Fire-and-forget.  Each call allocates a temporary AL source that is
         // automatically destroyed once playback finishes (polled in Update()).
-        // All sounds are flat (AL_SOURCE_RELATIVE) — position-independent.
+        // All sounds are flat (AL_SOURCE_RELATIVE) -- position-independent.
 
         // Play a WAV file directly without going through the component system.
         void PlayOneShot(const std::string& absoluteFilePath, float volume = 1.0f);
 
         // Synthesize and play a pure sine-wave tone.
-        //   frequencyHz  — pitch in Hz  (e.g. 440 = A4)
-        //   durationSecs — length in seconds
-        //   volume       — 0..1 gain
+        //   frequencyHz  -- pitch in Hz  (e.g. 440 = A4)
+        //   durationSecs -- length in seconds
+        //   volume       -- 0..1 gain
         void PlayTone(float frequencyHz, float durationSecs, float volume = 0.5f);
 
         // Editor boot sequence: ascending C-E-G major arpeggio chime.
@@ -67,7 +67,7 @@ namespace ettycc
         void PlayStartupChime();
 
     private:
-        // ── One-shot source tracking ──────────────────────────────────────────
+        // -- One-shot source tracking ------------------------------------------
         struct OneShotSource
         {
             ALuint source    = AL_NONE;

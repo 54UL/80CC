@@ -3,10 +3,10 @@
 
 namespace ettycc
 {
-    // ── RenderSystem ──────────────────────────────────────────────────────────
+    // -- RenderSystem ----------------------------------------------------------
     // RENDERING channel.
     // Handles RenderableNode initialization (registering with the render engine)
-    // and per-frame transform sync (node transform → renderable).
+    // and per-frame transform sync (node transform -> renderable).
     class RenderSystem : public ISystem
     {
     public:

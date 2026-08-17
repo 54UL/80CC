@@ -1,7 +1,8 @@
-#ifndef SPRITE_EDITOR_HPP
-#define SPRITE_EDITOR_HPP
+#ifndef POLYGON_EDITOR_HPP
+#define POLYGON_EDITOR_HPP
 
 #include <Graphics/Rendering/Entities/SpriteShape.hpp>
+#include <UI/BoxSelector.hpp>
 #include <imgui.h>
 #include <GL/glew.h>
 #include <glm/glm.hpp>
@@ -15,10 +16,10 @@ namespace ettycc
 {
     class Engine;
 
-    class SpriteEditor
+    class PolygonEditor
     {
     public:
-        SpriteEditor() = default;
+        PolygonEditor() = default;
 
         void Draw(const std::shared_ptr<Engine>& engine);
 
@@ -67,10 +68,7 @@ namespace ettycc
         Edge         hoveredEdge_   = Edge::None();
 
         // -- Box (rectangle) selection ------------------------------------
-        bool      boxSelecting_    = false;
-        ImVec2    boxStart_        = {};
-        ImVec2    boxEnd_          = {};
-        bool      boxDeselectMode_ = false;   // middle-mouse toggles deselect
+        BoxSelector boxSelector_;
 
         // -- Click-pending (distinguishes click from drag on empty space) -
         bool      clickPending_    = false;

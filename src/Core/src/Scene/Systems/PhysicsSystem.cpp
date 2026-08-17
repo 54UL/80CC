@@ -12,7 +12,7 @@
 
 namespace ettycc
 {
-    // ── OnStart ───────────────────────────────────────────────────────────────
+    // -- OnStart ---------------------------------------------------------------
     void PhysicsSystem::OnStart(Scene& scene, Engine& engine)
     {
         engine_ = &engine;
@@ -26,7 +26,7 @@ namespace ettycc
             InitSoftBody(scene, engine, sbPool.Entities()[i]);
     }
 
-    // ── OnEntityAdded ─────────────────────────────────────────────────────────
+    // -- OnEntityAdded ---------------------------------------------------------
     void PhysicsSystem::OnEntityAdded(Scene& scene, Engine& engine, ecs::Entity entity)
     {
         if (scene.registry_.Has<RigidBodyComponent>(entity))
@@ -36,7 +36,7 @@ namespace ettycc
             InitSoftBody(scene, engine, entity);
     }
 
-    // ── Gravity: apply previous frame's results ──────────────────────────────
+    // -- Gravity: apply previous frame's results ------------------------------
     void PhysicsSystem::ApplyGravityForces(Scene& scene)
     {
         // bodySnap_ entities may have been removed by fusion last frame,
@@ -53,20 +53,20 @@ namespace ettycc
         }
     }
 
-    // ── Gravity: submit computation to ThreadRegistry pool ───────────────────
+    // -- Gravity: submit computation to ThreadRegistry pool -------------------
     // Precondition: attractorSnap_ and bodySnap_ already populated.
     void PhysicsSystem::DispatchGravityJob()
     {
         if (!engine_) return;
 
-        // Resize force buffer (reuses capacity — no alloc after warmup).
+        // Resize force buffer (reuses capacity -- no alloc after warmup).
         forceResults_.assign(bodySnap_.size(), glm::vec3(0.f));
 
         // Hand ownership to worker.
         gravityJobRunning_.store(true, std::memory_order_release);
         hasGravityResults_ = true;
 
-        // Pointers to member buffers — safe because main won't touch them
+        // Pointers to member buffers -- safe because main won't touch them
         // while gravityJobRunning_ == true.
         auto* attractors = &attractorSnap_;
         auto* bodies     = &bodySnap_;
@@ -80,7 +80,7 @@ namespace ettycc
                 const auto& atts = *attractors;
 
                 // Linear read of bodies, linear read of attractors, linear write of forces.
-                // All contiguous — cache-friendly.
+                // All contiguous -- cache-friendly.
                 for (size_t i = 0; i < n; ++i)
                 {
                     const glm::vec3& pos  = (*bodies)[i].pos;
@@ -111,7 +111,7 @@ namespace ettycc
             });
     }
 
-    // ── PlanetaryDynamics ─────────────────────────────────────────────────────
+    // -- PlanetaryDynamics -----------------------------------------------------
     void PhysicsSystem::PlanetaryDynamics(Scene& scene)
     {
         // 1. If previous gravity job finished, apply its results.
@@ -125,7 +125,7 @@ namespace ettycc
         // 2. If worker is idle, snapshot & dispatch.
         if (!gravityJobRunning_.load(std::memory_order_acquire))
         {
-            // Snapshot attractors (few — iterate directly).
+            // Snapshot attractors (few -- iterate directly).
             attractorSnap_.clear();
             {
                 auto& aPool = scene.registry_.Pool<GravityAttractorComponent>();
@@ -140,7 +140,7 @@ namespace ettycc
                 }
             }
 
-            // Snapshot dynamic bodies (iterate dense array — zero hash lookups).
+            // Snapshot dynamic bodies (iterate dense array -- zero hash lookups).
             bodySnap_.clear();
             {
                 auto& rbPool = scene.registry_.Pool<RigidBodyComponent>();
@@ -162,13 +162,13 @@ namespace ettycc
         ProcessFusions(scene);
     }
 
-    // ── OnUpdate ──────────────────────────────────────────────────────────────
+    // -- OnUpdate --------------------------------------------------------------
     void PhysicsSystem::OnUpdate(Scene& scene, float dt)
     {
         PlanetaryDynamics(scene);
 
         // Parallel pass over rigid bodies: tick cooldowns + sync transforms.
-        // Each body is independent — safe to chunk across pool threads.
+        // Each body is independent -- safe to chunk across pool threads.
         // Bullet step is complete; nodeIndex_ is read-only during this phase.
         {
             auto& rbPool   = scene.registry_.Pool<RigidBodyComponent>();
@@ -223,16 +223,16 @@ namespace ettycc
         }
     }
 
-    // ── Planetary fusion ─────────────────────────────────────────────────────
+    // -- Planetary fusion -----------------------------------------------------
     // Snapshot ALL candidate data into a flat contiguous array ONCE, then run
-    // the O(n^2) pair check over that — zero Bullet calls and zero hash
+    // the O(n^2) pair check over that -- zero Bullet calls and zero hash
     // lookups in the inner loop.
     void PhysicsSystem::ProcessFusions(Scene& scene)
     {
         constexpr float OVERLAP_FACTOR  = 0.5f;
         constexpr float FUSION_COOLDOWN = 0.5f;
 
-        // ── Pre-snapshot via dense array iteration (no hash lookups) ─────────
+        // -- Pre-snapshot via dense array iteration (no hash lookups) ---------
         struct FusionBody {
             ecs::Entity         entity;
             RigidBodyComponent* rb;
@@ -267,7 +267,7 @@ namespace ettycc
         const size_t n = candidates.size();
         std::vector<ecs::Entity> toRemove;
 
-        // ── Phase 1: Parallel candidate search (read-only on flat array) ─────
+        // -- Phase 1: Parallel candidate search (read-only on flat array) -----
         // Each thread finds the best (closest) fusion partner for its range of
         // outer-loop indices.  Output: one candidate pair per outer index, or
         // {-1, -1} if none found.
@@ -305,7 +305,7 @@ namespace ettycc
         else
             findPairs(0, n);
 
-        // ── Phase 2: Sequential fusion execution ─────────────────────────────
+        // -- Phase 2: Sequential fusion execution -----------------------------
         // Process pairs in order; skip already-consumed entities.
         for (size_t i = 0; i < n; ++i)
         {
@@ -347,7 +347,7 @@ namespace ettycc
             toRemove.push_back(V.entity);
             V.entity = ecs::NullEntity;
 
-            spdlog::info("[PhysicsSystem] fusion: {} absorbed {} — mass={:.1f}  scale={:.2f}",
+            spdlog::info("[PhysicsSystem] fusion: {} absorbed {} -- mass={:.1f}  scale={:.2f}",
                          S.entity, toRemove.back(), newMass, scaleFactor);
         }
 
@@ -359,7 +359,7 @@ namespace ettycc
         }
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // -- Private helpers -------------------------------------------------------
     void PhysicsSystem::InitRigidBody(Scene& scene, Engine& engine, ecs::Entity e)
     {
         auto* rb   = scene.registry_.Pool<RigidBodyComponent>().Get(e);

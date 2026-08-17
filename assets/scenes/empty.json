@@ -1,0 +1,118 @@
+{
+    "value0": {
+        "sceneName_": "untitled",
+        "maxEntityId_": 505,
+        "root_node_": {
+            "ptr_wrapper": {
+                "id": 2147483649,
+                "data": {
+                    "id_": 504,
+                    "sceneId_": 0,
+                    "name_": "base-node",
+                    "enabled_": true,
+                    "transform_": {
+                        "position_x": 0.0,
+                        "position_y": 0.0,
+                        "position_z": 0.0,
+                        "rotation_x": 0.0,
+                        "rotation_y": 0.0,
+                        "rotation_z": 0.0,
+                        "scale_x": 1.0,
+                        "scale_y": 1.0,
+                        "scale_z": 1.0
+                    },
+                    "parent_": {
+                        "ptr_wrapper": {
+                            "id": 0
+                        }
+                    },
+                    "children_": [
+                        {
+                            "ptr_wrapper": {
+                                "id": 2147483650,
+                                "data": {
+                                    "id_": 505,
+                                    "sceneId_": 0,
+                                    "name_": "game-camera",
+                                    "enabled_": true,
+                                    "transform_": {
+                                        "position_x": 0.0,
+                                        "position_y": 0.0,
+                                        "position_z": -1.0,
+                                        "rotation_x": 0.0,
+                                        "rotation_y": 0.0,
+                                        "rotation_z": 0.0,
+                                        "scale_x": 1.0,
+                                        "scale_y": 1.0,
+                                        "scale_z": 1.0
+                                    },
+                                    "parent_": {
+                                        "ptr_wrapper": {
+                                            "id": 1
+                                        }
+                                    },
+                                    "children_": []
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "nodes_flat_": [
+            {
+                "ptr_wrapper": {
+                    "id": 2
+                }
+            }
+        ],
+        "rigid_bodies": [],
+        "renderables": [
+            {
+                "first": 505,
+                "second": {
+                    "renderable_": {
+                        "polymorphic_id": 2147483649,
+                        "polymorphic_name": "ettycc::Camera",
+                        "ptr_wrapper": {
+                            "id": 2147483651,
+                            "data": {
+                                "value0": {
+                                    "underylingTransform": {
+                                        "position_x": 0.0,
+                                        "position_y": 0.0,
+                                        "position_z": -1.0,
+                                        "rotation_x": 0.0,
+                                        "rotation_y": 0.0,
+                                        "rotation_z": 0.0,
+                                        "scale_x": 1.0,
+                                        "scale_y": 1.0,
+                                        "scale_z": 1.0
+                                    },
+                                    "enabled": false
+                                },
+                                "offScreenFrameBuffer": {
+                                    "ptr_wrapper": {
+                                        "id": 2147483652,
+                                        "data": {
+                                            "size_x": 800,
+                                            "size_y": 1200,
+                                            "position_x": 0,
+                                            "position_y": 0
+                                        }
+                                    }
+                                },
+                                "ispresp": false,
+                                "frustumCullingEnabled_": false
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "soft_bodies": [],
+        "audio_sources": [],
+        "audio_listeners": [],
+        "network_components": []
+    }
+}

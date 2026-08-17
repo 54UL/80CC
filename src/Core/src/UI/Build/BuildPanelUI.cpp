@@ -12,7 +12,7 @@ namespace ettycc
     BuildPanelUI::BuildPanelUI(build::GlobalBuildConfig& globalCfg)
         : globalCfg_(globalCfg)
     {
-        // Source path left empty intentionally — the user must browse to their
+        // Source path left empty intentionally -- the user must browse to their
         // game source root (the folder containing include/ and src/).
     }
 
@@ -26,7 +26,7 @@ namespace ettycc
     {
         ImGui::Begin(build::str::WIN_BUILD);
 
-        // ── Project ───────────────────────────────────────────────────────────
+        // -- Project -----------------------------------------------------------
         ImGui::SeparatorText(build::str::SEC_PROJECT);
 
         ImGui::SetNextItemWidth(200.0f);
@@ -45,7 +45,7 @@ namespace ettycc
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_OUTPUT);
 
-        // ── Configuration ─────────────────────────────────────────────────────
+        // -- Configuration -----------------------------------------------------
         ImGui::SeparatorText(build::str::SEC_CONFIGURATION);
 
         static const char* const kConfigs[] = { "Debug", "Release", "RelWithDebInfo" };
@@ -62,7 +62,7 @@ namespace ettycc
         ImGui::Separator();
         ImGui::Spacing();
 
-        // ── Build button ──────────────────────────────────────────────────────
+        // -- Build button ------------------------------------------------------
         const bool isRunning = controller_.IsRunning();
         const bool canBuild  = !isRunning
                                && sourcePath_[0]               != '\0'
@@ -98,7 +98,7 @@ namespace ettycc
 
         ImGui::Spacing();
 
-        // ── Progress ──────────────────────────────────────────────────────────
+        // -- Progress ----------------------------------------------------------
         const float prog = controller_.GetProgress();
         if (isRunning || prog > 0.0f)
         {
@@ -109,7 +109,7 @@ namespace ettycc
 
         ImGui::Spacing();
 
-        // ── Output log ────────────────────────────────────────────────────────
+        // -- Output log --------------------------------------------------------
         const std::vector<std::string> snapshot = controller_.GetLogSnapshot();
         const bool scrollNow = controller_.ConsumeScrollRequest();
 

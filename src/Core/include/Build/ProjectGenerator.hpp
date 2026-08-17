@@ -3,13 +3,13 @@
 // Header-only project generator utility.
 //
 // Full pipeline  (RunGenerator):
-//   1. ScanModules        — find *GameModule classes; track which headers contain them
-//   2. CopySourceFiles    — mirror user .hpp/.h/.cpp into output/include/ and output/src/
-//   3. CopyCoreFiles      — copy 80CC_CORE.lib + Core headers into output/external/
-//   4. GenerateEntryPoint — inject #includes + module registration into main.cpp template
-//   5. GenerateCMakeLists — write a standalone CMakeLists.txt pointing at external/
+//   1. ScanModules        -- find *GameModule classes; track which headers contain them
+//   2. CopySourceFiles    -- mirror user .hpp/.h/.cpp into output/include/ and output/src/
+//   3. CopyCoreFiles      -- copy 80CC_CORE.lib + Core headers into output/external/
+//   4. GenerateEntryPoint -- inject #includes + module registration into main.cpp template
+//   5. GenerateCMakeLists -- write a standalone CMakeLists.txt pointing at external/
 //
-// No engine dependencies — only std:: headers.
+// No engine dependencies -- only std:: headers.
 
 #include <string>
 #include <vector>
@@ -23,29 +23,29 @@ namespace ettycc::build
 {
     using LogFn = std::function<void(const std::string&)>;
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Data
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     struct ScanResult
     {
-        // Class names matching *GameModule — used for module registration code.
+        // Class names matching *GameModule -- used for module registration code.
         std::vector<std::string> moduleClasses;
 
         // Headers that CONTAIN at least one *GameModule class.
         // Paths are absolute. Used to generate #includes in main.cpp.
         std::vector<std::string> moduleHeaders;
 
-        // Every .hpp/.h file found in the source tree — used for CopySourceFiles.
+        // Every .hpp/.h file found in the source tree -- used for CopySourceFiles.
         std::vector<std::string> allHeaders;
 
         bool        ok = true;
         std::string error;
     };
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Scanning
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     inline ScanResult ScanModules(const std::filesystem::path& sourceDir,
                                    LogFn log = nullptr)
@@ -93,9 +93,9 @@ namespace ettycc::build
         return result;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Entry-point code generation
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     // Generate the #include block for main.cpp.
     // Tries candidate include roots in order; uses the first that produces a
@@ -174,12 +174,12 @@ namespace ettycc::build
         return {};
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Asset copy
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     // Copy runtime assets from assetsSourceDir into outputDir/assets/.
-    // The src/ subdirectory is excluded — it contains game source, not runtime files.
+    // The src/ subdirectory is excluded -- it contains game source, not runtime files.
     // Any future folder (audio/, fonts/, ...) is included automatically.
     inline void CopyAssets(const std::filesystem::path& assetsSourceDir,
                             const std::filesystem::path& outputDir,
@@ -199,7 +199,7 @@ namespace ettycc::build
         for (auto& entry : fs::recursive_directory_iterator(assetsSourceDir))
         {
             const fs::path rel = fs::relative(entry.path(), assetsSourceDir);
-            // Skip src/ — game source code is not a runtime asset
+            // Skip src/ -- game source code is not a runtime asset
             if (!rel.empty() && *rel.begin() == "src") continue;
             if (entry.is_directory()) continue;
 
@@ -249,7 +249,7 @@ namespace ettycc::build
             "#include <cstdlib>\n"
         );
 
-        // Strip the dev-only main.hpp include — it only exists to define the
+        // Strip the dev-only main.hpp include -- it only exists to define the
         // _80CC_USER_* macros as empty stubs for the editor build. The generator
         // replaces those tags with real code so the include is not needed here.
         {
@@ -277,7 +277,7 @@ namespace ettycc::build
         injectTag("_80CC_USER_CODE;",     BuildModulesBlock(scan));
 
         // Inject a chdir to the exe's directory so that assets/ is always found
-        // as a simple relative path — no env vars, no absolute paths baked in.
+        // as a simple relative path -- no env vars, no absolute paths baked in.
         const std::string assetInit =
             "// [80CC] Set working directory to the executable's location.\n"
             "// assets/ placed next to the binary is then found via the default relative path.\n"
@@ -305,9 +305,9 @@ namespace ettycc::build
         return true;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Core library + headers copy
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     // Copy the pre-built Core library and its include headers into
     // outputDir/external/lib/  and  outputDir/external/include/
@@ -319,7 +319,7 @@ namespace ettycc::build
     {
         namespace fs = std::filesystem;
 
-        // ── Library ───────────────────────────────────────────────────────────
+        // -- Library -----------------------------------------------------------
         if (!coreLibPath.empty())
         {
             if (!fs::exists(coreLibPath))
@@ -336,7 +336,7 @@ namespace ettycc::build
             }
         }
 
-        // ── Include headers ───────────────────────────────────────────────────
+        // -- Include headers ---------------------------------------------------
         if (!coreIncludePath.empty())
         {
             if (!fs::exists(coreIncludePath))
@@ -362,13 +362,13 @@ namespace ettycc::build
         return true;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // CMakeLists.txt generation
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     // Write a standalone CMakeLists.txt into outputDir.
     // The project links against external/lib/80CC_CORE.lib and includes external/include/
-    // — both copied by CopyCoreFiles, no absolute host paths baked in.
+    // -- both copied by CopyCoreFiles, no absolute host paths baked in.
     inline bool GenerateCMakeLists(const std::filesystem::path& outputDir,
                                     const std::string& projectName,
                                     LogFn log = nullptr)
@@ -380,20 +380,20 @@ namespace ettycc::build
         cmake <<
 R"(cmake_minimum_required(VERSION 3.20)
 
-# [80CC GENERATED] — do not edit, re-run the generator.
+# [80CC GENERATED] -- do not edit, re-run the generator.
 project()" << projectName << R"( CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ── 80CC Core (pre-built — copied into external/ by the Generator) ───────────
+# -- 80CC Core (pre-built -- copied into external/ by the Generator) -----------
 find_library(80CC_CORE_LIB
     NAMES 80CC_CORE lib80CC_CORE
     PATHS "${CMAKE_CURRENT_SOURCE_DIR}/external/lib"
     NO_DEFAULT_PATH
     REQUIRED)
 
-# ── vcpkg packages (same as 80CC_CORE dependencies) ──────────────────────────
+# -- vcpkg packages (same as 80CC_CORE dependencies) --------------------------
 find_package(spdlog           CONFIG REQUIRED)
 find_package(SDL2                    REQUIRED)
 find_package(glm              CONFIG REQUIRED)
@@ -404,7 +404,7 @@ find_package(unofficial-enet  CONFIG REQUIRED)
 find_package(Bullet           CONFIG REQUIRED)
 find_package(OpenAL           CONFIG REQUIRED)
 
-# ── Sources ───────────────────────────────────────────────────────────────────
+# -- Sources -------------------------------------------------------------------
 file(GLOB_RECURSE GAME_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE GAME_HEADERS
@@ -416,7 +416,7 @@ add_executable(${PROJECT_NAME}
     ${GAME_SOURCES}
     ${GAME_HEADERS})
 
-# Standalone game build — excludes the editor (DevEditor, imgui, etc.)
+# Standalone game build -- excludes the editor (DevEditor, imgui, etc.)
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE COMPILE_80CC_STAND_ALONE_EXECUTABLE
     PRIVATE COMPILED_EXEC_NAME="${PROJECT_NAME}")
@@ -441,7 +441,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE ${BULLET_LIBRARIES}
     PUBLIC OpenAL::OpenAL)
 
-# ── Copy assets next to the binary after every build ─────────────────────────
+# -- Copy assets next to the binary after every build -------------------------
 # $<TARGET_FILE_DIR:...> resolves correctly for all generators (Ninja, VS, etc.)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -451,7 +451,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
         COMMENT "Copying assets to binary directory...")
 endif()
 
-# ── Install rules (cmake --install -> dist/) ──────────────────────────────────
+# -- Install rules (cmake --install -> dist/) ----------------------------------
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ".")
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/assets" DESTINATION ".")
@@ -476,9 +476,48 @@ endif()
         return true;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // vcpkg.json manifest -- ensures vcpkg installs all required packages
+    // -------------------------------------------------------------------------
+
+    inline void GenerateVcpkgManifest(const std::filesystem::path& outputDir,
+                                       const std::string& projectName,
+                                       LogFn log = nullptr)
+    {
+        std::ofstream out(outputDir / "vcpkg.json");
+        if (!out)
+        {
+            if (log) log("[WARNING] Cannot write vcpkg.json");
+            return;
+        }
+
+        out << R"({
+  "name": ")" << projectName << R"(",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "spdlog",
+    "sdl2",
+    "glew",
+    "glm",
+    "stb",
+    "nlohmann-json",
+    "cereal",
+    "enet",
+    {
+      "name": "bullet3",
+      "features": ["multithreading"]
+    },
+    "openal-soft",
+    "cpr"
+  ]
+})";
+
+        if (log) log("[80CC] vcpkg.json written: " + (outputDir / "vcpkg.json").string());
+    }
+
+    // -------------------------------------------------------------------------
     // Source copy
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     inline void CopySourceFiles(const ScanResult& scan,
                                  const std::filesystem::path& sourceDir,
@@ -488,7 +527,7 @@ endif()
         namespace fs = std::filesystem;
         fs::create_directories(outputDir);
 
-        // Headers (all of them — moduleHeaders is a subset already in allHeaders)
+        // Headers (all of them -- moduleHeaders is a subset already in allHeaders)
         for (const auto& h : scan.allHeaders)
         {
             const fs::path rel  = fs::relative(h, sourceDir);
@@ -512,15 +551,15 @@ endif()
         if (log) log("[80CC] Source files copied to: " + outputDir.string());
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Convenience entry point
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     // Full pipeline:
     //   scan -> copy sources -> copy Core lib+headers -> generate main.cpp -> generate CMakeLists.txt
     //
-    // coreLibPath     — path to the pre-built 80CC_CORE.lib / lib80CC_CORE.a
-    // coreIncludePath — path to the Core include/ directory
+    // coreLibPath     -- path to the pre-built 80CC_CORE.lib / lib80CC_CORE.a
+    // coreIncludePath -- path to the Core include/ directory
     //
     // Both are COPIED into outputDir/external/ so the project is fully self-contained.
     inline bool RunGenerator(const std::string& sourceDirStr,
@@ -541,7 +580,7 @@ endif()
         if (log) log("[80CC] Output  : " + outputDir.string());
         if (log) log("[80CC] CoreLib : " + (coreLibPath.empty() ? "(not set)" : coreLibPath));
 
-        // ── 1. Scan ───────────────────────────────────────────────────────────
+        // -- 1. Scan -----------------------------------------------------------
         if (log) log("[80CC] Scanning modules...");
         const ScanResult scan = ScanModules(sourceDir, log);
         if (!scan.ok)
@@ -552,7 +591,7 @@ endif()
         if (log) log("[80CC] Modules found : " + std::to_string(scan.moduleClasses.size()));
         if (log) log("[80CC] Headers found : " + std::to_string(scan.allHeaders.size()));
 
-        // ── 2. Copy user source files ─────────────────────────────────────────
+        // -- 2. Copy user source files -----------------------------------------
         try { CopySourceFiles(scan, sourceDir, outputDir, log); }
         catch (const std::exception& e)
         {
@@ -560,7 +599,7 @@ endif()
             return false;
         }
 
-        // ── 3. Copy Core lib + headers -> external/ ────────────────────────────
+        // -- 3. Copy Core lib + headers -> external/ ----------------------------
         try { CopyCoreFiles(coreLibPath, coreIncludePath, outputDir, log); }
         catch (const std::exception& e)
         {
@@ -568,13 +607,13 @@ endif()
             // Non-fatal: cmake will fail at find_library but project structure is correct.
         }
 
-        // ── 4. Generate main.cpp entry point ──────────────────────────────────
+        // -- 4. Generate main.cpp entry point ----------------------------------
         const fs::path tpl = FindEntryTemplate(entryTemplateHint.empty()
                                                 ? fs::path{}
                                                 : fs::path(entryTemplateHint));
         if (tpl.empty())
         {
-            if (log) log("[WARNING] Entry template (main.cpp) not found — "
+            if (log) log("[WARNING] Entry template (main.cpp) not found -- "
                          "set 80CC_ENTRY_TEMPLATE env var or pass a hint path.");
         }
         else if (!GenerateEntryPoint(scan, sourceDir, tpl, outputDir, log))
@@ -582,11 +621,14 @@ endif()
             return false;
         }
 
-        // ── 5. Generate CMakeLists.txt ────────────────────────────────────────
+        // -- 5. Generate CMakeLists.txt ----------------------------------------
         if (!GenerateCMakeLists(outputDir, projectName, log))
             return false;
 
-        // ── 6. Copy assets into project root ──────────────────────────────────
+        // -- 5b. Generate vcpkg.json manifest ---------------------------------
+        GenerateVcpkgManifest(outputDir, projectName, log);
+
+        // -- 6. Copy assets into project root ----------------------------------
         // cmake's POST_BUILD rule will then copy them from here to the binary dir.
         if (!sourceDir.empty())
         {
@@ -596,7 +638,7 @@ endif()
         }
         else
         {
-            if (log) log("[WARNING] No assets directory set — game may not find resources at runtime.");
+            if (log) log("[WARNING] No assets directory set -- game may not find resources at runtime.");
         }
 
         return true;

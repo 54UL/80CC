@@ -4,6 +4,7 @@
 #include <Scene/Transform.hpp>
 #include <Graphics/Rendering/Renderable.hpp>
 #include <Graphics/Rendering/FrameBuffer.hpp>
+#include <Graphics/Rendering/Frustum.hpp>
 #include <Input/PlayerInput.hpp>
 #include <glm/glm.hpp>
 #include <spdlog/spdlog.h>
@@ -19,6 +20,10 @@ namespace ettycc
 
 		bool ispresp{};
 		bool frustumCullingEnabled_ = true;
+		// When set, Camera::Pass uses this frustum instead of computing from
+		// its own PV matrix.  Used by the editor to preview scene-camera culling.
+		bool  useFrustumOverride_ = false;
+		Frustum frustumOverride_;
 		glm::mat4 ProjectionMatrix{};
 		std::shared_ptr<FrameBuffer> offScreenFrameBuffer;
 

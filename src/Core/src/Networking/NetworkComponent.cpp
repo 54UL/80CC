@@ -58,21 +58,21 @@ namespace ettycc
     NetworkComponent::~NetworkComponent()
     {
         // During scene teardown the RigidBody pool may already be destroyed,
-        // so skip the registry lookup — just clear the lock flag.
+        // so skip the registry lookup -- just clear the lock flag.
         physicsLocked_ = false;
         if (networkManager_)
             networkManager_->Unregister(networkId_);
     }
 
-    // ── Look up sibling RigidBodyComponent from the registry on demand ─────
-    // Never cache this pointer — pool reallocations invalidate it.
+    // -- Look up sibling RigidBodyComponent from the registry on demand -----
+    // Never cache this pointer -- pool reallocations invalidate it.
     RigidBodyComponent* NetworkComponent::GetRigidBody() const
     {
         if (!registry_ || entity_ == ecs::NullEntity) return nullptr;
         return registry_->Get<RigidBodyComponent>(entity_);
     }
 
-    // ── System-facing: initialize networking ──────────────────────────────────
+    // -- System-facing: initialize networking ----------------------------------
     void NetworkComponent::Init(NetworkManager& mgr,
                                 Transform& syncTransform,
                                 ecs::Entity entity,
@@ -84,14 +84,14 @@ namespace ettycc
         registry_       = &registry;
 
         if (!syncTransform_)
-            spdlog::warn("[NetworkComponent] id={} — no transform found", networkId_);
+            spdlog::warn("[NetworkComponent] id={} -- no transform found", networkId_);
         if (!GetRigidBody())
-            spdlog::warn("[NetworkComponent] id={} — no sibling RigidBodyComponent", networkId_);
+            spdlog::warn("[NetworkComponent] id={} -- no sibling RigidBodyComponent", networkId_);
 
         networkManager_->Register(networkId_, this);
     }
 
-    // ── System-facing: broadcast transform (host only) ────────────────────────
+    // -- System-facing: broadcast transform (host only) ------------------------
     void NetworkComponent::BroadcastUpdate()
     {
         if (!networkManager_ || !networkManager_->IsActive() || !networkManager_->IsHost())
@@ -106,7 +106,7 @@ namespace ettycc
         networkManager_->QueueBroadcast(networkId_, pos, rot, scale);
     }
 
-    // ── Called by NetworkManager on packet receive ─────────────────────────────
+    // -- Called by NetworkManager on packet receive -----------------------------
     void NetworkComponent::ApplyRemoteTransform(const glm::vec3& pos,
                                                 const glm::quat& rot,
                                                 const glm::vec3& scale)
@@ -136,7 +136,7 @@ namespace ettycc
         }
     }
 
-    // ── Editor inspector ──────────────────────────────────────────────────────
+    // -- Editor inspector ------------------------------------------------------
     void NetworkComponent::InspectProperties(EditorPropertyVisitor& v)
     {
         PROP_RO(networkId_,     "Network ID");

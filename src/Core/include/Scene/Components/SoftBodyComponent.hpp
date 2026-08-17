@@ -21,7 +21,7 @@ namespace ettycc
     struct EditorPropertyVisitor;
     class  Engine;
 
-    // ── SoftBodyComponent ─────────────────────────────────────────────────────
+    // -- SoftBodyComponent -----------------------------------------------------
     // Pure data component for a Bullet soft body (deformable disc mesh).
     // PhysicsSystem handles initialization and per-frame update.
     class SoftBodyComponent
@@ -73,25 +73,25 @@ namespace ettycc
             return *this;
         }
 
-        // ── System-facing API (called by PhysicsSystem) ───────────────────────
+        // -- System-facing API (called by PhysicsSystem) -----------------------
         void InitBody(btSoftRigidDynamicsWorld* world, Engine& engine);
         void UpdateBody(Transform& t);
         bool IsInitialized() const { return body_ != nullptr; }
 
-        // Picker support — lets FindNodeByRenderable trace back to this node.
+        // Picker support -- lets FindNodeByRenderable trace back to this node.
         std::shared_ptr<Renderable> GetRenderable() const { return renderable_; }
 
-        // Editor gizmo — read Bullet node positions for wireframe overlay.
+        // Editor gizmo -- read Bullet node positions for wireframe overlay.
         const btSoftBody* GetBody() const { return body_.get(); }
 
         // Returns the current centroid of the soft body from the Bullet node
         // positions.  Falls back to initialPosition_ if the body is not ready.
         glm::vec3 GetCentroid() const;
 
-        // ── Editor inspector ──────────────────────────────────────────────────
+        // -- Editor inspector --------------------------------------------------
         void InspectProperties(EditorPropertyVisitor& v);
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template<class Archive>
         void serialize(Archive& ar)
         {
@@ -120,7 +120,7 @@ namespace ettycc
         }
 
     private:
-        // ── Serialized ────────────────────────────────────────────────────────
+        // -- Serialized --------------------------------------------------------
         float       radius_          = 1.0f;
         int         rings_           = 3;
         int         sectors_         = 16;
@@ -130,7 +130,7 @@ namespace ettycc
         float       pressure_        = 0.0f;
         std::string texturePath_;
 
-        // ── Runtime (not serialized, set by PhysicsSystem) ────────────────────
+        // -- Runtime (not serialized, set by PhysicsSystem) --------------------
         std::unique_ptr<btSoftBody>         body_;
         btSoftRigidDynamicsWorld*           softWorld_  = nullptr;  // non-owning
         std::shared_ptr<SoftBodyRenderable> renderable_;

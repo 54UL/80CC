@@ -14,7 +14,7 @@ namespace ettycc {
         // Expected JSON fields:
         //   "name"           (string)  node name
         //   "spriteFilePath" (string)  path to the image (or resolved from "material")
-        //   "material"       (string)  optional — path to .material file
+        //   "material"       (string)  optional -- path to .material file
         //   "transform"      (object)  position/rotation/scale, all optional (default: identity)
         RegisterCreator("Sprite", [](const nlohmann::json& obj) -> std::shared_ptr<SceneNode> {
             std::string name           = obj.value("name", "sprite");
@@ -135,7 +135,7 @@ namespace ettycc {
         return result;
     }
 
-    // ── Material support ────────────────────────────────────────────────────
+    // -- Material support ----------------------------------------------------
 
     MaterialDef AssetBuilder::LoadMaterial(const std::string& materialPath) const
     {

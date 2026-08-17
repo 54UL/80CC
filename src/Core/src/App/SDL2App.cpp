@@ -236,6 +236,12 @@ namespace ettycc
 
     void SDL2App::AppInput()
     {
+        // Reset per-frame accumulators (delta, wheel) BEFORE processing new
+        // events so that both the render pass and the UI pass (game-view
+        // camera, etc.) can read the same input snapshot within one frame.
+        if (auto* input = currentEngine_->GetInputSystem())
+            input->ResetState();
+
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {

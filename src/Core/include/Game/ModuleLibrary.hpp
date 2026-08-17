@@ -15,7 +15,7 @@ namespace ettycc
 {
 
 // Platform abstraction for loading a shared library and resolving symbols.
-// Intentionally does NOT unload in the destructor — hot-reload keeps old
+// Intentionally does NOT unload in the destructor -- hot-reload keeps old
 // libraries alive to avoid dangling vtables from template instantiations.
 class ModuleLibrary
 {
@@ -71,6 +71,20 @@ public:
 #else
         return reinterpret_cast<T>(dlsym(handle_, name));
 #endif
+    }
+
+    // Explicitly unload the library. Only safe when no code/vtables from
+    // this DLL are still referenced (pools purged, instance destroyed).
+    void Unload()
+    {
+        if (!handle_) return;
+#ifdef _WIN32
+        FreeLibrary(static_cast<HMODULE>(handle_));
+#else
+        dlclose(handle_);
+#endif
+        spdlog::info("[ModuleLibrary] Unloaded '{}'", path_);
+        handle_ = nullptr;
     }
 
     bool IsLoaded() const { return handle_ != nullptr; }

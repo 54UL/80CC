@@ -26,7 +26,7 @@ namespace ettycc
 
     private:
         std::unique_ptr<btSoftBodyRigidBodyCollisionConfiguration> config_;
-        // Type-erased dispatcher — may be btCollisionDispatcher or btCollisionDispatcherMt.
+        // Type-erased dispatcher -- may be btCollisionDispatcher or btCollisionDispatcherMt.
         std::unique_ptr<btCollisionDispatcher>                     dispatcher_;
         std::unique_ptr<btBroadphaseInterface>                     broadphase_;
         std::unique_ptr<btSequentialImpulseConstraintSolver>       solver_;

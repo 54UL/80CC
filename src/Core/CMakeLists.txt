@@ -27,6 +27,7 @@ set(80CC_CORE_HEADERS
     include/Scene/Components/SoftBodyComponent.hpp
     include/Scene/Components/AudioSourceComponent.hpp
     include/Scene/Components/AudioListenerComponent.hpp
+    include/Scene/Components/CameraControllerComponent.hpp
     include/Audio/AudioManager.hpp
     include/Physics/PhysicsWorld.hpp
     include/Graphics/Rendering/Entities/SoftBodyRenderable.hpp
@@ -63,7 +64,8 @@ set(80CC_CORE_HEADERS
     include/UI/BuildPanel.hpp
     include/UI/Console.hpp
     include/UI/EditorPropertyVisitor.hpp
-    include/UI/SpriteEditor.hpp
+    include/UI/PolygonEditor.hpp
+    include/UI/BoxSelector.hpp
     include/UI/Widgets/PathFieldWidget.hpp
     include/Graphics/Rendering/Entities/SpriteShape.hpp
     include/Scene/PropertySystem.hpp
@@ -103,6 +105,7 @@ set(80CC_CORE_SOURCES
     src/Scene/Components/GravityAttractorComponent.cpp
     src/Scene/Components/AudioSourceComponent.cpp
     src/Scene/Components/AudioListenerComponent.cpp
+    src/Scene/Components/CameraControllerComponent.cpp
     src/Scene/Systems/PhysicsSystem.cpp
     src/Scene/Systems/RenderSystem.cpp
     src/Scene/Systems/AudioSystem.cpp
@@ -128,7 +131,7 @@ set(80CC_CORE_SOURCES
     src/UI/ConfigurationsWindow.cpp
     src/UI/ComponentRegistry.cpp
     src/UI/DevEditor.cpp
-    src/UI/SpriteEditor.cpp
+    src/UI/PolygonEditor.cpp
     src/UI/BuildPanel.cpp
     src/UI/Widgets/PathFieldWidget.cpp
     src/Engine.cpp

@@ -52,29 +52,29 @@ namespace ettycc
         explicit Scene(const std::string& name);
         ~Scene();
 
-        // ── Initialization ────────────────────────────────────────────────────
+        // -- Initialization ----------------------------------------------------
         // Rebuilds nodeIndex_ from nodes_flat_, tracks all entity IDs in the
         // registry, then calls OnStart on every registered system.
         auto Init(Engine& engine) -> void;
 
-        // ── Node lookup ───────────────────────────────────────────────────────
+        // -- Node lookup -------------------------------------------------------
         auto GetNode        (ecs::Entity id)               -> SceneNode*;
         auto GetNodesByName (const std::string& name)      -> std::vector<std::shared_ptr<SceneNode>>;
         auto GetAllNodes    ()                             -> std::vector<std::shared_ptr<SceneNode>>;
         auto GetTransform   (ecs::Entity e)                -> Transform*;
 
-        // ── ECS system management ─────────────────────────────────────────────
+        // -- ECS system management ---------------------------------------------
         auto RegisterSystem(std::unique_ptr<ISystem> system) -> void;
 
         // Called by SceneNode::AddNode when a node enters the scene at runtime.
         // Propagates the event to all registered systems.
         auto NotifyEntityAdded(ecs::Entity e, Engine& engine) -> void;
 
-        // ── Per-frame update ──────────────────────────────────────────────────
+        // -- Per-frame update --------------------------------------------------
         // Calls OnUpdate on every system whose Channel() == processingChannel.
         auto Process(float deltaTime, ProcessingChannel processingChannel) -> void;
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template <class Archive>
         void serialize(Archive& ar);
 

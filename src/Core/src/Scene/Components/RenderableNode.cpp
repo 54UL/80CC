@@ -10,7 +10,7 @@ namespace ettycc
 
     RenderableNode::~RenderableNode() {}
 
-    // ── System-facing API ─────────────────────────────────────────────────────
+    // -- System-facing API -----------------------------------------------------
     void RenderableNode::InitRenderable(Engine& engine)
     {
         if (!renderable_ || initialized_) return;
@@ -25,7 +25,7 @@ namespace ettycc
             renderable_->underylingTransform = t;
     }
 
-    // ── Editor inspector ──────────────────────────────────────────────────────
+    // -- Editor inspector ------------------------------------------------------
     void RenderableNode::InspectProperties(EditorPropertyVisitor& v)
     {
         if (!renderable_) return;

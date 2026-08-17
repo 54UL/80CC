@@ -13,8 +13,8 @@ namespace ettycc
     class Engine;
     struct EditorPropertyVisitor;
 
-    // ── RenderableNode ────────────────────────────────────────────────────────
-    // Wraps a Renderable (Sprite, Camera, …) as a data component.
+    // -- RenderableNode --------------------------------------------------------
+    // Wraps a Renderable (Sprite, Camera, ...) as a data component.
     // Initialization and per-frame sync are performed by RenderSystem.
     class RenderableNode
     {
@@ -26,7 +26,7 @@ namespace ettycc
         explicit RenderableNode(std::shared_ptr<Renderable> renderable);
         ~RenderableNode();
 
-        // Non-copyable, movable — the user-declared destructor suppresses
+        // Non-copyable, movable -- the user-declared destructor suppresses
         // implicit move ops, so we declare them explicitly.
         RenderableNode(const RenderableNode&)            = delete;
         RenderableNode& operator=(const RenderableNode&) = delete;
@@ -47,15 +47,15 @@ namespace ettycc
             return *this;
         }
 
-        // ── System-facing API (called by RenderSystem) ────────────────────────
+        // -- System-facing API (called by RenderSystem) ------------------------
         void InitRenderable(Engine& engine);
         void SyncTransform(const Transform& t);
         bool IsInitialized() const { return initialized_; }
 
-        // ── Editor inspector ──────────────────────────────────────────────────
+        // -- Editor inspector --------------------------------------------------
         void InspectProperties(EditorPropertyVisitor& v);
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template <class Archive>
         void serialize(Archive& ar)
         {

@@ -39,7 +39,7 @@ namespace ettycc
         std::vector<unsigned int>   indices;
         int                         circleSegments = 32; // only used for circle preset
 
-        // ── Factory methods ──────────────────────────────────────────────
+        // -- Factory methods ----------------------------------------------
 
         static SpriteShape MakeQuad()
         {

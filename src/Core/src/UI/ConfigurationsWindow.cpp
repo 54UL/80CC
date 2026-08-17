@@ -60,7 +60,7 @@ namespace ettycc
         copyStr(buildConfig_.coreLibPath,     sizeof(buildConfig_.coreLibPath),     j, "coreLibPath");
         copyStr(buildConfig_.coreIncludePath, sizeof(buildConfig_.coreIncludePath), j, "coreIncludePath");
 
-        // Don't mark as auto-detected — DrawBuildSettings will still fill
+        // Don't mark as auto-detected -- DrawBuildSettings will still fill
         // any fields that the saved config left blank.
 
         return true;
@@ -81,7 +81,7 @@ namespace ettycc
             autoDetectDone_ = true;
         }
 
-        // Generator — InputText only, no browse button
+        // Generator -- InputText only, no browse button
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(build::str::FLD_GENERATOR);
         ImGui::SameLine();
@@ -92,7 +92,7 @@ namespace ettycc
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_GENERATOR);
 
-        // vcvarsall — file browse
+        // vcvarsall -- file browse
         widgets::PathField(build::str::FLD_VCVARSALL, "##cfg_vcvars", "...##cfg_vcvars_btn",
                   buildConfig_.vcvarsallPath, sizeof(buildConfig_.vcvarsallPath), false);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
@@ -114,20 +114,20 @@ namespace ettycc
             }
         }
 
-        // vcpkg toolchain — file browse, filter *.cmake
+        // vcpkg toolchain -- file browse, filter *.cmake
         widgets::PathField(build::str::FLD_VCPKG_TOOLCHAIN, "##cfg_vcpkg", "...##cfg_vcpkg_btn",
                   buildConfig_.vcpkgToolchain, sizeof(buildConfig_.vcpkgToolchain), false,
                   { "CMake toolchain", "*.cmake", "All Files", "*" });
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_VCPKG);
 
-        // Core lib — file browse
+        // Core lib -- file browse
         widgets::PathField(build::str::FLD_CORE_LIB, "##cfg_clib", "...##cfg_clib_btn",
                   buildConfig_.coreLibPath, sizeof(buildConfig_.coreLibPath), false);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip("%s", build::str::TIP_CORE_LIB);
 
-        // Core include — folder browse
+        // Core include -- folder browse
         widgets::PathField(build::str::FLD_CORE_INCLUDE, "##cfg_cinc", "...##cfg_cinc_btn",
                   buildConfig_.coreIncludePath, sizeof(buildConfig_.coreIncludePath), true);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
@@ -137,7 +137,7 @@ namespace ettycc
         ImGui::Separator();
         ImGui::Spacing();
 
-        // ── Action buttons ────────────────────────────────────────────────────
+        // -- Action buttons ----------------------------------------------------
         if (ImGui::Button(build::str::BTN_AUTO_DETECT))
             build::AutoDetectBuildConfig(buildConfig_);
 
@@ -270,7 +270,7 @@ namespace ettycc
             return;
         }
 
-        // ── Left sidebar ──────────────────────────────────────────────────────
+        // -- Left sidebar ------------------------------------------------------
         if (ImGui::BeginChild("##cfg_left", ImVec2(200, -1), true))
         {
             const bool buildSel   = (selectedCategory_ == Category::Build);
@@ -286,7 +286,7 @@ namespace ettycc
 
         ImGui::SameLine();
 
-        // ── Right panel ───────────────────────────────────────────────────────
+        // -- Right panel -------------------------------------------------------
         if (ImGui::BeginChild("##cfg_right", ImVec2(-1, -1), true))
         {
             switch (selectedCategory_)

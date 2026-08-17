@@ -30,29 +30,29 @@ namespace ettycc
 
     void PhysicsWorld::Init()
     {
-        // ── 1. Try to enable Bullet's internal multithreading ───────────────
+        // -- 1. Try to enable Bullet's internal multithreading ---------------
 #if BT_THREADSAFE
         taskScheduler_ = btCreateDefaultTaskScheduler();
         if (taskScheduler_ && taskScheduler_->getMaxNumThreads() > 1)
         {
             btSetTaskScheduler(taskScheduler_);
             multithreaded_ = true;
-            spdlog::info("[PhysicsWorld] Bullet MT enabled — {} threads",
+            spdlog::info("[PhysicsWorld] Bullet MT enabled -- {} threads",
                          taskScheduler_->getMaxNumThreads());
         }
         else
         {
             if (taskScheduler_) { delete taskScheduler_; taskScheduler_ = nullptr; }
-            spdlog::info("[PhysicsWorld] Bullet MT available but scheduler failed — single-threaded");
+            spdlog::info("[PhysicsWorld] Bullet MT available but scheduler failed -- single-threaded");
         }
 #else
         spdlog::info("[PhysicsWorld] Single-threaded (rebuild bullet3[multithreading] for MT)");
 #endif
 
-        // ── 2. Collision configuration ──────────────────────────────────────
+        // -- 2. Collision configuration --------------------------------------
         config_ = std::make_unique<btSoftBodyRigidBodyCollisionConfiguration>();
 
-        // ── 3. Dispatcher ───────────────────────────────────────────────────
+        // -- 3. Dispatcher ---------------------------------------------------
 #if BT_THREADSAFE
         if (multithreaded_)
             dispatcher_ = std::make_unique<btCollisionDispatcherMt>(config_.get());
@@ -63,7 +63,7 @@ namespace ettycc
         broadphase_ = std::make_unique<btDbvtBroadphase>();
         solver_     = std::make_unique<btSequentialImpulseConstraintSolver>();
 
-        // ── 4. World ────────────────────────────────────────────────────────
+        // -- 4. World --------------------------------------------------------
         world_ = std::make_unique<btSoftRigidDynamicsWorld>(
                      dispatcher_.get(), broadphase_.get(), solver_.get(), config_.get());
         world_->setGravity(btVector3(0.0f, -9.81f, 0.0f));
@@ -80,7 +80,7 @@ namespace ettycc
 
         world_->setForceUpdateAllAabbs(false);
 
-        spdlog::info("[PhysicsWorld] initialized (soft+rigid{}) — gravity (0, -9.81, 0)",
+        spdlog::info("[PhysicsWorld] initialized (soft+rigid{}) -- gravity (0, -9.81, 0)",
                      multithreaded_ ? ", MT dispatcher" : "");
     }
 

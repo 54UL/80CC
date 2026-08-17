@@ -6,23 +6,41 @@
 #include <glm/glm.hpp>
 #include "Control.hpp"
 
-#include <GRaphics/Rendering/FrameBuffer.hpp>
+#include <Graphics/Rendering/FrameBuffer.hpp>
 
 namespace ettycc
 {
+    struct CameraControllerComponent;
+
+    // Generic 2D pan/zoom control.  Operates on any SceneNode's transform
+    // (not camera-specific).  When a CameraControllerComponent is linked,
+    // zoom limits and speed are read from it, and zoom is written back.
+    //
+    // The position is ALWAYS the linked transform's XY -- this control
+    // never maintains its own parallel position.
     class EditorCamera : public Control
     {
     private:
         PlayerInput *inputSystem_;
         FrameBuffer *frame_buffer_;
-        
+
     public:
         EditorCamera(PlayerInput *input, FrameBuffer* frameBuffer);
         ~EditorCamera();
 
-        glm::vec2 position = {0.0f, 0.0f};
+        // The transform this control reads/writes position to.
+        // Must be set before Update() has any effect.
+        Transform* linkedTransform_ = nullptr;
+
         float zoom    = 1.0f;
         bool  enabled = false;
+
+        // Optional link to a CameraControllerComponent on the same entity.
+        // When set, Update() reads zoom limits and writes zoom back so the
+        // values are inspectable and serializable.
+        CameraControllerComponent* linkedComponent_ = nullptr;
+        void BindComponent(CameraControllerComponent* comp);
+        void BindTransform(Transform* transform);
 
         // Control api
         void Update(float deltaTime) override;
@@ -30,13 +48,15 @@ namespace ettycc
         // world units visible as half-height at zoom = 1
         static constexpr float baseSize_ = 5.0f;
 
+        // Helper: read position from the linked transform (or 0,0)
+        glm::vec2 GetPosition() const;
+
         [[nodiscard]] glm::mat4 ComputeViewMatrix(float deltaTime) const;
         [[nodiscard]] glm::mat4 ComputeProjectionMatrix(float deltaTime) const;
 
-
     private:
-        void EditorCamera::handleZoom(float wheelDelta, float dt);
-        void EditorCamera::handlePan(glm::vec2 leftAxis, glm::vec2 rightAxis, float dt);
+        void handleZoom(float wheelDelta, float dt);
+        void handlePan(glm::vec2 leftAxis, glm::vec2 rightAxis, float dt);
     };
 }
 #endif

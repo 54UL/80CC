@@ -7,13 +7,13 @@
 
 namespace ettycc
 {
-    // ── AsyncQueue ───────────────────────────────────────────────────────────────
+    // -- AsyncQueue ---------------------------------------------------------------
     // Lock-free Single-Producer Single-Consumer bounded ring buffer.
     //
     // Use cases:
-    //   • Network thread  → main thread  (inbound transform packets)
-    //   • Main thread     → network thread (outbound broadcasts)
-    //   • Physics worker  → main thread  (future results)
+    //   * Network thread  -> main thread  (inbound transform packets)
+    //   * Main thread     -> network thread (outbound broadcasts)
+    //   * Physics worker  -> main thread  (future results)
     //
     // Capacity MUST be a power of two (compile-time enforced).
     // Head/tail indices are cache-line aligned to avoid false sharing.

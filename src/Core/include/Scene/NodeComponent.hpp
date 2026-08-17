@@ -10,7 +10,7 @@
 
 namespace ettycc
 {
-    struct EditorPropertyVisitor; // forward — avoids pulling imgui into every TU
+    struct EditorPropertyVisitor; // forward -- avoids pulling imgui into every TU
 
     class NodeComponent
     {

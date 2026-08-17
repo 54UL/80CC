@@ -3,7 +3,7 @@
 #include <ECS/Entity.hpp>
 
 namespace ettycc {
-    class Scene;  // forward — Scene.hpp includes ISystem.hpp, so forward only here
+    class Scene;  // forward -- Scene.hpp includes ISystem.hpp, so forward only here
     class Engine; // forward
 
     // Base class for all ECS systems.

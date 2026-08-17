@@ -6,7 +6,7 @@
 
 namespace ettycc
 {
-    // ── PreloadedImage ───────────────────────────────────────────────────────
+    // -- PreloadedImage -------------------------------------------------------
     PreloadedImage::~PreloadedImage()
     {
         if (pixels) stbi_image_free(pixels);
@@ -30,21 +30,21 @@ namespace ettycc
         return *this;
     }
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // -- Init -----------------------------------------------------------------
     void ResourceCache::Init(const std::string& shadersPath)
     {
         shadersPath_ = shadersPath;
-        spdlog::info("[ResourceCache] initialized — shaders path: {}", shadersPath_);
+        spdlog::info("[ResourceCache] initialized -- shaders path: {}", shadersPath_);
     }
 
-    // ── Shader cache ─────────────────────────────────────────────────────────
+    // -- Shader cache ---------------------------------------------------------
     std::shared_ptr<CachedShader> ResourceCache::GetShader(const std::string& baseName)
     {
         auto it = shaders_.find(baseName);
         if (it != shaders_.end())
             return it->second;
 
-        // First request — compile from disk
+        // First request -- compile from disk
         auto vertSrc = ReadFile(shadersPath_ + baseName + ".vert");
         auto fragSrc = ReadFile(shadersPath_ + baseName + ".frag");
 
@@ -67,14 +67,14 @@ namespace ettycc
         return cached;
     }
 
-    // ── Texture cache ────────────────────────────────────────────────────────
+    // -- Texture cache --------------------------------------------------------
     GLuint ResourceCache::GetTexture(const std::string& absolutePath)
     {
         auto it = textures_.find(absolutePath);
         if (it != textures_.end())
             return it->second.handle;
 
-        // First request — load from disk and upload
+        // First request -- load from disk and upload
         int w, h, ch;
         unsigned char* pixels = stbi_load(absolutePath.c_str(), &w, &h, &ch, 0);
         if (!pixels)
@@ -95,7 +95,7 @@ namespace ettycc
 
     GLuint ResourceCache::UploadTexture(PreloadedImage& img)
     {
-        // Check cache first — another path may have already uploaded this
+        // Check cache first -- another path may have already uploaded this
         auto it = textures_.find(img.path);
         if (it != textures_.end())
             return it->second.handle;
@@ -118,7 +118,7 @@ namespace ettycc
         return handle;
     }
 
-    // ── Async preloading (CPU only — no GL calls) ────────────────────────────
+    // -- Async preloading (CPU only -- no GL calls) ----------------------------
     std::future<std::vector<PreloadedImage>> ResourceCache::PreloadImagesAsync(
         const std::vector<std::string>& absolutePaths)
     {
@@ -188,7 +188,7 @@ namespace ettycc
         }
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // -- Helpers --------------------------------------------------------------
     std::string ResourceCache::ReadFile(const std::string& path)
     {
         std::ifstream file(path);

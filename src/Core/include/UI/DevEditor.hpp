@@ -7,7 +7,8 @@
 #include <UI/ImGuiConsoleSink.hpp>
 #include <UI/Build/BuildPanelUI.hpp>
 #include <UI/ConfigurationsWindow.hpp>
-#include <UI/SpriteEditor.hpp>
+#include <UI/PolygonEditor.hpp>
+#include <UI/BoxSelector.hpp>
 #include <Scene/Assets/AssetBuilder.hpp>
 #include <Graphics/Rendering/PickerBuffer.hpp>
 #include <Build/ModuleBuildHelper.hpp>
@@ -42,6 +43,7 @@ namespace ettycc
 
         void DrawGravityAttractorGizmos(ImVec2 imgMin, ImVec2 imgSize);
         void DrawAudioGizmos(ImVec2 imgMin, ImVec2 imgSize);
+        void DrawCameraFrustumGizmo(ImVec2 imgMin, ImVec2 imgSize);
 
         void ShowEditorViewPort();
         void ShowGameView();
@@ -119,15 +121,31 @@ namespace ettycc
         // editor viewport (gizmo-style, never touches the render pipeline).
         void DrawColliderGizmos(ImVec2 imgMin, ImVec2 imgSize);
 
+        // Draws a procedural selection outline around every selected node.
+        void DrawSelectionOutlines(ImVec2 imgMin, ImVec2 imgSize);
+
         // BUILD WINDOW
         ConfigurationsWindow configurationsWindow_;
         BuildPanelUI         buildPanel_;
 
         // SPRITE EDITOR
-        SpriteEditor         spriteEditor_;
+        PolygonEditor        polygonEditor_;
 
         // MODULE REBUILD
         build::ModuleBuildHelper moduleBuildHelper_;
+
+        // CAMERA FOCUS / FOLLOW
+        std::weak_ptr<SceneNode> followTarget_;
+        bool isFollowing_ = false;
+
+        void FocusCameraOnNode(const std::shared_ptr<SceneNode>& node);
+        void StartFollowing(const std::shared_ptr<SceneNode>& node);
+        void StopFollowing();
+
+        // VIEWPORT BOX SELECTION
+        BoxSelector viewportBoxSelector_;
+        void CollectAllNodes(const std::shared_ptr<SceneNode>& node,
+                             std::vector<std::shared_ptr<SceneNode>>& out) const;
 
         // EDITOR OVERLAY TOGGLES
         bool showColliderDebug_  = true;
@@ -145,6 +163,7 @@ namespace ettycc
 
         PlaybackState  playbackState_      = PlaybackState::Stopped;
         bool           stepRequested_      = false;
+        bool           modulesAutoBuilt_   = false; // true once auto-rebuild was triggered
         int            resolutionIndex_    = 0;
         bool           gameViewShowGrid_   = true;
 

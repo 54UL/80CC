@@ -15,7 +15,7 @@ namespace ettycc
             audioMgr_->DestroySource(alSource_);
     }
 
-    // ── System-facing: initialize AL source ───────────────────────────────────
+    // -- System-facing: initialize AL source -----------------------------------
     void AudioSourceComponent::Init(AudioManager& mgr, Engine& engine,
                                     const Transform& initialTransform)
     {
@@ -35,7 +35,7 @@ namespace ettycc
         if (playOnStart_) Play();
     }
 
-    // ── System-facing: per-frame update ───────────────────────────────────────
+    // -- System-facing: per-frame update ---------------------------------------
     void AudioSourceComponent::UpdateAudio(float dt, const Transform& t)
     {
         if (!sourceReady_ || alSource_ == AL_NONE) return;
@@ -46,7 +46,7 @@ namespace ettycc
         ApplySourceSettings();
     }
 
-    // ── Private: (re)create AL source ─────────────────────────────────────────
+    // -- Private: (re)create AL source -----------------------------------------
     void AudioSourceComponent::RebuildSource()
     {
         if (alSource_ != AL_NONE)
@@ -86,7 +86,7 @@ namespace ettycc
         sourceReady_ = true;
     }
 
-    // ── Private: push properties to AL ────────────────────────────────────────
+    // -- Private: push properties to AL ----------------------------------------
     void AudioSourceComponent::ApplySourceSettings()
     {
         if (alSource_ == AL_NONE) return;
@@ -114,7 +114,7 @@ namespace ettycc
         }
     }
 
-    // ── Private: spatial position sync ────────────────────────────────────────
+    // -- Private: spatial position sync ----------------------------------------
     void AudioSourceComponent::UpdateSpatialPosition(float dt, const Transform& t)
     {
         const glm::vec3 pos = t.getGlobalPosition();
@@ -129,7 +129,7 @@ namespace ettycc
                    vel.x * dopplerFactor_, vel.y * dopplerFactor_, 0.f);
     }
 
-    // ── Playback control ──────────────────────────────────────────────────────
+    // -- Playback control ------------------------------------------------------
     void AudioSourceComponent::Play()
     {
         if (!sourceReady_ || alSource_ == AL_NONE)
@@ -161,7 +161,7 @@ namespace ettycc
         return state == AL_PLAYING;
     }
 
-    // ── Editor inspector ──────────────────────────────────────────────────────
+    // -- Editor inspector ------------------------------------------------------
     void AudioSourceComponent::InspectProperties(EditorPropertyVisitor& v)
     {
         Inspect(v);

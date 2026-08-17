@@ -18,7 +18,7 @@
 
 namespace ettycc
 {
-    // ── Local disc geometry builder (unchanged from original) ─────────────────
+    // -- Local disc geometry builder (unchanged from original) -----------------
     struct DiscGeometry
     {
         std::vector<float> positions;
@@ -73,7 +73,7 @@ namespace ettycc
         return geo;
     }
 
-    // ── Constructor / Destructor ──────────────────────────────────────────────
+    // -- Constructor / Destructor ----------------------------------------------
     SoftBodyComponent::SoftBodyComponent(float radius, glm::vec3 pos, float mass,
                                          std::string texPath)
         : radius_(radius), mass_(mass), initialPosition_(pos), texturePath_(std::move(texPath))
@@ -85,7 +85,7 @@ namespace ettycc
             softWorld_->removeSoftBody(body_.get());
     }
 
-    // ── System-facing: initialize soft body ───────────────────────────────────
+    // -- System-facing: initialize soft body -----------------------------------
     void SoftBodyComponent::InitBody(btSoftRigidDynamicsWorld* world, Engine& engine)
     {
         softWorld_ = world;
@@ -118,11 +118,11 @@ namespace ettycc
         mat->m_kAST = btScalar(stiffness_ * 2.f);
         mat->m_kVST = btScalar(0.0);
 
-        body_->m_cfg.kDP         = btScalar(0.3);    // damping — settles faster, reduces sliding
-        body_->m_cfg.kDF         = btScalar(0.8);    // dynamic friction — prevents spinning on surfaces
+        body_->m_cfg.kDP         = btScalar(0.3);    // damping -- settles faster, reduces sliding
+        body_->m_cfg.kDF         = btScalar(0.8);    // dynamic friction -- prevents spinning on surfaces
         body_->m_cfg.kPR         = btScalar(pressure_);
         body_->m_cfg.piterations = 10;
-        // CL_RS: cluster-based rigid-soft collision — avoids btSparseSdf::Evaluate
+        // CL_RS: cluster-based rigid-soft collision -- avoids btSparseSdf::Evaluate
         // which has a floating-point OOB bug when a node lands exactly on a voxel
         // cell boundary (Decompose() can return r.i == CELLSIZE == 3).
         body_->m_cfg.collisions  = btSoftBody::fCollision::CL_RS
@@ -154,7 +154,7 @@ namespace ettycc
         softWorld_->addSoftBody(body_.get());
         lastTrackedCentroid_ = initialPosition_;
 
-        spdlog::info("[SoftBodyComponent] created — radius={:.2f} mass={:.2f} verts={} tris={}",
+        spdlog::info("[SoftBodyComponent] created -- radius={:.2f} mass={:.2f} verts={} tris={}",
                      radius_, mass_, numVerts, numTriangles);
 
         renderable_ = std::make_shared<SoftBodyRenderable>(
@@ -163,7 +163,7 @@ namespace ettycc
         engine.renderEngine_.AddRenderable(renderable_);
     }
 
-    // ── System-facing: per-frame update ───────────────────────────────────────
+    // -- System-facing: per-frame update ---------------------------------------
     void SoftBodyComponent::UpdateBody(Transform& t)
     {
         if (!body_) return;
@@ -177,7 +177,7 @@ namespace ettycc
         const int nodeCount = body_->m_nodes.size();
         for (int i = 0; i < nodeCount; ++i)
         {
-            // Keep each node's Z within ±zEps of the target plane instead of
+            // Keep each node's Z within +/-zEps of the target plane instead of
             // forcing them all to the exact same value.
             btScalar z = body_->m_nodes[i].m_x.getZ();
             if (z < targetZ - zEps || z > targetZ + zEps)
@@ -215,7 +215,7 @@ namespace ettycc
         lastTrackedCentroid_ = centroid;
     }
 
-    // ── Centroid query ────────────────────────────────────────────────────
+    // -- Centroid query ----------------------------------------------------
     glm::vec3 SoftBodyComponent::GetCentroid() const
     {
         if (!body_ || body_->m_nodes.size() == 0)
@@ -229,7 +229,7 @@ namespace ettycc
         return {sum.getX(), sum.getY(), sum.getZ()};
     }
 
-    // ── Editor inspector ──────────────────────────────────────────────────────
+    // -- Editor inspector ------------------------------------------------------
     void SoftBodyComponent::InspectProperties(EditorPropertyVisitor& v)
     {
         Inspect(v);

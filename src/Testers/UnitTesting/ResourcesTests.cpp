@@ -43,7 +43,7 @@ TEST_F(ResourcesTest, engine_resource_file_generation)
     resources.Set("paths", "shaders", "shaders/");
     resources.Set("paths", "templates", "templates/");
 
-    resources.Set("sprites", "loona", "images\\loona.jpg");
+    // resources.Set("sprites", "loona", "images\\loona.jpg");
     resources.Set("sprites", "not-found", "images/not_found_texture.png");
 
     resources.Set("shaders", "sprite_shader", "shaders\\main");
@@ -60,7 +60,7 @@ TEST_F(ResourcesTest, engine_load_resource)
     newResources.SetWorkingFolder(paths::CONFIG_DEFAULT);
     newResources.Load(paths::RESOURCES_DEFAULT);
 
-    EXPECT_TRUE(newResources.Get("sprites", "loona").compare("images\\loona.jpg") == 0);
+    EXPECT_TRUE(newResources.Get("sprites", "not_found_texture.png").compare("images\\not_found_texture.png") == 0);
 }
 
 

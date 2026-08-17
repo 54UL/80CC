@@ -23,7 +23,7 @@ namespace ettycc::build
 #ifdef _WIN32
         namespace fs = std::filesystem;
 
-        // ── Core lib + Core include detection ─────────────────────────────────
+        // -- Core lib + Core include detection ---------------------------------
         if (cfg.coreLibPath[0] == '\0' || cfg.coreIncludePath[0] == '\0')
         {
             char exePath[512] = {};
@@ -65,7 +65,7 @@ namespace ettycc::build
             }
         }
 
-        // ── cmake generator + vcvarsall detection ─────────────────────────────
+        // -- cmake generator + vcvarsall detection -----------------------------
         if (cfg.cmakeGenerator[0] == '\0')
         {
             std::string vsInstallPath;
@@ -117,7 +117,7 @@ namespace ettycc::build
                 strncpy(cfg.cmakeGenerator, str::GEN_VS_2022, sizeof(cfg.cmakeGenerator) - 1);
         }
 
-        // ── vcpkg toolchain detection ──────────────────────────────────────────
+        // -- vcpkg toolchain detection ------------------------------------------
         if (cfg.vcpkgToolchain[0] == '\0')
         {
             auto tryToolchainFile = [&](const std::string& path) -> bool
@@ -339,7 +339,7 @@ namespace ettycc::build
 #endif
             };
 
-            // ── Stage 1: Clean ────────────────────────────────────────────────
+            // -- Stage 1: Clean ------------------------------------------------
             if (doClean && fs::exists(buildBin))
             {
                 SetStatus(str::STS_CLEANING);
@@ -361,7 +361,7 @@ namespace ettycc::build
             }
             progress_.store(0.08f);
 
-            // ── Stage 2: Generator (inline — no subprocess) ───────────────────
+            // -- Stage 2: Generator (inline -- no subprocess) -------------------
             SetStatus(str::STS_RUNNING_GEN);
             PushLog(std::string(str::LOG_80CC) + " --- Stage 1/3: Generator ---");
 
@@ -372,14 +372,14 @@ namespace ettycc::build
 
             if (!genOk)
             {
-                PushLog(std::string(str::LOG_ERROR) + " Generator failed — aborting.");
+                PushLog(std::string(str::LOG_ERROR) + " Generator failed -- aborting.");
                 SetStatus(str::STS_GEN_FAILED);
                 running_.store(false);
                 return;
             }
             progress_.store(0.38f);
 
-            // ── Stage 3: cmake configure ──────────────────────────────────────
+            // -- Stage 3: cmake configure --------------------------------------
             SetStatus(str::STS_CONFIGURING);
             PushLog(std::string(str::LOG_80CC) + " --- Stage 2/3: cmake configure ---");
 
@@ -404,11 +404,11 @@ namespace ettycc::build
 
             if (!runCmd(configCmd))
                 PushLog(std::string(str::LOG_WARNING) +
-                        " cmake configure returned non-zero — build may still succeed.");
+                        " cmake configure returned non-zero -- build may still succeed.");
 
             progress_.store(0.60f);
 
-            // ── Stage 4: cmake --build ────────────────────────────────────────
+            // -- Stage 4: cmake --build ----------------------------------------
             SetStatus(str::STS_COMPILING);
             PushLog(std::string(str::LOG_80CC) + " --- Stage 3/3: cmake build ---");
 
@@ -429,7 +429,7 @@ namespace ettycc::build
                 return;
             }
 
-            // ── Stage 4: Pack (cmake --install -> dist/) ──────────────────────
+            // -- Stage 4: Pack (cmake --install -> dist/) ----------------------
             SetStatus(str::STS_PACKING);
             PushLog(std::string(str::LOG_80CC) + " --- Stage 4/4: Pack ---");
 
@@ -447,7 +447,7 @@ namespace ettycc::build
 
             progress_.store(1.0f);
 
-            // ── Stage 5: Cleanup (unless keepGenerated) ───────────────────────
+            // -- Stage 5: Cleanup (unless keepGenerated) -----------------------
             if (!keepGenerated && fs::exists(distDir))
             {
                 SetStatus(str::STS_CLEANING_UP);
@@ -462,7 +462,7 @@ namespace ettycc::build
                                 " Could not remove: " + entry.path().string());
                 }
                 PushLog(std::string(str::LOG_80CC) +
-                        " Generated project cleaned up — only dist/ kept.");
+                        " Generated project cleaned up -- only dist/ kept.");
             }
 
             PushLog(std::string(str::LOG_80CC) + " ===========================");

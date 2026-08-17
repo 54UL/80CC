@@ -18,6 +18,7 @@
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Scene/Components/AudioSourceComponent.hpp>
 #include <Scene/Components/AudioListenerComponent.hpp>
+#include <Scene/Components/CameraControllerComponent.hpp>
 
 // Renderable hierarchy still uses cereal polymorphism (Sprite/Camera are
 // stored as shared_ptr<Renderable> inside RenderableNode).

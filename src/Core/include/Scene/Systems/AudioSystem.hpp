@@ -3,11 +3,11 @@
 
 namespace ettycc
 {
-    // ── AudioSystem ───────────────────────────────────────────────────────────
+    // -- AudioSystem -----------------------------------------------------------
     // AUDIO channel.
     // Handles AudioSourceComponent and AudioListenerComponent:
-    //   OnStart / OnEntityAdded — create AL sources, seed positions.
-    //   OnUpdate                — sync positions, apply spatial audio each frame.
+    //   OnStart / OnEntityAdded -- create AL sources, seed positions.
+    //   OnUpdate                -- sync positions, apply spatial audio each frame.
     class AudioSystem : public ISystem
     {
     public:

@@ -116,8 +116,6 @@ TEST_F(SceneNodeTestFixture, test_bed_scene_serialization)
     engineInstance_->mainScene_.reset();
     engineInstance_->mainScene_ = std::make_shared<Scene>("80CC-DEFAULT-SCENE");
 
-    // todo: this must be changed to an asset loading system like assetSystem->getSprite("loona.jpg")
-    std::string loonaImagePath = resources_->Get("sprites", "loona");
     std::string notFoundTexturePath = resources_->Get("sprites", "not-found");
 
     // log path info

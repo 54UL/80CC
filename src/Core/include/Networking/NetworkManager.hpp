@@ -17,7 +17,7 @@ namespace ettycc
 {
     class NetworkComponent; // forward
 
-    // ── Packet types ──────────────────────────────────────────────────────────
+    // -- Packet types ----------------------------------------------------------
     enum NetMsgType : uint8_t
     {
         NET_MSG_TRANSFORM = 1,
@@ -34,7 +34,7 @@ namespace ettycc
     };
 #pragma pack(pop)
 
-    // ── Connection state ──────────────────────────────────────────────────────
+    // -- Connection state ------------------------------------------------------
     enum class NetState
     {
         OFFLINE,        // no host created
@@ -43,14 +43,14 @@ namespace ettycc
         DISCONNECTED,   // remote peer dropped the connection
     };
 
-    // ── NetworkManager ────────────────────────────────────────────────────────
+    // -- NetworkManager --------------------------------------------------------
     // Thread-safe design:
-    //   • Poll() and SendOutbound() run on the NETWORK WORKER thread.
+    //   * Poll() and SendOutbound() run on the NETWORK WORKER thread.
     //     All ENet calls are confined to that thread.
-    //   • QueueBroadcast() is called from the MAIN thread to enqueue packets.
-    //   • ApplyInboundTransforms() is called from the MAIN thread to drain
+    //   * QueueBroadcast() is called from the MAIN thread to enqueue packets.
+    //   * ApplyInboundTransforms() is called from the MAIN thread to drain
     //     received transform packets and apply them to components.
-    //   • The two AsyncQueues provide lock-free SPSC communication.
+    //   * The two AsyncQueues provide lock-free SPSC communication.
     class NetworkManager
     {
     public:
@@ -60,7 +60,7 @@ namespace ettycc
         bool InitHost  (uint16_t port);
         bool InitClient(const std::string& address, uint16_t port);
 
-        // ── Network-thread API ───────────────────────────────────────────────
+        // -- Network-thread API -----------------------------------------------
 
         // Service ENet events.  Received transforms are pushed to the inbound
         // queue instead of being applied directly.  Called by network worker.
@@ -70,11 +70,11 @@ namespace ettycc
         // Called by the network worker after Poll().
         void SendOutbound();
 
-        // Graceful shutdown — releases physics on all registered components,
+        // Graceful shutdown -- releases physics on all registered components,
         // clears the registry and destroys the ENet host.
         void Shutdown();
 
-        // ── Main-thread API ──────────────────────────────────────────────────
+        // -- Main-thread API --------------------------------------------------
 
         // Drain the inbound queue and call ApplyRemoteTransform on each
         // matching NetworkComponent.  Call once per frame from the main thread.
@@ -88,7 +88,7 @@ namespace ettycc
                             const glm::quat& rot,
                             const glm::vec3& scale);
 
-        // ── State / accessors ────────────────────────────────────────────────
+        // -- State / accessors ------------------------------------------------
 
         NetState    GetState   () const { return state_.load(std::memory_order_acquire); }
         const char* GetStateStr() const;
@@ -101,7 +101,7 @@ namespace ettycc
         bool HasPendingDisconnect() const { return disconnectPending_.load(std::memory_order_acquire); }
         void HandlePendingDisconnect();
 
-        // ── Bandwidth / stats ─────────────────────────────────────────────────
+        // -- Bandwidth / stats -------------------------------------------------
         struct BandwidthStats
         {
             float    sendBps      = 0.f;  // current send rate  (bytes/sec)
@@ -115,13 +115,13 @@ namespace ettycc
 
         const BandwidthStats& GetBandwidthStats() const { return bwStats_; }
 
-        // Circular-buffer history — index 0..kBwHistorySize-1.
+        // Circular-buffer history -- index 0..kBwHistorySize-1.
         // Use GetBwHistoryOffset() as the `values_offset` for ImGui::PlotLines.
         const std::array<float, kBwHistorySize>& GetSendHistory() const { return sendHistory_; }
         const std::array<float, kBwHistorySize>& GetRecvHistory() const { return recvHistory_; }
         int GetBwHistoryOffset() const { return bwHistoryOffset_; }
 
-        // ── Per-object debug ──────────────────────────────────────────────────
+        // -- Per-object debug --------------------------------------------------
         struct DebugEntry
         {
             glm::vec3 pos   = {};
@@ -133,11 +133,11 @@ namespace ettycc
         const std::unordered_map<uint32_t, DebugEntry>& GetDebugEntries() const
             { return debugEntries_; }
 
-        // ── NetworkComponent lifecycle ────────────────────────────────────────
+        // -- NetworkComponent lifecycle ----------------------------------------
         void Register  (uint32_t networkId, NetworkComponent* comp);
         void Unregister(uint32_t networkId);
 
-        // Legacy synchronous broadcast — still available but prefer QueueBroadcast
+        // Legacy synchronous broadcast -- still available but prefer QueueBroadcast
         // for thread-safe operation.  Only call from the network thread.
         void BroadcastTransform(uint32_t networkId,
                                 const glm::vec3& pos,
@@ -174,10 +174,10 @@ namespace ettycc
         std::array<float, kBwHistorySize> recvHistory_ = {};
         int bwHistoryOffset_ = 0;
 
-        // ── Lock-free queues ─────────────────────────────────────────────────
-        // Inbound: network worker → main thread (received transforms)
+        // -- Lock-free queues -------------------------------------------------
+        // Inbound: network worker -> main thread (received transforms)
         AsyncQueue<TransformPacket, 1024> inboundTransforms_;
-        // Outbound: main thread → network worker (broadcasts)
+        // Outbound: main thread -> network worker (broadcasts)
         AsyncQueue<TransformPacket, 1024> outboundTransforms_;
 
         void HandlePacket(const uint8_t* data, size_t length);

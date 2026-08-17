@@ -2,6 +2,7 @@
 #include <Graphics/Rendering.hpp>
 #include <Graphics/Rendering/Entities/Sprite.hpp>
 #include <Graphics/Rendering/Entities/Camera.hpp>
+#include <Graphics/Rendering/Entities/Grid.hpp>
 #include <Graphics/Rendering/Frustum.hpp>
 #include <spdlog/spdlog.h>
 #include <algorithm>
@@ -65,7 +66,7 @@ namespace ettycc
             auto* sprite = dynamic_cast<Sprite*>(renderable.get());
             if (sprite)
             {
-                // Frustum culling — skip sprites entirely outside the view
+                // Frustum culling -- skip sprites entirely outside the view
                 if (renderingCtx_->frustum.enabled)
                 {
                     const glm::vec3 pos   = sprite->underylingTransform.getGlobalPosition();
@@ -113,8 +114,9 @@ namespace ettycc
         {
             if (!renderable->enabled) continue;
 
-            // Skip cameras — we already set matrices manually.
+            // Skip cameras and editor-only renderables (grid, etc.)
             if (dynamic_cast<Camera*>(renderable.get())) continue;
+            if (dynamic_cast<Grid*>(renderable.get())) continue;
 
             auto* sprite = dynamic_cast<Sprite*>(renderable.get());
             if (sprite)

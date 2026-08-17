@@ -1,6 +1,6 @@
 #pragma once
 
-// GlobalKeys — canonical string constants for all Globals key-value pairs.
+// GlobalKeys -- canonical string constants for all Globals key-value pairs.
 //
 // Every prefix, key, environment variable, and JSON anchor used by the
 // engine's Globals system is defined here so callers never repeat magic
@@ -11,14 +11,14 @@
 
 namespace ettycc::gk
 {
-    // ── JSON serialization ─────────────────────────────────────────────────
+    // -- JSON serialization -------------------------------------------------
     inline constexpr const char* JSON_ROOT     = "engine_data";
     inline constexpr const char* JSON_FILENAME = "80CC.json";
 
-    // ── Environment variables ──────────────────────────────────────────────
+    // -- Environment variables ----------------------------------------------
     inline constexpr const char* ENV_ASSETS_ROOT = "ASSETS_80CC";
 
-    // ── Prefixes (resource groups) ─────────────────────────────────────────
+    // -- Prefixes (resource groups) -----------------------------------------
     namespace prefix
     {
         inline constexpr const char* APP     = "app";
@@ -29,7 +29,7 @@ namespace ettycc::gk
         inline constexpr const char* ENGINE  = "engine";  // runtime engine paths
     }
 
-    // ── Keys ──────────────────────────────────────────────────────────────
+    // -- Keys --------------------------------------------------------------
     namespace key
     {
         // app

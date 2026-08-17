@@ -16,10 +16,10 @@ namespace ettycc
     class  AudioManager;
     class  Engine;
 
-    // ── AudioSourceComponent ──────────────────────────────────────────────────
+    // -- AudioSourceComponent --------------------------------------------------
     // Two modes:
-    //   Flat    — position-independent 2D sound (music, UI, ambience).
-    //   Spatial — 2D positional audio with distance attenuation and Doppler.
+    //   Flat    -- position-independent 2D sound (music, UI, ambience).
+    //   Spatial -- 2D positional audio with distance attenuation and Doppler.
     //
     // AudioSystem calls Init() once and UpdateAudio() every AUDIO frame.
     class AudioSourceComponent
@@ -87,26 +87,26 @@ namespace ettycc
             return *this;
         }
 
-        // ── System-facing API (called by AudioSystem) ─────────────────────────
+        // -- System-facing API (called by AudioSystem) -------------------------
         void Init(AudioManager& mgr, Engine& engine, const Transform& initialTransform);
         void UpdateAudio(float dt, const Transform& t);
         bool IsInitialized() const { return sourceReady_; }
 
-        // ── Playback control (also used by editor inspector buttons) ──────────
+        // -- Playback control (also used by editor inspector buttons) ----------
         void Play();
         void Stop();
         void Pause();
         bool IsPlaying() const;
 
-        // ── Accessors ─────────────────────────────────────────────────────────
+        // -- Accessors ---------------------------------------------------------
         float     GetMinDistance() const { return minDistance_; }
         float     GetMaxDistance() const { return maxDistance_; }
         AudioMode GetMode()        const { return static_cast<AudioMode>(modeInt_); }
 
-        // ── Editor inspector ──────────────────────────────────────────────────
+        // -- Editor inspector --------------------------------------------------
         void InspectProperties(EditorPropertyVisitor& v);
 
-        // ── Serialization ─────────────────────────────────────────────────────
+        // -- Serialization -----------------------------------------------------
         template<class Archive>
         void serialize(Archive& ar)
         {
@@ -138,7 +138,7 @@ namespace ettycc
         void ApplySourceSettings();
         void UpdateSpatialPosition(float dt, const Transform& t);
 
-        // ── Serialized fields ─────────────────────────────────────────────────
+        // -- Serialized fields -------------------------------------------------
         std::string clipPath_      = "";
         int         modeInt_       = 0;
         float       volume_        = 1.0f;
@@ -150,7 +150,7 @@ namespace ettycc
         float       dopplerFactor_ = 1.0f;
         float       rolloffFactor_ = 1.0f;
 
-        // ── Runtime (not serialized, set by AudioSystem::Init) ────────────────
+        // -- Runtime (not serialized, set by AudioSystem::Init) ----------------
         ALuint        alSource_    = AL_NONE;
         ALuint        alBuffer_    = AL_NONE;
         glm::vec3     prevPos_     = {0.f, 0.f, 0.f};

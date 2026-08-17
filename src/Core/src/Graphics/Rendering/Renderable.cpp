@@ -3,7 +3,7 @@
 
 namespace ettycc
 {
-    // Default Inspect — shows Enabled flag then the underlying transform.
+    // Default Inspect -- shows Enabled flag then the underlying transform.
     // Sprite (and any future Renderable subclass) calls this via Renderable::Inspect(v)
     // before appending its own fields.
     void Renderable::Inspect(EditorPropertyVisitor& v)

@@ -35,7 +35,7 @@ namespace ettycc
         // Tiling multiplier applied on top of the scale-relative tiling.
         float tilingMultiplier_ = 1.0f;
 
-        // Shape geometry — defaults to quad for backwards compatibility
+        // Shape geometry -- defaults to quad for backwards compatibility
         SpriteShape shape_ = SpriteShape::MakeQuad();
         int indexCount_ = 6;
 
