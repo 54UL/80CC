@@ -10,7 +10,7 @@
 //   5. GenerateCMakeLists -- write a standalone CMakeLists.txt pointing at external/
 //
 // No engine dependencies -- only std:: headers.
-
+//TODO: A BIG PILE OF SHIT AHEAD.... NEEDS LOTS OF REFACTORING!!!!
 #include <string>
 #include <vector>
 #include <functional>
@@ -47,6 +47,90 @@ namespace ettycc::build
     // Scanning
     // -------------------------------------------------------------------------
 
+    // Find the fully-qualified name (with namespace) of a class at |classPos|
+    // by counting braces in |content| up to that position.
+    inline std::string ResolveNamespace(const std::string& content,
+                                         size_t classPos,
+                                         const std::string& className)
+    {
+        const std::regex nsPattern(R"(\bnamespace\s+(\w+)\s*\{)");
+        // Build a stack of (namespace_name, brace_depth_when_opened)
+        struct NsEntry { std::string name; int depth; };
+        std::vector<NsEntry> nsStack;
+        int braceDepth = 0;
+
+        for (size_t i = 0; i < classPos; ++i)
+        {
+            if (content[i] == '{')
+            {
+                ++braceDepth;
+            }
+            else if (content[i] == '}')
+            {
+                // Pop any namespace whose opening brace matches this depth
+                while (!nsStack.empty() && nsStack.back().depth == braceDepth)
+                    nsStack.pop_back();
+                --braceDepth;
+            }
+        }
+
+        // Now re-scan for namespace declarations to populate the stack properly
+        nsStack.clear();
+        braceDepth = 0;
+        auto nsIt = std::sregex_iterator(content.begin(), content.begin() + classPos, nsPattern);
+        // We need position-aware scanning, so do a manual pass instead
+        nsStack.clear();
+        braceDepth = 0;
+        size_t searchStart = 0;
+        std::smatch nsMatch;
+        std::vector<std::pair<size_t, std::string>> nsDecls; // (position, name)
+
+        {
+            auto it2 = std::sregex_iterator(content.begin(),
+                                             content.begin() + classPos, nsPattern);
+            for (; it2 != std::sregex_iterator(); ++it2)
+                nsDecls.push_back({(size_t)(*it2).position(), (*it2)[1].str()});
+        }
+
+        size_t nsIdx = 0;
+        for (size_t i = 0; i < classPos; ++i)
+        {
+            // Check if a namespace starts here
+            if (nsIdx < nsDecls.size() && nsDecls[nsIdx].first == i)
+            {
+                // Skip ahead past "namespace X {"
+                const auto& m = nsDecls[nsIdx];
+                // Find the '{' from this position
+                auto bracePos = content.find('{', i);
+                if (bracePos < classPos)
+                {
+                    ++braceDepth;
+                    nsStack.push_back({m.second, braceDepth});
+                    i = bracePos; // will be incremented by loop
+                }
+                ++nsIdx;
+                continue;
+            }
+            if (content[i] == '{')
+            {
+                ++braceDepth;
+            }
+            else if (content[i] == '}')
+            {
+                if (!nsStack.empty() && nsStack.back().depth == braceDepth)
+                    nsStack.pop_back();
+                --braceDepth;
+            }
+        }
+
+        // Build qualified name from namespace stack
+        std::string qualified;
+        for (const auto& ns : nsStack)
+            qualified += ns.name + "::";
+        qualified += className;
+        return qualified;
+    }
+
     inline ScanResult ScanModules(const std::filesystem::path& sourceDir,
                                    LogFn log = nullptr)
     {
@@ -77,7 +161,11 @@ namespace ettycc::build
             std::vector<std::string> found;
             auto it = std::sregex_iterator(content.begin(), content.end(), classPattern);
             for (; it != std::sregex_iterator(); ++it)
-                found.push_back((*it)[1].str());
+            {
+                const std::string className = (*it)[1].str();
+                const size_t classPos = (size_t)(*it).position();
+                found.push_back(ResolveNamespace(content, classPos, className));
+            }
 
             if (!found.empty())
             {
@@ -356,6 +444,23 @@ namespace ettycc::build
                     fs::copy_file(entry.path(), dest, fs::copy_options::overwrite_existing);
                 }
                 if (log) log("[80CC] Core include -> " + incDest.string());
+                // TODO: FIND ANOTHER WAY TO COPY THE WHOLE EXTERNAL LIBS FOLDER...
+
+                // -- imgui headers (sibling of include/ at ../external/imgui) --
+                const fs::path imguiDir = fs::path(coreIncludePath).parent_path()
+                                          / "external" / "imgui";
+                if (fs::exists(imguiDir))
+                {
+                    for (auto& entry : fs::directory_iterator(imguiDir))
+                    {
+                        if (!entry.is_regular_file()) continue;
+                        const auto ext = entry.path().extension().string();
+                        if (ext != ".h" && ext != ".hpp") continue;
+                        const fs::path dest = incDest / entry.path().filename();
+                        fs::copy_file(entry.path(), dest, fs::copy_options::overwrite_existing);
+                    }
+                    if (log) log("[80CC] imgui headers -> " + incDest.string());
+                }
             }
         }
 
@@ -365,6 +470,7 @@ namespace ettycc::build
     // -------------------------------------------------------------------------
     // CMakeLists.txt generation
     // -------------------------------------------------------------------------
+    //TODO: PLEASE DONT DO THIS TYPE OF SHIT :SOBS" (REFACTOR!!!)
 
     // Write a standalone CMakeLists.txt into outputDir.
     // The project links against external/lib/80CC_CORE.lib and includes external/include/
@@ -479,7 +585,7 @@ endif()
     // -------------------------------------------------------------------------
     // vcpkg.json manifest -- ensures vcpkg installs all required packages
     // -------------------------------------------------------------------------
-
+    //TODO: PLEASE DONT DO THIS TYPE OF SHIT :SOBS" (REFACTOR!!!)
     inline void GenerateVcpkgManifest(const std::filesystem::path& outputDir,
                                        const std::string& projectName,
                                        LogFn log = nullptr)

@@ -7,7 +7,11 @@
 // -- DLL export / import macros -----------------------------------------------
 // Module DLLs define ETTYCC_MODULE_EXPORT before including this header
 // (set automatically by the CMake target_compile_definitions).
-#ifdef _WIN32
+// Standalone executables (COMPILE_80CC_STAND_ALONE_EXECUTABLE) compile modules
+// directly into the binary, so no dllimport/dllexport is needed.
+#ifdef COMPILE_80CC_STAND_ALONE_EXECUTABLE
+    #define ETTYCC_MODULE_API
+#elif defined(_WIN32)
     #ifdef ETTYCC_MODULE_EXPORT
         #define ETTYCC_MODULE_API __declspec(dllexport)
     #else
