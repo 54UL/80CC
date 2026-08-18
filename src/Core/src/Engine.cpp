@@ -22,6 +22,8 @@
 #include <GlobalKeys.hpp>
 #include <Graphics/Rendering/Entities/Grid.hpp>
 #include <filesystem>
+
+#include <Random.hpp>
 #ifdef _WIN32
 #  include <windows.h>
 #else
@@ -147,6 +149,7 @@ namespace ettycc {
     }
 
     void Engine::GravityScene() {
+
         physicsWorld_.SetGravity(btVector3(0.f, 0.0f, 0.f));
 
         const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
@@ -165,13 +168,15 @@ namespace ettycc {
         // -- Orbiting boxes ------
         // Spawn boxes in a ring and give each a tangential velocity for a
         // roughly circular orbit:  v = sqrt(strength / radius)
-        constexpr int boxCount = 500;
-        constexpr float orbitRadius = 50;
+        constexpr int boxCount = 5000;
+        constexpr float orbitRadius = 500;
+        auto rng = GetDependency(RNG);
 
         for (int i = 0; i < boxCount; ++i) {
             const float angle = (2.0f * 3.14159265f * i) / boxCount;
-            const glm::vec3 pos(std::cos(angle) * orbitRadius,
-                                std::sin(angle) * orbitRadius,
+
+            const glm::vec3 pos(rng->Float(0.0f, std::cos(angle) * orbitRadius),
+                                rng->Float(0.0f, std::sin(angle) * orbitRadius),
                                 0.0f);
 
             createPhysicsBox(root, tex, 1.0f, glm::vec3(0.3f, 0.3f, 0.3f), pos);
@@ -343,7 +348,6 @@ namespace ettycc {
         }
     }
 
-    //TODO: INSERT HERE ASSET MANAGEMENT AND NODE BUILDER (TO BUILD TEMPLATES FROM THE ASSET MANAGEMENT)
     void Engine::LoadScene(const std::string &sceneName, const bool defaultPath) {
         auto path = sceneName;
 

@@ -10,6 +10,7 @@ set(80CC_CORE_HEADERS
     include/80CC.hpp
     include/Paths.hpp
     include/Engine.hpp
+    include/Random.hpp
     include/App/App.hpp
     include/Dependency.hpp
     include/App/EnginePipeline.hpp
@@ -67,6 +68,7 @@ set(80CC_CORE_HEADERS
     include/UI/PolygonEditor.hpp
     include/UI/BoxSelector.hpp
     include/UI/Widgets/PathFieldWidget.hpp
+    include/UI/Widgets/SelectableTextView.hpp
     include/Graphics/Rendering/Entities/SpriteShape.hpp
     include/Scene/PropertySystem.hpp
     include/Dependencies/Resources.hpp

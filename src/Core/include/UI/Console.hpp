@@ -2,6 +2,10 @@
 #define UI_CONSOLE_HPP
 
 #include <imgui.h>
+#include <string>
+#include <vector>
+#include <regex>
+#include <UI/Widgets/SelectableTextView.hpp>
 
 namespace ettycc
 {
@@ -144,67 +148,39 @@ namespace ettycc
             Filter.Draw("Filter (\"incl,-excl\") (\"error\")", 180);
             ImGui::Separator();
 
+            // Collect visible items into a vector for the selectable text view.
+            std::vector<std::string> visibleItems;
+            visibleItems.reserve(Items.Size);
+            for (const char *item : Items)
+            {
+                if (!Filter.PassFilter(item))
+                    continue;
+                visibleItems.push_back(item);
+            }
+
+            if (copy_to_clipboard)
+            {
+                std::string joined;
+                for (const auto& s : visibleItems) { joined += s; joined += '\n'; }
+                ImGui::SetClipboardText(joined.c_str());
+            }
+
+            static const widgets::HighlightRuleset consoleRules = {
+                { std::regex(R"(.*\[error\].*)"),  {1.0f, 0.4f, 0.4f, 1.0f} },
+                { std::regex(R"(.*\[warn\].*)"),   {1.0f, 0.85f, 0.1f, 1.0f} },
+                { std::regex(R"(.*\[debug\].*)"),  {0.6f, 0.6f, 0.6f, 1.0f} },
+                { std::regex(R"(^# .*)"),          {1.0f, 0.8f, 0.6f, 1.0f} },
+            };
+            const ImVec4 defaultCol{1.0f, 1.0f, 1.0f, 1.0f};
+            const ImVec4 bgCol{0.0f, 0.0f, 0.0f, 0.0f}; // transparent, inherit parent
+
             // Reserve enough left-over height for 1 separator + 1 input text
             const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-            if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
-            {
-                if (ImGui::BeginPopupContextWindow())
-                {
-                    if (ImGui::Selectable("Clear"))
-                        ClearLog();
-                    ImGui::EndPopup();
-                }
-
-                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
-                if (copy_to_clipboard)
-                    ImGui::LogToClipboard();
-                for (const char *item : Items)
-                {
-                    if (!Filter.PassFilter(item))
-                        continue;
-
-                    // Normally you would store more information in your item than just a string.
-                    // (e.g. make Items[] an array of structure, store color/type etc.)
-                    ImVec4 color;
-                    bool has_color = false;
-                    if (strstr(item, "[error]"))
-                    {
-                        color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); // red
-                        has_color = true;
-                    }
-                    else if (strstr(item, "[warn]"))
-                    {
-                        color = ImVec4(1.0f, 0.85f, 0.1f, 1.0f); // yellow
-                        has_color = true;
-                    }
-                    else if (strstr(item, "[debug]"))
-                    {
-                        color = ImVec4(0.6f, 0.6f, 0.6f, 1.0f); // grey
-                        has_color = true;
-                    }
-                    else if (strncmp(item, "# ", 2) == 0)
-                    {
-                        color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f); // orange (commands)
-                        has_color = true;
-                    }
-                    if (has_color)
-                        ImGui::PushStyleColor(ImGuiCol_Text, color);
-                    ImGui::TextUnformatted(item);
-                    if (has_color)
-                        ImGui::PopStyleColor();
-                }
-                if (copy_to_clipboard)
-                    ImGui::LogFinish();
-
-                // Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the frame.
-                // Using a scrollbar or mouse-wheel will take away from the bottom edge.
-                if (ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
-                    ImGui::SetScrollHereY(1.0f);
-                ScrollToBottom = false;
-
-                ImGui::PopStyleVar();
-            }
-            ImGui::EndChild();
+            bool doScroll = ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY());
+            widgets::SelectableTextView("##ConsoleLog", visibleItems, consoleRules,
+                                         defaultCol, bgCol,
+                                         ImVec2(0, -footer_height_to_reserve), doScroll);
+            ScrollToBottom = false;
             ImGui::Separator();
 
             // Command-line

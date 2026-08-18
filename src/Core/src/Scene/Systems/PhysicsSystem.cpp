@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
 #include <cmath>
+#include <unordered_map>
 
 namespace ettycc
 {
@@ -223,10 +224,30 @@ namespace ettycc
         }
     }
 
+    // -- Spatial hash for broadphase fusion checks -----------------------------
+    // Maps 2D grid cells to indices into the candidates array.
+    // Cell size is chosen per-frame from the largest body radius so that
+    // overlapping pairs are always in the same or adjacent cells.
+    // Complexity drops from O(n^2) to O(n * k) where k is the average
+    // number of bodies per cell neighbourhood (~constant for uniform density).
+    namespace {
+        struct CellKey {
+            int x, y;
+            bool operator==(const CellKey& o) const { return x == o.x && y == o.y; }
+        };
+        struct CellKeyHash {
+            size_t operator()(const CellKey& k) const {
+                // Fast hash combining two ints.
+                size_t h = std::hash<int>()(k.x);
+                h ^= std::hash<int>()(k.y) + 0x9e3779b9 + (h << 6) + (h >> 2);
+                return h;
+            }
+        };
+        using SpatialGrid = std::unordered_map<CellKey, std::vector<size_t>, CellKeyHash>;
+    }
+
     // -- Planetary fusion -----------------------------------------------------
-    // Snapshot ALL candidate data into a flat contiguous array ONCE, then run
-    // the O(n^2) pair check over that -- zero Bullet calls and zero hash
-    // lookups in the inner loop.
+    // Uses a spatial hash grid so only nearby bodies are checked for overlap.
     void PhysicsSystem::ProcessFusions(Scene& scene)
     {
         constexpr float OVERLAP_FACTOR  = 0.5f;
@@ -249,6 +270,7 @@ namespace ettycc
         std::vector<FusionBody> candidates;
         candidates.reserve(comps.size());
 
+        float maxRadius = 0.f;
         for (size_t i = 0; i < comps.size(); ++i)
         {
             auto& rb = comps[i];
@@ -256,68 +278,114 @@ namespace ettycc
                 continue;
 
             const glm::vec3 h = rb.GetHalfExtents();
+            const float r = (h.x + h.y) * 0.5f;
+            maxRadius = std::max(maxRadius, r);
             candidates.push_back({
                 entities[i], &rb,
-                rb.GetPosition(), h,
-                (h.x + h.y) * 0.5f,
+                rb.GetPosition(), h, r,
                 rb.GetMass()
             });
         }
 
         const size_t n = candidates.size();
-        std::vector<ecs::Entity> toRemove;
+        if (n < 2) return;
 
-        // -- Phase 1: Parallel candidate search (read-only on flat array) -----
-        // Each thread finds the best (closest) fusion partner for its range of
-        // outer-loop indices.  Output: one candidate pair per outer index, or
-        // {-1, -1} if none found.
-        struct FusionPair { size_t a; size_t b; float dist; };
+        // -- Build spatial grid ------------------------------------------------
+        // Cell size = 2 * maxRadius / OVERLAP_FACTOR so that any overlapping
+        // pair is guaranteed to be in the same or adjacent cells.
+        const float cellSize = std::max(maxRadius * 2.0f / OVERLAP_FACTOR, 0.1f);
+        const float invCell  = 1.0f / cellSize;
 
-        std::vector<FusionPair> pairsFound(n, { SIZE_MAX, SIZE_MAX, 0.f });
-
-        auto findPairs = [&candidates, n, OVERLAP_FACTOR, &pairsFound]
-                         (size_t begin, size_t end)
-        {
-            for (size_t i = begin; i < end; ++i)
-            {
-                float bestDist = std::numeric_limits<float>::max();
-                size_t bestJ = SIZE_MAX;
-
-                for (size_t j = i + 1; j < n; ++j)
-                {
-                    const float threshold =
-                        (candidates[i].radius + candidates[j].radius) * OVERLAP_FACTOR;
-                    const float dist = glm::length(candidates[i].pos - candidates[j].pos);
-                    if (dist < threshold && dist < bestDist)
-                    {
-                        bestDist = dist;
-                        bestJ = j;
-                    }
-                }
-
-                if (bestJ != SIZE_MAX)
-                    pairsFound[i] = { i, bestJ, bestDist };
-            }
-        };
-
-        if (engine_ && n > 32)
-            engine_->threadRegistry_.ParallelFor(n, findPairs, 32);
-        else
-            findPairs(0, n);
-
-        // -- Phase 2: Sequential fusion execution -----------------------------
-        // Process pairs in order; skip already-consumed entities.
+        SpatialGrid grid;
+        grid.reserve(n);
         for (size_t i = 0; i < n; ++i)
         {
-            if (pairsFound[i].a == SIZE_MAX) continue;
-            if (candidates[i].entity == ecs::NullEntity) continue;
+            const int cx = (int)std::floor(candidates[i].pos.x * invCell);
+            const int cy = (int)std::floor(candidates[i].pos.y * invCell);
+            grid[{cx, cy}].push_back(i);
+        }
 
-            const size_t j = pairsFound[i].b;
-            if (candidates[j].entity == ecs::NullEntity) continue;
+        // -- Find overlapping pairs via grid neighbours -----------------------
+        struct FusionPair { size_t a; size_t b; float dist; };
+        std::vector<FusionPair> pairsFound;
 
-            const bool iWins = (candidates[i].mass >= candidates[j].mass);
-            const size_t sIdx = iWins ? i : j;
-            const size_t vIdx = iWins ? j : i;
+        // Track best partner per candidate (closest overlap).
+        std::vector<size_t> bestPartner(n, SIZE_MAX);
+        std::vector<float>  bestDist(n, std::numeric_limits<float>::max());
+
+        for (auto& [cell, indices] : grid)
+        {
+            // Check all bodies in this cell against each other and against
+            // bodies in the 3 forward-neighbours (right, below, below-right)
+            // to avoid duplicate pair checks.
+            static const CellKey offsets[] = {
+                {0, 0}, {1, 0}, {0, 1}, {1, 1}, {-1, 1}
+            };
+
+            for (const auto& off : offsets)
+            {
+                const CellKey neighbour = { cell.x + off.x, cell.y + off.y };
+                const auto nit = (off.x == 0 && off.y == 0)
+                                 ? grid.find(cell)
+                                 : grid.find(neighbour);
+                if (nit == grid.end()) continue;
+
+                const auto& nIndices = nit->second;
+                const bool sameCell = (off.x == 0 && off.y == 0);
+
+                for (size_t ai = 0; ai < indices.size(); ++ai)
+                {
+                    const size_t idxA = indices[ai];
+                    const auto& A = candidates[idxA];
+
+                    const size_t jStart = sameCell ? (ai + 1) : 0;
+                    for (size_t bi = jStart; bi < nIndices.size(); ++bi)
+                    {
+                        const size_t idxB = nIndices[bi];
+                        const auto& B = candidates[idxB];
+
+                        const float threshold =
+                            (A.radius + B.radius) * OVERLAP_FACTOR;
+                        const glm::vec3 diff = A.pos - B.pos;
+                        const float dist2 = glm::dot(diff, diff);
+                        const float thresh2 = threshold * threshold;
+
+                        if (dist2 < thresh2)
+                        {
+                            const float dist = std::sqrt(dist2);
+                            if (dist < bestDist[idxA])
+                            {
+                                bestDist[idxA] = dist;
+                                bestPartner[idxA] = idxB;
+                            }
+                            if (dist < bestDist[idxB])
+                            {
+                                bestDist[idxB] = dist;
+                                bestPartner[idxB] = idxA;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Collect valid pairs (only from the smaller index to avoid duplicates).
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (bestPartner[i] != SIZE_MAX && i < bestPartner[i])
+                pairsFound.push_back({ i, bestPartner[i], bestDist[i] });
+        }
+
+        // -- Execute fusions ---------------------------------------------------
+        std::vector<ecs::Entity> toRemove;
+        for (const auto& pair : pairsFound)
+        {
+            if (candidates[pair.a].entity == ecs::NullEntity) continue;
+            if (candidates[pair.b].entity == ecs::NullEntity) continue;
+
+            const bool aWins = (candidates[pair.a].mass >= candidates[pair.b].mass);
+            const size_t sIdx = aWins ? pair.a : pair.b;
+            const size_t vIdx = aWins ? pair.b : pair.a;
 
             auto& S = candidates[sIdx];
             auto& V = candidates[vIdx];
@@ -347,8 +415,8 @@ namespace ettycc
             toRemove.push_back(V.entity);
             V.entity = ecs::NullEntity;
 
-            spdlog::info("[PhysicsSystem] fusion: {} absorbed {} -- mass={:.1f}  scale={:.2f}",
-                         S.entity, toRemove.back(), newMass, scaleFactor);
+            spdlog::debug("[PhysicsSystem] fusion: {} absorbed {} -- mass={:.1f}  scale={:.2f}",
+                          S.entity, toRemove.back(), newMass, scaleFactor);
         }
 
         for (ecs::Entity victimId : toRemove)

@@ -30,23 +30,28 @@ namespace ettycc
             sys->OnStart(*this, engine);
     }
 
-    // -- Private: rebuild fast lookup from nodes_flat_ -------------------------
+    // -- Private: rebuild nodeIndex_ by walking the tree from root_node_ ------
     void Scene::RebuildIndex()
     {
         nodeIndex_.clear();
-        for (auto& node : nodes_flat_)
+
+        if (!root_node_) return;
+
+        // Iterative tree walk (avoids stack overflow on deep hierarchies).
+        std::vector<std::shared_ptr<SceneNode>> stack;
+        stack.push_back(root_node_);
+
+        while (!stack.empty())
         {
-            if (!node) continue;
+            auto node = std::move(stack.back());
+            stack.pop_back();
+
             node->scene_ = this;
-            nodeIndex_[node->GetId()] = node.get();
+            nodeIndex_[node->GetId()] = node;
             registry_.Track(node->GetId());
-        }
-        // Also track root node
-        if (root_node_)
-        {
-            root_node_->scene_ = this;
-            nodeIndex_[root_node_->GetId()] = root_node_.get();
-            registry_.Track(root_node_->GetId());
+
+            for (auto& child : node->children_)
+                if (child) stack.push_back(child);
         }
     }
 
@@ -54,14 +59,14 @@ namespace ettycc
     auto Scene::GetNode(ecs::Entity id) -> SceneNode*
     {
         auto it = nodeIndex_.find(id);
-        return it != nodeIndex_.end() ? it->second : nullptr;
+        return it != nodeIndex_.end() ? it->second.get() : nullptr;
     }
 
     auto Scene::GetNodesByName(const std::string& name)
         -> std::vector<std::shared_ptr<SceneNode>>
     {
         std::vector<std::shared_ptr<SceneNode>> result;
-        for (auto& node : nodes_flat_)
+        for (auto& [entity, node] : nodeIndex_)
             if (node && node->GetName() == name)
                 result.push_back(node);
         return result;
@@ -69,7 +74,11 @@ namespace ettycc
 
     auto Scene::GetAllNodes() -> std::vector<std::shared_ptr<SceneNode>>
     {
-        return nodes_flat_;
+        std::vector<std::shared_ptr<SceneNode>> result;
+        result.reserve(nodeIndex_.size());
+        for (auto& [entity, node] : nodeIndex_)
+            if (node) result.push_back(node);
+        return result;
     }
 
     auto Scene::GetTransform(ecs::Entity e) -> Transform*
@@ -104,8 +113,11 @@ namespace ettycc
     {
         // Snapshot the current counter so a reload can fast-forward past it.
         maxEntityId_ = Utils::EntityCounter() - 1;
+
+        // The full tree is stored via root_node_ (children_ are recursive).
+        // No need for nodes_flat_ — the tree IS the data.
         ar(CEREAL_NVP(sceneName_), CEREAL_NVP(maxEntityId_),
-           CEREAL_NVP(root_node_), CEREAL_NVP(nodes_flat_));
+           CEREAL_NVP(root_node_));
         SerializeComponents(ar);
     }
 
@@ -114,7 +126,7 @@ namespace ettycc
     {
         ar(CEREAL_NVP(sceneName_));
         try { ar(CEREAL_NVP(maxEntityId_)); } catch (...) {}   // missing in old scenes
-        ar(CEREAL_NVP(root_node_), CEREAL_NVP(nodes_flat_));
+        ar(CEREAL_NVP(root_node_));
         SerializeComponents(ar);
         // Prevent new nodes from colliding with loaded entity IDs.
         Utils::FastForwardEntityCounter(maxEntityId_);

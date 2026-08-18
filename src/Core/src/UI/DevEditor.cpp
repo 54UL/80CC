@@ -344,10 +344,10 @@ namespace ettycc
             ImGui::DockBuilderDockWindow("Scene Hierarchy", bottomLeft);
             ImGui::DockBuilderDockWindow("Editor view",    viewport_row);
             ImGui::DockBuilderDockWindow("Game view",      viewport_row);
-            ImGui::DockBuilderDockWindow("Debug",          bottomRight);
             ImGui::DockBuilderDockWindow("Assets",         bottomRight);
-            ImGui::DockBuilderDockWindow("Build",          right);
+            ImGui::DockBuilderDockWindow("Debug",          bottomRight);
             ImGui::DockBuilderDockWindow("Inspector",      right);
+            ImGui::DockBuilderDockWindow("Build",          right);
 
             ImGui::DockBuilderFinish(dsId);
         }

@@ -1,11 +1,13 @@
 
 #include <UI/Build/BuildPanelUI.hpp>
 #include <UI/Widgets/PathFieldWidget.hpp>
+#include <UI/Widgets/SelectableTextView.hpp>
 #include <Build/BuildStrings.hpp>
 #include <imgui.h>
 #include <portable-file-dialogs.h>
 #include <algorithm>
 #include <cstring>
+#include <regex>
 
 namespace ettycc
 {
@@ -127,25 +129,18 @@ namespace ettycc
             controller_.ClearLog();
 
         const float logH = std::max(ImGui::GetContentRegionAvail().y - 6.0f, 60.0f);
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.07f, 0.07f, 0.07f, 1.0f));
-        if (ImGui::BeginChild("BuildLog", ImVec2(-1, logH), false,
-                              ImGuiWindowFlags_HorizontalScrollbar))
-        {
-            for (const auto& line : snapshot)
-            {
-                ImVec4 col{0.82f, 0.82f, 0.82f, 1.0f};
-                if      (line.rfind(build::str::LOG_ERROR,   0) == 0) col = {1.0f,  0.30f, 0.30f, 1.0f};
-                else if (line.rfind(build::str::LOG_WARNING, 0) == 0) col = {1.0f,  0.80f, 0.20f, 1.0f};
-                else if (line.rfind(build::str::LOG_80CC,    0) == 0) col = {0.40f, 0.85f, 0.45f, 1.0f};
-                ImGui::PushStyleColor(ImGuiCol_Text, col);
-                ImGui::TextUnformatted(line.c_str());
-                ImGui::PopStyleColor();
-            }
-            if (scrollNow)
-                ImGui::SetScrollHereY(1.0f);
-        }
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
+
+        // Build highlighted spans for the log view.
+        static const widgets::HighlightRuleset buildLogRules = {
+            { std::regex(R"(^\[ERROR\].*)"),   {1.0f,  0.30f, 0.30f, 1.0f} },
+            { std::regex(R"(^\[WARNING\].*)"), {1.0f,  0.80f, 0.20f, 1.0f} },
+            { std::regex(R"(^\[80CC\].*)"),    {0.40f, 0.85f, 0.45f, 1.0f} },
+        };
+        const ImVec4 defaultCol{0.82f, 0.82f, 0.82f, 1.0f};
+        const ImVec4 bgCol{0.07f, 0.07f, 0.07f, 1.0f};
+
+        widgets::SelectableTextView("##BuildLog", snapshot, buildLogRules,
+                                     defaultCol, bgCol, ImVec2(-1, logH), scrollNow);
 
         ImGui::End();
     }

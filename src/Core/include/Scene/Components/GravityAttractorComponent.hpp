@@ -49,8 +49,8 @@ namespace ettycc
     private:
         glm::vec3 position_    = { 0.0f, 0.0f, 0.0f };
         float     strength_    = 50.0f;
-        float     innerRadius_ = 2.0f;   // full-strength zone
-        float     outerRadius_ = 15.0f;  // max gravitational influence
+        float     innerRadius_ = 500.0f;   // full-strength zone
+        float     outerRadius_ = 5000.0f;  // max gravitational influence
     };
 
 } // namespace ettycc

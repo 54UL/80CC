@@ -19,12 +19,15 @@ namespace ettycc
 
     void RenderSystem::OnUpdate(Scene& scene, float /*dt*/)
     {
-        for (ecs::Entity e : scene.registry_.Pool<RenderableNode>().Entities())
+        auto& pool     = scene.registry_.Pool<RenderableNode>();
+        auto& comps    = pool.Components();
+        auto& entities = pool.Entities();
+        for (size_t i = 0; i < comps.size(); ++i)
         {
-            auto* rn   = scene.registry_.Get<RenderableNode>(e);
-            auto* node = scene.GetNode(e);
-            if (!rn || !node || !rn->IsInitialized()) continue;
-            rn->SyncTransform(node->transform_);
+            auto& rn = comps[i];
+            if (!rn.IsInitialized()) continue;
+            auto* node = scene.GetNode(entities[i]);
+            if (node) rn.SyncTransform(node->transform_);
         }
     }
 

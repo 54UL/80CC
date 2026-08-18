@@ -50,8 +50,7 @@ namespace ettycc
         auto engine    = GetDependency(Engine);
         auto mainScene = engine->mainScene_;
 
-        mainScene->nodes_flat_.push_back(node);
-        mainScene->nodeIndex_[node->GetId()] = node.get();   // fast lookup
+        mainScene->nodeIndex_[node->GetId()] = node;   // O(1) insert + keeps shared ownership
         mainScene->registry_.Track(node->GetId());
 
         // Flush components queued before this node had a scene pointer.
@@ -91,9 +90,7 @@ namespace ettycc
             auto engine = GetDependency(Engine);
             if (engine && engine->mainScene_)
             {
-                auto& flat = engine->mainScene_->nodes_flat_;
-                flat.erase(std::remove(flat.begin(), flat.end(), *iter), flat.end());
-                engine->mainScene_->nodeIndex_.erase(id);
+                engine->mainScene_->nodeIndex_.erase(id);   // O(1) removal
                 engine->mainScene_->registry_.Destroy(id);
             }
         }

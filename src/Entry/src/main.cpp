@@ -25,6 +25,7 @@ int main(int argc, char* argv[])
     // Dependency registration (move this!!)
     RegisterDependency(Engine, engineInstance);
     RegisterDependency(Globals, resourcesInstance);
+    RegisterDependency(RNG, std::make_shared<RNG>());
 
     // CPR sample lol
     // cpr::Response r = cpr::Get(cpr::Url{"https://api.github.com/repos/libcpr/cpr/contributors"},

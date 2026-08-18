@@ -72,6 +72,7 @@ int main(int argc, char* argv[])
 
     RegisterDependency(Engine, engine);
     RegisterDependency(Globals, globals);
+    RegisterDependency(RNG, std::make_shared<RNG>());
 
     if (app->Init(argc, argv))
         return 1;

@@ -37,7 +37,6 @@ namespace ettycc
     public:
         std::string                             sceneName_;
         std::shared_ptr<SceneNode>              root_node_;
-        std::vector<std::shared_ptr<SceneNode>> nodes_flat_; // flat list for O(n) iteration
 
         // Highest entity ID in use when the scene was saved.  Restored on load
         // so the global counter is fast-forwarded past it and new nodes never
@@ -46,15 +45,19 @@ namespace ettycc
 
         ecs::Registry                           registry_;
         std::vector<std::unique_ptr<ISystem>>   systems_;
-        std::unordered_map<ecs::Entity, SceneNode*> nodeIndex_;
+
+        // Runtime O(1) node lookup — also holds shared ownership so nodes
+        // stay alive even after removal from the tree hierarchy.
+        // Built by walking root_node_'s tree in RebuildIndex().
+        std::unordered_map<ecs::Entity, std::shared_ptr<SceneNode>> nodeIndex_;
 
     public:
         explicit Scene(const std::string& name);
         ~Scene();
 
         // -- Initialization ----------------------------------------------------
-        // Rebuilds nodeIndex_ from nodes_flat_, tracks all entity IDs in the
-        // registry, then calls OnStart on every registered system.
+        // Walks the tree from root_node_ to populate nodeIndex_, tracks all
+        // entity IDs in the registry, then calls OnStart on every system.
         auto Init(Engine& engine) -> void;
 
         // -- Node lookup -------------------------------------------------------
