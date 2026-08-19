@@ -16,6 +16,7 @@
         "features": ["multithreading"]
       },
       "openal-soft",
-      "cpr"
+      "cpr",
+      "box2d"
     ]
   }

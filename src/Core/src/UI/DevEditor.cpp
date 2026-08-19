@@ -1088,6 +1088,7 @@ namespace ettycc
                 // Store initial state for every selected node
                 dragStartNodes.clear();
                 dragStartNodes.reserve(selectedNodes_.size());
+                engineInstance_->DrainPhysicsFuture();
                 for (auto& n : selectedNodes_)
                 {
                     dragStartNodes.push_back({
@@ -1108,6 +1109,7 @@ namespace ettycc
             // --- Gizmo drag apply ---------------------------------------------
             if (dragging != AXIS_NONE && ImGui::IsMouseDown(ImGuiMouseButton_Left) && hasSelection)
             {
+                engineInstance_->DrainPhysicsFuture();
                 float dxPx = mp.x - dragStartMouse.x;
                 float dyPx = mp.y - dragStartMouse.y;
 
@@ -1197,6 +1199,7 @@ namespace ettycc
             // --- Gizmo drag release -------------------------------------------
             if (dragging != AXIS_NONE && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
             {
+                engineInstance_->DrainPhysicsFuture();
                 for (auto& n : selectedNodes_)
                 {
                     if (auto* rb = n->GetComponent<RigidBodyComponent>())
@@ -1658,20 +1661,20 @@ namespace ettycc
             auto* sb = registry.Get<SoftBodyComponent>(e);
             if (!sb || !sb->IsInitialized()) continue;
 
-            const btSoftBody* body = sb->GetBody();
-            if (!body) continue;
+            auto* softBody = sb->GetSoftBody();
+            if (!softBody) continue;
 
-            // Draw all face edges
-            for (int f = 0; f < body->m_faces.size(); ++f)
+            // Draw all face edges via abstract interface
+            const int faceCount = softBody->GetFaceCount();
+            for (int f = 0; f < faceCount; ++f)
             {
-                const btSoftBody::Face& face = body->m_faces[f];
+                glm::vec3 fa, fb, fc;
+                softBody->GetFaceNodePositions(f, fa, fb, fc);
+                const glm::vec3 faceVerts[3] = { fa, fb, fc };
                 for (int j = 0; j < 3; ++j)
                 {
-                    //TODO: THIS SHOULD BE ABSTRACT AND IMPLENETAITON DETAILS SHOULD BE KEPT ON THE RIGID BODY API IMPL
-                    const btVector3& a = face.m_n[j]->m_x;
-                    const btVector3& b = face.m_n[(j + 1) % 3]->m_x;
-                    ImVec2 sa = toScreen({a.getX(), a.getY(), a.getZ()});
-                    ImVec2 sb2 = toScreen({b.getX(), b.getY(), b.getZ()});
+                    ImVec2 sa = toScreen(faceVerts[j]);
+                    ImVec2 sb2 = toScreen(faceVerts[(j + 1) % 3]);
                     dl->AddLine(sa, sb2, COL_COLLIDER, 1.0f);
                 }
             }
@@ -2044,7 +2047,10 @@ namespace ettycc
 
         // -- Apply transform changes + sync physics -----------------------------
         if (transformActivated && rigidBody)
+        {
+            engineInstance_->DrainPhysicsFuture();
             rigidBody->BeginManipulation();
+        }
 
         if (transformChanged)
         {
@@ -2055,11 +2061,17 @@ namespace ettycc
             selectedNode->transform_ = t;
 
             if (rigidBody && rigidBody->IsManipulated())
+            {
+                engineInstance_->DrainPhysicsFuture();
                 rigidBody->SyncFromRenderable();
+            }
         }
 
         if (transformDeactivated && rigidBody && rigidBody->IsManipulated())
+        {
+            engineInstance_->DrainPhysicsFuture();
             rigidBody->EndManipulation();
+        }
 
         ImGui::Spacing();
 

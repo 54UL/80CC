@@ -14,7 +14,8 @@
 #include <Dependencies/Globals.hpp>
 #include <Game/GameModule.hpp>
 #include <Game/ModuleLoader.hpp>
-#include <Physics/PhysicsWorld.hpp>
+#include <Physics/IPhysicsWorld.hpp>
+#include <Physics/PhysicsRegistry.hpp>
 #include <Networking/NetworkManager.hpp>
 #include <Audio/AudioManager.hpp>
 #include <Threading/ThreadRegistry.hpp>
@@ -82,7 +83,8 @@ namespace ettycc
 
         std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
         Rendering              renderEngine_;
-        PhysicsWorld           physicsWorld_;
+        std::unique_ptr<physics::IPhysicsWorld> physicsWorld_;
+        physics::PhysicsRegistry               physicsRegistry_;
         bool                   simulationPaused_ = false;
         AudioManager           audioManager_;
         PlayerInput            inputSystem_;
@@ -105,6 +107,13 @@ namespace ettycc
         std::future<float> physicsFuture_;
 
     public:
+        // Waits for any in-flight async physics step to finish.
+        void DrainPhysicsFuture() { if (physicsFuture_.valid()) physicsFuture_.get(); }
+
+        // Drains the physics future, then releases every rigid/soft body in the
+        // scene so the world can be safely destroyed or swapped.
+        void ReleaseAllPhysicsBodies();
+
         explicit Engine(std::shared_ptr<App> appInstance);
         ~Engine() override;
 

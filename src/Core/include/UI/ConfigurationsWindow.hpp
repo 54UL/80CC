@@ -22,9 +22,10 @@ namespace ettycc
         build::GlobalBuildConfig buildConfig_;
         std::string defaultConfigPath_;
 
-        enum class Category { Build, Globals };
+        enum class Category { Build, Globals, Physics };
         Category selectedCategory_ = Category::Build;
         char globalsFilter_[256]   = {};
+        int  physicsSelected_      = -1;
 
         // Persistence
         void SaveConfig(const std::string& path);
@@ -32,5 +33,6 @@ namespace ettycc
 
         void DrawBuildSettings();
         void DrawGlobals();
+        void DrawPhysics();
     };
 } // namespace ettycc

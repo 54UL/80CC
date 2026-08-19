@@ -40,8 +40,6 @@ namespace ettycc
     // -- Gravity: apply previous frame's results ------------------------------
     void PhysicsSystem::ApplyGravityForces(Scene& scene)
     {
-        // bodySnap_ entities may have been removed by fusion last frame,
-        // so we must validate via pool lookup (single hash per body).
         auto& pool = scene.registry_.Pool<RigidBodyComponent>();
 
         for (size_t i = 0; i < bodySnap_.size(); ++i)
@@ -55,20 +53,15 @@ namespace ettycc
     }
 
     // -- Gravity: submit computation to ThreadRegistry pool -------------------
-    // Precondition: attractorSnap_ and bodySnap_ already populated.
     void PhysicsSystem::DispatchGravityJob()
     {
         if (!engine_) return;
 
-        // Resize force buffer (reuses capacity -- no alloc after warmup).
         forceResults_.assign(bodySnap_.size(), glm::vec3(0.f));
 
-        // Hand ownership to worker.
         gravityJobRunning_.store(true, std::memory_order_release);
         hasGravityResults_ = true;
 
-        // Pointers to member buffers -- safe because main won't touch them
-        // while gravityJobRunning_ == true.
         auto* attractors = &attractorSnap_;
         auto* bodies     = &bodySnap_;
         auto* forces     = &forceResults_;
@@ -80,8 +73,6 @@ namespace ettycc
                 const size_t n = bodies->size();
                 const auto& atts = *attractors;
 
-                // Linear read of bodies, linear read of attractors, linear write of forces.
-                // All contiguous -- cache-friendly.
                 for (size_t i = 0; i < n; ++i)
                 {
                     const glm::vec3& pos  = (*bodies)[i].pos;
@@ -99,7 +90,6 @@ namespace ettycc
                         const float dist = std::sqrt(dist2);
                         const glm::vec3 dir = diff / dist;
 
-                        // Clamp at inner radius (full strength, no blow-up).
                         const float ed2 = (dist2 < att.innerRadius2)
                                          ? att.innerRadius2 : dist2;
                         net += dir * (att.strength * mass / ed2);
@@ -115,7 +105,6 @@ namespace ettycc
     // -- PlanetaryDynamics -----------------------------------------------------
     void PhysicsSystem::PlanetaryDynamics(Scene& scene)
     {
-        // 1. If previous gravity job finished, apply its results.
         if (hasGravityResults_ &&
             !gravityJobRunning_.load(std::memory_order_acquire))
         {
@@ -123,10 +112,8 @@ namespace ettycc
             hasGravityResults_ = false;
         }
 
-        // 2. If worker is idle, snapshot & dispatch.
         if (!gravityJobRunning_.load(std::memory_order_acquire))
         {
-            // Snapshot attractors (few -- iterate directly).
             attractorSnap_.clear();
             {
                 auto& aPool = scene.registry_.Pool<GravityAttractorComponent>();
@@ -141,7 +128,6 @@ namespace ettycc
                 }
             }
 
-            // Snapshot dynamic bodies (iterate dense array -- zero hash lookups).
             bodySnap_.clear();
             {
                 auto& rbPool = scene.registry_.Pool<RigidBodyComponent>();
@@ -159,7 +145,6 @@ namespace ettycc
                 DispatchGravityJob();
         }
 
-        // 3. Fusion always runs on main thread (mutates scene).
         ProcessFusions(scene);
     }
 
@@ -168,9 +153,6 @@ namespace ettycc
     {
         PlanetaryDynamics(scene);
 
-        // Parallel pass over rigid bodies: tick cooldowns + sync transforms.
-        // Each body is independent -- safe to chunk across pool threads.
-        // Bullet step is complete; nodeIndex_ is read-only during this phase.
         {
             auto& rbPool   = scene.registry_.Pool<RigidBodyComponent>();
             auto& comps    = rbPool.Components();
@@ -209,7 +191,6 @@ namespace ettycc
             }
         }
 
-        // SoftBody pass (separate pool, dense iteration).
         {
             auto& sbPool   = scene.registry_.Pool<SoftBodyComponent>();
             auto& comps    = sbPool.Components();
@@ -225,11 +206,6 @@ namespace ettycc
     }
 
     // -- Spatial hash for broadphase fusion checks -----------------------------
-    // Maps 2D grid cells to indices into the candidates array.
-    // Cell size is chosen per-frame from the largest body radius so that
-    // overlapping pairs are always in the same or adjacent cells.
-    // Complexity drops from O(n^2) to O(n * k) where k is the average
-    // number of bodies per cell neighbourhood (~constant for uniform density).
     namespace {
         struct CellKey {
             int x, y;
@@ -237,7 +213,6 @@ namespace ettycc
         };
         struct CellKeyHash {
             size_t operator()(const CellKey& k) const {
-                // Fast hash combining two ints.
                 size_t h = std::hash<int>()(k.x);
                 h ^= std::hash<int>()(k.y) + 0x9e3779b9 + (h << 6) + (h >> 2);
                 return h;
@@ -247,13 +222,11 @@ namespace ettycc
     }
 
     // -- Planetary fusion -----------------------------------------------------
-    // Uses a spatial hash grid so only nearby bodies are checked for overlap.
     void PhysicsSystem::ProcessFusions(Scene& scene)
     {
         constexpr float OVERLAP_FACTOR  = 0.5f;
         constexpr float FUSION_COOLDOWN = 0.5f;
 
-        // -- Pre-snapshot via dense array iteration (no hash lookups) ---------
         struct FusionBody {
             ecs::Entity         entity;
             RigidBodyComponent* rb;
@@ -290,9 +263,6 @@ namespace ettycc
         const size_t n = candidates.size();
         if (n < 2) return;
 
-        // -- Build spatial grid ------------------------------------------------
-        // Cell size = 2 * maxRadius / OVERLAP_FACTOR so that any overlapping
-        // pair is guaranteed to be in the same or adjacent cells.
         const float cellSize = std::max(maxRadius * 2.0f / OVERLAP_FACTOR, 0.1f);
         const float invCell  = 1.0f / cellSize;
 
@@ -305,19 +275,14 @@ namespace ettycc
             grid[{cx, cy}].push_back(i);
         }
 
-        // -- Find overlapping pairs via grid neighbours -----------------------
         struct FusionPair { size_t a; size_t b; float dist; };
         std::vector<FusionPair> pairsFound;
 
-        // Track best partner per candidate (closest overlap).
         std::vector<size_t> bestPartner(n, SIZE_MAX);
         std::vector<float>  bestDist(n, std::numeric_limits<float>::max());
 
         for (auto& [cell, indices] : grid)
         {
-            // Check all bodies in this cell against each other and against
-            // bodies in the 3 forward-neighbours (right, below, below-right)
-            // to avoid duplicate pair checks.
             static const CellKey offsets[] = {
                 {0, 0}, {1, 0}, {0, 1}, {1, 1}, {-1, 1}
             };
@@ -369,7 +334,6 @@ namespace ettycc
             }
         }
 
-        // Collect valid pairs (only from the smaller index to avoid duplicates).
         for (size_t i = 0; i < n; ++i)
         {
             if (bestPartner[i] != SIZE_MAX && i < bestPartner[i])
@@ -400,7 +364,7 @@ namespace ettycc
             const glm::vec3 newHalf = S.halfExtents * scaleFactor;
 
             S.rb->SetLinearVelocity(newVel);
-            S.rb->Reinitialize(newMass, newHalf);
+            S.rb->Reinitialize(*engine_->physicsWorld_, newMass, newHalf);
             S.rb->SetFusionCooldown(FUSION_COOLDOWN);
 
             if (auto* rn = scene.registry_.Pool<RenderableNode>().Get(S.entity))
@@ -408,7 +372,7 @@ namespace ettycc
                     rn->renderable_->underylingTransform.setGlobalScale(newHalf);
 
             S.halfExtents = newHalf;
-            S.radius      = (newHalf.x + newHalf.y) * 110.5f;
+            S.radius      = (newHalf.x + newHalf.y) * 0.5f;
             S.mass        = newMass;
             S.pos         = S.rb->GetPosition();
 
@@ -439,7 +403,7 @@ namespace ettycc
             if (rn->renderable_)
                 seedTransform = &rn->renderable_->underylingTransform;
 
-        rb->InitBody(engine.physicsWorld_.GetWorld(), node->transform_, seedTransform);
+        rb->InitBody(*engine.physicsWorld_, node->transform_, seedTransform);
     }
 
     void PhysicsSystem::InitSoftBody(Scene& scene, Engine& engine, ecs::Entity e)
@@ -448,7 +412,7 @@ namespace ettycc
         auto* node = scene.GetNode(e);
         if (!sb || !node || sb->IsInitialized()) return;
 
-        sb->InitBody(engine.physicsWorld_.GetSoftWorld(), engine);
+        sb->InitBody(*engine.physicsWorld_, engine);
         if (sb->IsInitialized())
             node->transform_.setGlobalPosition(sb->GetCentroid());
     }

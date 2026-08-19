@@ -3,27 +3,22 @@
 
 #include <Scene/Api.hpp>
 #include <Scene/PropertySystem.hpp>
-#include <Graphics/Rendering/Entities/SoftBodyRenderable.hpp>
+#include <Physics/IPhysicsSoftBody.hpp>
+#include <Graphics/Rendering/Renderable.hpp>
+
+namespace ettycc { namespace physics { class IPhysicsWorld; } }
 
 #include <glm/glm.hpp>
-#include <btBulletDynamicsCommon.h>
-#include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
-#include <BulletSoftBody/btSoftBody.h>
-
 #include <cereal/archives/json.hpp>
 
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace ettycc
 {
     struct EditorPropertyVisitor;
     class  Engine;
 
-    // -- SoftBodyComponent -----------------------------------------------------
-    // Pure data component for a Bullet soft body (deformable disc mesh).
-    // PhysicsSystem handles initialization and per-frame update.
     class SoftBodyComponent
     {
     public:
@@ -34,8 +29,6 @@ namespace ettycc
         SoftBodyComponent(float radius, glm::vec3 pos, float mass, std::string texPath);
         ~SoftBodyComponent();
 
-        // Non-copyable: owns Bullet soft-body pointer. Movable so std::vector
-        // can relocate without triggering the destructor on a live body.
         SoftBodyComponent(const SoftBodyComponent&)            = delete;
         SoftBodyComponent& operator=(const SoftBodyComponent&) = delete;
 
@@ -44,17 +37,15 @@ namespace ettycc
             , mass_(o.mass_), initialPosition_(o.initialPosition_)
             , stiffness_(o.stiffness_), pressure_(o.pressure_)
             , texturePath_(std::move(o.texturePath_))
-            , body_(std::move(o.body_)), softWorld_(o.softWorld_)
+            , body_(std::move(o.body_))
             , renderable_(std::move(o.renderable_))
             , lastTrackedCentroid_(o.lastTrackedCentroid_)
-        {
-            o.softWorld_ = nullptr;
-        }
+        {}
 
         SoftBodyComponent& operator=(SoftBodyComponent&& o) noexcept
         {
             if (this == &o) return *this;
-            if (body_ && softWorld_) softWorld_->removeSoftBody(body_.get());
+            body_.reset();
 
             radius_               = o.radius_;
             rings_                = o.rings_;
@@ -65,27 +56,23 @@ namespace ettycc
             pressure_             = o.pressure_;
             texturePath_          = std::move(o.texturePath_);
             body_                 = std::move(o.body_);
-            softWorld_            = o.softWorld_;
             renderable_           = std::move(o.renderable_);
             lastTrackedCentroid_  = o.lastTrackedCentroid_;
 
-            o.softWorld_ = nullptr;
             return *this;
         }
 
-        // -- System-facing API (called by PhysicsSystem) -----------------------
-        void InitBody(btSoftRigidDynamicsWorld* world, Engine& engine);
+        // -- System-facing API -------------------------------------------------
+        void InitBody(physics::IPhysicsWorld& world, Engine& engine);
         void UpdateBody(Transform& t);
         bool IsInitialized() const { return body_ != nullptr; }
+        void ReleaseBody() { body_.reset(); }
 
-        // Picker support -- lets FindNodeByRenderable trace back to this node.
         std::shared_ptr<Renderable> GetRenderable() const { return renderable_; }
 
-        // Editor gizmo -- read Bullet node positions for wireframe overlay.
-        const btSoftBody* GetBody() const { return body_.get(); }
+        // Returns the abstract soft body for wireframe/gizmo rendering.
+        physics::IPhysicsSoftBody* GetSoftBody() const { return body_.get(); }
 
-        // Returns the current centroid of the soft body from the Bullet node
-        // positions.  Falls back to initialPosition_ if the body is not ready.
         glm::vec3 GetCentroid() const;
 
         // -- Editor inspector --------------------------------------------------
@@ -130,10 +117,9 @@ namespace ettycc
         float       pressure_        = 0.0f;
         std::string texturePath_;
 
-        // -- Runtime (not serialized, set by PhysicsSystem) --------------------
-        std::unique_ptr<btSoftBody>         body_;
-        btSoftRigidDynamicsWorld*           softWorld_  = nullptr;  // non-owning
-        std::shared_ptr<SoftBodyRenderable> renderable_;
+        // -- Runtime -----------------------------------------------------------
+        std::unique_ptr<physics::IPhysicsSoftBody> body_;
+        std::shared_ptr<Renderable>                renderable_;
         glm::vec3 lastTrackedCentroid_ = {0.f, 0.f, 0.f};
     };
 

@@ -1,4 +1,6 @@
 #include <Engine.hpp>
+#include <Physics/Bullet/BulletPhysicsWorld.hpp>
+#include <Physics/Box2D/Box2DPhysicsWorld.hpp>
 #include <Dependency.hpp>
 #include <Benchmark/Benchmark.hpp>
 #include <Scene/Assets/ResourceCache.hpp>
@@ -125,7 +127,7 @@ namespace ettycc {
     }
 
     void Engine::BoxesScene() {
-        physicsWorld_.SetGravity(btVector3(0.f, -9.81, 0.f));
+        physicsWorld_->SetGravity({0.f, -9.81f, 0.f});
 
         const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;
@@ -150,7 +152,7 @@ namespace ettycc {
 
     void Engine::GravityScene() {
 
-        physicsWorld_.SetGravity(btVector3(0.f, 0.0f, 0.f));
+        physicsWorld_->SetGravity({0.f, 0.0f, 0.f});
 
         const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;
@@ -169,7 +171,7 @@ namespace ettycc {
         // Spawn boxes in a ring and give each a tangential velocity for a
         // roughly circular orbit:  v = sqrt(strength / radius)
         constexpr int boxCount = 5000;
-        constexpr float orbitRadius = 500;
+        constexpr float orbitRadius = 100;
         auto rng = GetDependency(RNG);
 
         for (int i = 0; i < boxCount; ++i) {
@@ -583,7 +585,15 @@ namespace ettycc {
         RegisterDependency(ResourceCache, resourceCache_);
         bench.Mark("resource_cache_init");
 
-        physicsWorld_.Init();
+        // Register physics implementations and create the default one
+        physicsRegistry_.Register("Bullet", []() {
+            return std::make_unique<physics::BulletPhysicsWorld>();
+        });
+        physicsRegistry_.Register("Box2D", []() {
+            return std::make_unique<physics::Box2DPhysicsWorld>();
+        });
+        physicsWorld_ = physicsRegistry_.Create("Bullet");
+        physicsWorld_->Init();
         bench.Mark("physics_init");
 
         if (!isHeadless_) {
@@ -699,7 +709,7 @@ namespace ettycc {
         {
             physicsFuture_ = threadRegistry_.Submit([this, dt]() {
                 auto t = Clock::now();
-                physicsWorld_.Step(dt);
+                physicsWorld_->Step(dt);
                 return Ms(Clock::now() - t).count();
             });
         }
@@ -817,6 +827,21 @@ namespace ettycc {
         spdlog::info("[Engine] EndPlay");
         simulationPaused_ = true;
 
+        // Wait for any in-flight async physics step before touching bodies.
+        DrainPhysicsFuture();
+
+        // Release all physics bodies so they don't reference the world during teardown.
+        if (mainScene_)
+        {
+            auto& rbPool = mainScene_->registry_.Pool<RigidBodyComponent>();
+            for (size_t i = 0; i < rbPool.Size(); ++i)
+                rbPool.Components()[i].ReleaseBody();
+
+            auto& sbPool = mainScene_->registry_.Pool<SoftBodyComponent>();
+            for (size_t i = 0; i < sbPool.Size(); ++i)
+                sbPool.Components()[i].ReleaseBody();
+        }
+
         // Tear down DLL module instances (systems, components they added).
         for (auto* mod : moduleLoader_.GetModules())
             mod->OnDestroy();
@@ -856,7 +881,7 @@ namespace ettycc {
             renderEngine_.ClearRenderables();
         mainScene_ = std::make_shared<Scene>("network-scene");
         SetupSceneSystems(*mainScene_, *this);
-        physicsWorld_.SetGravity(btVector3(0.f, -9.81f, 0.f));
+        physicsWorld_->SetGravity({0.f, -9.81f, 0.f});
 
         const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
         auto root = mainScene_->root_node_;

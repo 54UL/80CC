@@ -6,6 +6,10 @@
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
 #include <Paths.hpp>
+#include <Engine.hpp>
+#include <Scene/Components/RigidBodyComponent.hpp>
+#include <Scene/Components/SoftBodyComponent.hpp>
+#include <spdlog/spdlog.h>
 #include <imgui.h>
 #include <portable-file-dialogs.h>
 #include <nlohmann/json.hpp>
@@ -256,6 +260,149 @@ namespace ettycc
     }
 
     // -------------------------------------------------------------------------
+    // DrawPhysics
+    // -------------------------------------------------------------------------
+
+    void ConfigurationsWindow::DrawPhysics()
+    {
+        ImGui::SeparatorText("Physics Engine");
+
+        auto engine = GetDependency(Engine);
+        if (!engine)
+        {
+            ImGui::TextDisabled("Engine not available");
+            return;
+        }
+
+        auto& registry = engine->physicsRegistry_;
+        auto available  = registry.GetAvailable();
+
+        if (available.empty())
+        {
+            ImGui::TextDisabled("No physics implementations registered");
+            return;
+        }
+
+        // Find the currently active implementation name
+        const char* currentName = engine->physicsWorld_
+                                  ? engine->physicsWorld_->GetName()
+                                  : "None";
+
+        // Sync combo index only on first draw (don't overwrite user's selection)
+        if (physicsSelected_ < 0)
+        {
+            for (int i = 0; i < static_cast<int>(available.size()); ++i)
+                if (available[i] == currentName)
+                    physicsSelected_ = i;
+        }
+
+        // Clamp to valid range (handles -1 initial and registry changes)
+        if (physicsSelected_ < 0 || physicsSelected_ >= static_cast<int>(available.size()))
+            physicsSelected_ = 0;
+
+        ImGui::Text("Active: %s", currentName);
+        if (engine->physicsWorld_ && engine->physicsWorld_->IsMultithreaded())
+            ImGui::SameLine(), ImGui::TextDisabled("(multithreaded)");
+
+        ImGui::Spacing();
+
+        // Combo to pick implementation
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Implementation");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(-1);
+        if (ImGui::BeginCombo("##physics_impl", available[physicsSelected_].c_str()))
+        {
+            for (int i = 0; i < static_cast<int>(available.size()); ++i)
+            {
+                const bool selected = (i == physicsSelected_);
+                if (ImGui::Selectable(available[i].c_str(), selected))
+                    physicsSelected_ = i;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::PopItemWidth();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Hot-swap button
+        const bool isSame = (available[physicsSelected_] == currentName);
+        if (isSame) ImGui::BeginDisabled();
+
+        if (ImGui::Button("Apply & Restart Physics"))
+        {
+            const std::string& chosen = available[physicsSelected_];
+            spdlog::info("[ConfigurationsWindow] switching physics to: {}", chosen);
+
+            // 1. Wait for any in-flight async physics step
+            engine->DrainPhysicsFuture();
+
+            // 2. Snapshot body velocities before releasing
+            struct BodySnapshot { ecs::Entity entity; glm::vec3 linearVel; };
+            std::vector<BodySnapshot> snapshots;
+
+            if (engine->mainScene_)
+            {
+                auto& rbPool = engine->mainScene_->registry_.Pool<RigidBodyComponent>();
+                for (size_t i = 0; i < rbPool.Size(); ++i)
+                {
+                    auto& rb = rbPool.Components()[i];
+                    if (rb.IsInitialized() && rb.IsDynamic())
+                        snapshots.push_back({ rbPool.Entities()[i], rb.GetLinearVelocity() });
+                    rb.ReleaseBody();
+                }
+
+                auto& sbPool = engine->mainScene_->registry_.Pool<SoftBodyComponent>();
+                for (size_t i = 0; i < sbPool.Size(); ++i)
+                    sbPool.Components()[i].ReleaseBody();
+            }
+
+            // 3. Now safe to destroy the old world and create the new one
+            const glm::vec3 prevGravity = engine->physicsWorld_
+                ? engine->physicsWorld_->GetGravity() : glm::vec3(0.f);
+            engine->physicsWorld_.reset();
+            engine->physicsWorld_ = registry.Create(chosen);
+            if (engine->physicsWorld_)
+            {
+                engine->physicsWorld_->Init();
+                engine->physicsWorld_->SetGravity(prevGravity);
+
+                // Re-init scene: rebuilds index and re-creates all bodies
+                if (engine->mainScene_)
+                {
+                    engine->mainScene_->Init(*engine);
+
+                    // Restore body velocities so orbits/motion continue
+                    auto& rbPool = engine->mainScene_->registry_.Pool<RigidBodyComponent>();
+                    for (auto& snap : snapshots)
+                    {
+                        auto* rb = rbPool.Get(snap.entity);
+                        if (rb && rb->IsInitialized())
+                            rb->SetLinearVelocity(snap.linearVel);
+                    }
+                }
+
+                spdlog::info("[ConfigurationsWindow] physics switched to: {}", chosen);
+            }
+        }
+
+        if (isSame) ImGui::EndDisabled();
+
+        if (isSame)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("(already active)");
+        }
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("Switching physics will re-initialize all bodies in the scene.");
+    }
+
+    // -------------------------------------------------------------------------
     // Draw
     // -------------------------------------------------------------------------
 
@@ -281,6 +428,10 @@ namespace ettycc
 
             if (ImGui::Selectable(build::str::CAT_GLOBALS, globalsSel))
                 selectedCategory_ = Category::Globals;
+
+            const bool physicsSel = (selectedCategory_ == Category::Physics);
+            if (ImGui::Selectable("Physics", physicsSel))
+                selectedCategory_ = Category::Physics;
         }
         ImGui::EndChild();
 
@@ -293,6 +444,7 @@ namespace ettycc
             {
                 case Category::Build:   DrawBuildSettings(); break;
                 case Category::Globals: DrawGlobals();       break;
+                case Category::Physics: DrawPhysics();       break;
             }
         }
         ImGui::EndChild();

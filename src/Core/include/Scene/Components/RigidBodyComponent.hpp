@@ -4,8 +4,10 @@
 #include <Scene/PropertySystem.hpp>
 #include <Scene/Transform.hpp>
 #include <Scene/Api.hpp>
-#include <btBulletDynamicsCommon.h>
+#include <Physics/IPhysicsBody.hpp>
 #include <glm/glm.hpp>
+
+namespace ettycc { namespace physics { class IPhysicsWorld; } }
 #include <cereal/archives/json.hpp>
 #include <memory>
 
@@ -13,9 +15,6 @@ namespace ettycc
 {
     struct EditorPropertyVisitor;
 
-    // -- RigidBodyComponent ----------------------------------------------------
-    // Pure data component -- no virtual methods, no back-pointer to its entity.
-    // Runtime initialization and per-frame sync are performed by PhysicsSystem.
     class RigidBodyComponent
     {
     public:
@@ -26,8 +25,6 @@ namespace ettycc
         RigidBodyComponent(float mass, glm::vec3 halfExtents, glm::vec3 initialPosition);
         ~RigidBodyComponent();
 
-        // Non-copyable: owns Bullet objects. Movable so std::vector can relocate
-        // without triggering the destructor on a valid body.
         RigidBodyComponent(const RigidBodyComponent&)            = delete;
         RigidBodyComponent& operator=(const RigidBodyComponent&) = delete;
 
@@ -35,51 +32,42 @@ namespace ettycc
             : mass_(o.mass_), halfExtents_(o.halfExtents_)
             , initialPosition_(o.initialPosition_)
             , syncTransform_(o.syncTransform_)
-            , physWorld_(o.physWorld_)
-            , shape_(std::move(o.shape_))
-            , motionState_(std::move(o.motionState_))
             , body_(std::move(o.body_))
             , isManipulated_(o.isManipulated_)
+            , fusionCooldown_(o.fusionCooldown_)
         {
             o.syncTransform_ = nullptr;
-            o.physWorld_     = nullptr;
         }
 
         RigidBodyComponent& operator=(RigidBodyComponent&& o) noexcept
         {
             if (this == &o) return *this;
-            if (body_ && physWorld_) physWorld_->removeRigidBody(body_.get());
+            body_.reset();
 
             mass_            = o.mass_;
             halfExtents_     = o.halfExtents_;
             initialPosition_ = o.initialPosition_;
             syncTransform_   = o.syncTransform_;
-            physWorld_       = o.physWorld_;
-            shape_           = std::move(o.shape_);
-            motionState_     = std::move(o.motionState_);
             body_            = std::move(o.body_);
             isManipulated_   = o.isManipulated_;
+            fusionCooldown_  = o.fusionCooldown_;
 
             o.syncTransform_ = nullptr;
-            o.physWorld_     = nullptr;
             return *this;
         }
 
         // -- System-facing API (called by PhysicsSystem) -----------------------
-        // Creates the Bullet rigid body and links it to the node transform.
-        // Optional siblingRenderable pointer seeds the initial transform.
-        void InitBody(btDiscreteDynamicsWorld* world,
+        void InitBody(physics::IPhysicsWorld& world,
                       Transform& syncTransform,
                       const Transform* seedTransform = nullptr);
 
-        // Pulls the Bullet simulation result into the node transform.
         void SyncToTransform(Transform& t) const;
 
         bool IsInitialized() const { return body_ != nullptr; }
+        void ReleaseBody() { body_.reset(); }
         bool IsDynamic()     const { return mass_ > 0.f; }
         float GetMass()      const { return mass_; }
 
-        // Fusion cooldown -- prevents chain reactions.
         bool  CanFuse()  const { return fusionCooldown_ <= 0.f; }
         void  SetFusionCooldown(float seconds) { fusionCooldown_ = seconds; }
         void  TickCooldown(float dt) { if (fusionCooldown_ > 0.f) fusionCooldown_ -= dt; }
@@ -91,15 +79,13 @@ namespace ettycc
         glm::vec3 GetHalfExtents() const { return halfExtents_; }
         glm::quat GetRotation() const;
 
-        // Recreate the Bullet body with new mass / half-extents at the current
-        // position.  Used by the fusion system after merging two bodies.
-        void Reinitialize(float newMass, const glm::vec3& newHalfExtents);
+        void Reinitialize(physics::IPhysicsWorld& world, float newMass, const glm::vec3& newHalfExtents);
 
         // -- Editor gizmo API --------------------------------------------------
         void BeginManipulation();
         void EndManipulation();
-        void SyncFromRenderable();          // push node transform -> Bullet
-        bool IsManipulated() const         { return isManipulated_; }
+        void SyncFromRenderable();
+        bool IsManipulated() const { return isManipulated_; }
 
         // -- Editor inspector --------------------------------------------------
         void InspectProperties(EditorPropertyVisitor& v);
@@ -123,14 +109,11 @@ namespace ettycc
         glm::vec3 halfExtents_     = { 0.5f, 0.5f, 0.5f };
         glm::vec3 initialPosition_ = { 0.0f, 0.0f, 0.0f };
 
-        // -- Runtime (not serialized, set by PhysicsSystem::InitBody) ---------
-        Transform*                           syncTransform_  = nullptr;  // non-owning
-        btDiscreteDynamicsWorld*             physWorld_      = nullptr;  // non-owning
-        std::unique_ptr<btCollisionShape>    shape_;
-        std::unique_ptr<btDefaultMotionState> motionState_;
-        std::unique_ptr<btRigidBody>         body_;
-        bool                                 isManipulated_  = false;
-        float                                fusionCooldown_ = 0.f;
+        // -- Runtime (not serialized) ------------------------------------------
+        Transform*                               syncTransform_  = nullptr;
+        std::unique_ptr<physics::IPhysicsBody>   body_;
+        bool                                     isManipulated_  = false;
+        float                                    fusionCooldown_ = 0.f;
     };
 }
 

@@ -30,7 +30,18 @@ set(80CC_CORE_HEADERS
     include/Scene/Components/AudioListenerComponent.hpp
     include/Scene/Components/CameraControllerComponent.hpp
     include/Audio/AudioManager.hpp
+    include/Physics/PhysicsDefs.hpp
+    include/Physics/IPhysicsBody.hpp
+    include/Physics/IPhysicsSoftBody.hpp
+    include/Physics/IPhysicsWorld.hpp
+    include/Physics/PhysicsConstants.hpp
+    include/Physics/PhysicsRegistry.hpp
     include/Physics/PhysicsWorld.hpp
+    include/Physics/Bullet/BulletPhysicsWorld.hpp
+    include/Physics/Bullet/BulletRigidBody.hpp
+    include/Physics/Bullet/BulletSoftBody.hpp
+    include/Physics/Box2D/Box2DPhysicsWorld.hpp
+    include/Physics/Box2D/Box2DRigidBody.hpp
     include/Graphics/Rendering/Entities/SoftBodyRenderable.hpp
     include/Scene/Assets/AssetLoader.hpp
     include/Scene/Assets/AssetBuilder.hpp
@@ -114,6 +125,11 @@ set(80CC_CORE_SOURCES
     src/Scene/Systems/NetworkSystem.cpp
     src/Audio/AudioManager.cpp
     src/Physics/PhysicsWorld.cpp
+    src/Physics/Bullet/BulletPhysicsWorld.cpp
+    src/Physics/Bullet/BulletRigidBody.cpp
+    src/Physics/Bullet/BulletSoftBody.cpp
+    src/Physics/Box2D/Box2DPhysicsWorld.cpp
+    src/Physics/Box2D/Box2DRigidBody.cpp
     src/Graphics/Rendering/Entities/SoftBodyRenderable.cpp
     src/Graphics/Rendering.cpp
     src/Graphics/Rendering/Renderable.cpp
@@ -161,7 +177,7 @@ find_package(cereal CONFIG REQUIRED)
 find_package(unofficial-enet CONFIG REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
 find_package(cpr CONFIG REQUIRED)
-
+find_package(box2d CONFIG REQUIRED)
 
 # DIR INCLUDES (avoid this...)
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -185,7 +201,8 @@ set_target_properties(80CC_CORE PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(80CC_CORE
     PUBLIC
         $<$<PLATFORM_ID:Windows>:NOMINMAX>
-        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>)
+        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>
+        ETTYCC_HAS_BOX2D)
 
 # TARGET INCLUDES
 target_include_directories(80CC_CORE
@@ -207,4 +224,5 @@ target_link_libraries(80CC_CORE
     PUBLIC unofficial::enet::enet
     PUBLIC ${BULLET_LIBRARIES}
     PUBLIC OpenAL::OpenAL
-    PUBLIC cpr::cpr)
+    PUBLIC cpr::cpr
+    PUBLIC box2d::box2d)
