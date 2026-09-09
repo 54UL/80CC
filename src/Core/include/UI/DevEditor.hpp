@@ -12,6 +12,8 @@
 #include <Scene/Assets/AssetBuilder.hpp>
 #include <Graphics/Rendering/PickerBuffer.hpp>
 #include <Build/ModuleBuildHelper.hpp>
+#include <UI/AssetDescriptor.hpp>
+#include <UI/EditorContextMenu.hpp>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -19,6 +21,7 @@
 #include <stack>
 #include <memory>
 #include <filesystem>
+#include <unordered_map>
 #include <Scene/Components/RenderableNode.hpp>
 #include <UI/ComponentRegistry.hpp>
 
@@ -39,7 +42,9 @@ namespace ettycc
         // WINDOWS
         void ShowDebugger();
         void ShowDockSpace();
+
         void ShowMenuBar();
+        void ShowBuiltInScenes();
 
         void DrawGravityAttractorGizmos(ImVec2 imgMin, ImVec2 imgSize);
         void DrawAudioGizmos(ImVec2 imgMin, ImVec2 imgSize);
@@ -53,6 +58,7 @@ namespace ettycc
         // SCENE HIERARCHY
         std::shared_ptr<Engine> engineInstance_;
         std::vector<std::shared_ptr<SceneNode>> selectedNodes_;
+        uint32_t    lastSceneGeneration_ = 0;
         std::string searchFilter_;
         DebugConsole uiConsole;
         bool uiConsoleOpen_;
@@ -61,33 +67,22 @@ namespace ettycc
         void RenderSceneNode(const std::shared_ptr<SceneNode>& rootNode, std::vector<std::shared_ptr<SceneNode>>& selectedNodes, int depth);
         void AddNode(const std::shared_ptr<SceneNode>& selectedNode);
 
-        void DrawAddComponentMenu(const std::shared_ptr<SceneNode>& node);
-        // editorExtras = true adds viewport-only items (Reload Scene, etc.).
-        void DrawNodeContextMenu(const std::shared_ptr<SceneNode>& node, bool editorExtras = false);
         void RemoveComponentByName(const std::shared_ptr<SceneNode>& node, const std::string& typeName);
         void DuplicateNode(const std::shared_ptr<SceneNode>& node);
         void ReloadScene();
         void NewScene();
         void CleanupNodeRenderables(const std::shared_ptr<SceneNode>& node);
 
+        // Builds a ContextMenuState for the unified context menu system.
+        ContextMenuState BuildContextMenuState(ContextMenuSource source,
+                                                const std::shared_ptr<SceneNode>& node,
+                                                bool editorExtras = false);
+        // Opens a context menu popup with the unified system.
+        void DrawContextMenu(const char* popupId, ContextMenuSource source,
+                             const std::shared_ptr<SceneNode>& node,
+                             bool editorExtras = false);
+
         // ASSET BROWSER ############################################################
-        //TODO: URGENT REFACTORS (forgive me)
-        enum class AssetType { Template, Scene, Config, Code, Shader, Image, Audio, Material, Unknown };
-
-        struct AssetEntry {
-            std::string path;
-            std::string name;
-            AssetType   type;
-        };
-
-        struct SelectedAsset {
-            std::string path;
-            std::string name;
-            AssetType   type;
-            uintmax_t   fileSize = 0;
-            bool        active   = false;
-        };
-
         enum class InspectorSource { None, SceneNode, Asset };
 
         std::shared_ptr<AssetLoader>   assetLoader_;
@@ -100,13 +95,20 @@ namespace ettycc
         SelectedAsset                 selectedAsset_;
         InspectorSource               inspectorSource_ = InspectorSource::None;
 
-        void        ScanAssets();
-        void        RenderFolderTree(const std::filesystem::path& path);
-        void        RenderAssetGrid(const std::string& searchQuery);
-        AssetType   GetAssetType(const std::filesystem::path& p) const;
-        ImVec4      GetAssetColor(AssetType t) const;
-        const char* GetAssetLabel(AssetType t) const;
-        const char* GetAssetTypeName(AssetType t) const;
+        void ScanAssets();
+        void RenderFolderTree(const std::filesystem::path& path);
+        void RenderAssetGrid(const std::string& searchQuery);
+
+        // Asset inspector sections
+        void DrawAssetInspectorHeader();
+        void DrawAssetInspectorActions();
+        void DrawAssetInspectorPreview();
+
+        // Handles all viewport drag-drop via the descriptor registry
+        void HandleViewportDragDrop();
+
+        // Computes relative path from absolute (working folder relative)
+        std::string ComputeRelativePath(const std::string& absolutePath) const;
 
         // VIEWPORT HELPERS
         std::shared_ptr<SceneNode> FindNodeByRenderable(
@@ -142,15 +144,51 @@ namespace ettycc
         void StartFollowing(const std::shared_ptr<SceneNode>& node);
         void StopFollowing();
 
+        // SLICE TOOL
+        bool  sliceToolActive_ = false;
+        bool  sliceDragging_   = false;
+        float sliceBreakForce_ = 50.f;
+        ImVec2 sliceStartScreen_ = {};
+        ImVec2 sliceEndScreen_   = {};
+
         // VIEWPORT BOX SELECTION
         BoxSelector viewportBoxSelector_;
         void CollectAllNodes(const std::shared_ptr<SceneNode>& node,
                              std::vector<std::shared_ptr<SceneNode>>& out) const;
 
-        // EDITOR OVERLAY TOGGLES
-        bool showColliderDebug_  = true;
-        bool showGravityDebug_   = true;
-        bool showAudioDebug_     = true;
+        // EDITOR OVERLAY TOGGLES (driven by gizmo combo)
+        bool showColliderDebug_    = true;
+        bool showGravityDebug_     = true;
+        bool showAudioDebug_       = true;
+        bool showTrajectoryDebug_  = false;
+        bool showGridDebug_        = true;
+        bool showFrustumDebug_     = false;
+
+        // View states (enabled/disabled)
+        bool showStyleEditor_ = false;
+
+        // TRAJECTORY TRAIL GIZMO
+        static constexpr int kTrailLength = 64;     // samples per body
+        static constexpr int kTrailMaxBodies = 2048; // cap tracked bodies
+
+        struct TrailEntry {
+            glm::vec3 positions[64]; // ring buffer (kTrailLength)
+            int       head   = 0;    // next write index
+            int       count  = 0;    // filled samples (up to kTrailLength)
+            float     mass   = 1.f;  // cached for coloring
+        };
+
+        std::unordered_map<uint64_t, TrailEntry> trajectoryTrails_;
+        float trailSampleTimer_    = 0.f;
+        float trailSampleInterval_ = 0.016f; // ~60 samples/s
+
+        void UpdateTrajectories(float dt);
+        void DrawTrajectoryGizmos(ImVec2 imgMin, ImVec2 imgSize);
+
+        // BUILT-IN SCENE CONFIG POPUP
+        bool               builtInPopupOpen_ = false;
+        BuiltInSceneConfig builtInConfig_;
+        void ShowBuiltInScenePopup();
 
         // GAME VIEW ################################################################
         enum class PlaybackState { Stopped, Playing, Paused };
@@ -173,6 +211,9 @@ namespace ettycc
 
         // Locate the first Camera renderable in the scene (not the editor camera).
         std::shared_ptr<Camera> FindSceneCamera() const;
+
+        // Collect all scene cameras (not editor camera), sorted by depth.
+        std::vector<std::shared_ptr<Camera>> FindSceneCameras() const;
 
         static const ResolutionPreset kResolutionPresets[];
         static const int              kNumPresets;

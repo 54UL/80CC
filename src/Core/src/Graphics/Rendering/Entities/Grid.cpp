@@ -3,6 +3,7 @@
 #include <Dependency.hpp>
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
+#include <Scene/Assets/AssetRegistry.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -10,7 +11,7 @@
 
 namespace ettycc
 {
-    Grid::Grid() = default;
+    Grid::Grid() { renderableType = Type::Grid; }
 
     Grid::~Grid()
     {
@@ -22,13 +23,14 @@ namespace ettycc
     {
         if (initialized) return;
 
-        // -- Shader via ResourceCache -----------------------------------------
-        auto cache = GetDependency(ResourceCache);
-        cachedShader_ = cache->GetShader(kShaderName);
+        // -- Shader via AssetRegistry ------------------------------------------
+        auto registry = GetDependency(AssetRegistry);
+        shaderHandle_ = registry->GetShader(kShaderName);
+        auto* shader = registry->Shaders().Get(shaderHandle_);
 
-        if (cachedShader_)
+        if (shader)
         {
-            const GLuint prog = cachedShader_->programId;
+            const GLuint prog = shader->programId;
             pvmLoc_      = glGetUniformLocation(prog, "PVM");
             modelLoc_    = glGetUniformLocation(prog, "model");
             camPosLoc_   = glGetUniformLocation(prog, "camPos");
@@ -41,8 +43,6 @@ namespace ettycc
 
     void Grid::BuildGeometry()
     {
-        // Large flat quad in the XY plane. The fragment shader computes grid lines
-        // analytically from world position, so only positions are needed.
         constexpr float H = 100.0f;
         const float verts[] = {
             -H, -H, 0.0f,
@@ -68,24 +68,18 @@ namespace ettycc
 
     void Grid::Pass(const std::shared_ptr<RenderingContext>& ctx, float /*deltaTime*/)
     {
-        if (!cachedShader_) return;
+        auto registry = GetDependency(AssetRegistry);
+        auto* shader = registry->Shaders().Get(shaderHandle_);
+        if (!shader) return;
 
-        // Extract camera world-space XY from the inverse view matrix
         glm::vec3 camWorld = glm::vec3(glm::inverse(ctx->View)[3]);
 
-        // Derive the visible half-height from the orthographic projection.
-        // For glm::ortho(-w, w, -h, h, ...) : Projection[1][1] == 1/h
         const float projHalfH = (ctx->Projection[1][1] != 0.f)
                                ? 1.0f / ctx->Projection[1][1]
                                : 5.0f;
-        // viewSize = diagonal of the visible rectangle (generous margin)
         const float viewSize = projHalfH * 3.0f;
-
-        // Scale the base 100-unit quad so it always covers the visible area
         const float quadScale = glm::max(1.0f, viewSize / 100.0f);
 
-        // Snap the quad to integer grid units so it always covers the camera
-        // while grid lines stay fixed in world space (no swimming)
         glm::mat4 model = glm::translate(
             glm::mat4(1.0f),
             glm::vec3(glm::floor(camWorld.x), glm::floor(camWorld.y), 0.0f));
@@ -93,18 +87,14 @@ namespace ettycc
 
         glm::mat4 PVM = ctx->Projection * ctx->View * model;
 
-        cachedShader_->pipeline.Bind();
+        shader->pipeline.Bind();
         glUniformMatrix4fv(pvmLoc_,   1, GL_FALSE, glm::value_ptr(PVM));
         glUniformMatrix4fv(modelLoc_, 1, GL_FALSE, glm::value_ptr(model));
         glUniform2f(camPosLoc_, camWorld.x, camWorld.y);
         glUniform1f(viewSizeLoc_, viewSize);
 
-        // Alpha blending for the glow/fade effect
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        // Grid is a background overlay -- don't write to the depth buffer so it
-        // never occludes sprites that share the same z=0 plane.
         glDepthMask(GL_FALSE);
 
         glBindVertexArray(VAO_);
@@ -113,6 +103,6 @@ namespace ettycc
 
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
-        cachedShader_->pipeline.Unbind();
+        shader->pipeline.Unbind();
     }
 } // namespace ettycc

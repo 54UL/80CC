@@ -1,5 +1,6 @@
 
 #include <UI/Build/BuildPanelUI.hpp>
+#include <glm/glm.hpp>
 #include <UI/Widgets/PathFieldWidget.hpp>
 #include <UI/Widgets/SelectableTextView.hpp>
 #include <Build/BuildStrings.hpp>
@@ -26,7 +27,9 @@ namespace ettycc
 
     void BuildPanelUI::Draw()
     {
-        ImGui::Begin(build::str::WIN_BUILD);
+        if (!open_) return;
+
+        ImGui::Begin(build::str::WIN_BUILD, &open_);
 
         // -- Project -----------------------------------------------------------
         ImGui::SeparatorText(build::str::SEC_PROJECT);
@@ -128,7 +131,7 @@ namespace ettycc
         if (ImGui::SmallButton(build::str::BTN_CLEAR_LOG))
             controller_.ClearLog();
 
-        const float logH = std::max(ImGui::GetContentRegionAvail().y - 6.0f, 60.0f);
+        const float logH = glm::max(ImGui::GetContentRegionAvail().y - 6.0f, 60.0f);
 
         // Build highlighted spans for the log view.
         static const widgets::HighlightRuleset buildLogRules = {

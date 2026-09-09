@@ -79,14 +79,13 @@ int main(int argc, char* argv[])
 
     // -- Network: always host ------------------------------------------------
     engine->InitNetwork(/*isHost=*/true, port);
-
     // -- Scene ---------------------------------------------------------------
     if (!scenePath.empty()) {
         spdlog::info("[Server] Loading scene from: {}", scenePath);
         engine->LoadScene(scenePath, /*defaultPath=*/false);
     } else {
         spdlog::info("[Server] Loading default network scene...");
-        engine->LoadNetworkScene();
+        engine->LoadBuiltInScene(SampleScene::Network);
     }
 
     spdlog::info("[Server] Listening on port {}...", port);

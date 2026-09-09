@@ -2,7 +2,8 @@
 #define RENDERING_GRID_HPP
 
 #include <Graphics/Rendering/Renderable.hpp>
-#include <Scene/Assets/ResourceCache.hpp>
+#include <Scene/Assets/AssetHandle.hpp>
+#include <Scene/Assets/ShaderAsset.hpp>
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <string>
@@ -25,7 +26,7 @@ namespace ettycc
         GLuint VAO_ = 0;
         GLuint VBO_ = 0;
 
-        std::shared_ptr<CachedShader> cachedShader_;
+        AssetHandle<ShaderAsset> shaderHandle_;
 
         // cached uniform locations
         GLint pvmLoc_      = -1;

@@ -1,0 +1,10 @@
+{
+    "sprites": {
+        "entries_": [
+            {
+                "key": "not-found",
+                "value": "images/not_found_texture.png"
+            }
+        ]
+    }
+}

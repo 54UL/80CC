@@ -179,8 +179,8 @@ namespace ettycc
             // Frustum culling -- skip sprites entirely outside the view
             if (sprite && sprite->initialized && ctx->frustum.enabled)
             {
-                const glm::vec3 pos   = sprite->underylingTransform.getGlobalPosition();
-                const glm::vec3 scale = sprite->underylingTransform.getGlobalScale();
+                const glm::vec3 pos   = sprite->transform().getGlobalPosition();
+                const glm::vec3 scale = sprite->transform().getGlobalScale();
                 if (!ctx->frustum.IsVisible(pos, scale.x, scale.y))
                     continue;
             }
@@ -188,7 +188,7 @@ namespace ettycc
             if (sprite && sprite->initialized && canBatch)
             {
                 PickerInstanceData inst{};
-                inst.model   = sprite->underylingTransform.GetMatrix();
+                inst.model   = sprite->transform().GetMatrix();
                 inst.idColor = col;
                 inst._pad    = 0.f;
 

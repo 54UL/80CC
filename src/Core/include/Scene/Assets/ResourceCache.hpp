@@ -7,11 +7,14 @@
 #include <GL/gl.h>
 #include <spdlog/spdlog.h>
 
+#include <Scene/Assets/AssetMeta.hpp>
+
 #include <string>
 #include <unordered_map>
 #include <memory>
 #include <vector>
 #include <future>
+#include <filesystem>
 
 namespace ettycc
 {
@@ -104,19 +107,66 @@ namespace ettycc
         // Finalize preloaded shaders on the main thread (compiles GL programs).
         void UploadShaders(const std::unordered_map<std::string, ShaderSource>& sources);
 
+        // -- Image index (sprite lookup by name) --------------------------------
+        // Scans a directory for image files, builds stem -> relative path map,
+        // and loads/creates .meta files alongside each image.
+        void ScanImages(const std::string& workingFolder, const std::string& imagesRelPath);
+
+        // Look up a sprite's relative path by filename stem (no extension).
+        const std::string& GetSpritePath(const std::string& name) const
+        {
+            static const std::string kEmpty;
+            auto it = imageIndex_.find(name);
+            if (it == imageIndex_.end())
+            {
+                spdlog::error("[ResourceCache] Sprite '{}' not found in image index", name);
+                return kEmpty;
+            }
+            return it->second;
+        }
+
+        // Get the metadata for an image by its relative path.
+        const ImageMeta* GetImageMeta(const std::string& relativePath) const
+        {
+            auto it = imageMetas_.find(relativePath);
+            return it != imageMetas_.end() ? &it->second : nullptr;
+        }
+
+        // Get mutable meta (for inspector editing). Returns nullptr if not found.
+        ImageMeta* GetImageMetaMut(const std::string& relativePath)
+        {
+            auto it = imageMetas_.find(relativePath);
+            return it != imageMetas_.end() ? &it->second : nullptr;
+        }
+
+        // Save a modified meta back to its .meta file on disk.
+        void SaveImageMeta(const std::string& workingFolder, const std::string& relativePath);
+
+        // Re-apply meta settings to an already-loaded GL texture (e.g. after filter change).
+        void ReapplyTextureParams(const std::string& absolutePath);
+
+        const std::unordered_map<std::string, std::string>& GetImageIndex() const
+        {
+            return imageIndex_;
+        }
+
         // -- Stats ------------------------------------------------------------
         size_t GetCachedShaderCount()  const { return shaders_.size(); }
         size_t GetCachedTextureCount() const { return textures_.size(); }
+        size_t GetIndexedImageCount()  const { return imageIndex_.size(); }
 
     private:
         std::string shadersPath_;
 
         std::unordered_map<std::string, std::shared_ptr<CachedShader>> shaders_;
         std::unordered_map<std::string, CachedTexture>                 textures_;
+        std::unordered_map<std::string, std::string>                   imageIndex_; // stem -> relative path
+        std::unordered_map<std::string, ImageMeta>                     imageMetas_; // relPath -> meta
 
         // Helpers
         static std::string ReadFile(const std::string& path);
-        static GLuint      CreateGLTexture(unsigned char* pixels, int w, int h, int channels);
+        static GLuint      CreateGLTexture(unsigned char* pixels, int w, int h, int channels,
+                                           const ImageMeta& meta = ImageMeta{});
     };
 
 } // namespace ettycc

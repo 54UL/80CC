@@ -1,6 +1,8 @@
 #ifndef ETTYCC_PHYSICS_CONSTANTS_HPP
 #define ETTYCC_PHYSICS_CONSTANTS_HPP
 
+#include <Math/Constants.hpp>
+
 namespace ettycc::physics
 {
     // =========================================================================
@@ -18,7 +20,7 @@ namespace ettycc::physics
     // Box2D works best with objects sized 0.1–10 m.  Both backends now use
     // the same 1:1 mapping so that collider sizes match exactly.
     //
-    // IMPORTANT: do NOT set kBox2DScale much below 1.0 — Box2D has an internal
+    // IMPORTANT: do NOT set kBox2DScale much below 1.0 -- Box2D has an internal
     // polygon skin (b2_polygonRadius ≈ 0.01 m) that becomes proportionally
     // huge when shapes are tiny, causing invisible collision gaps.
     constexpr float kBulletScale  = 1.0f;
@@ -55,7 +57,10 @@ namespace ettycc::physics
 
     // -- Box2D density helpers ------------------------------------------------
     constexpr float kDefaultDensity = 1.0f;   // fallback when mass/area is invalid
-    constexpr float kPi             = 3.14159265f;
+
+    // Pi is now in math::kPi (Math/Constants.hpp).
+    // Alias kept for backward compatibility in physics code.
+    constexpr float kPi = math::kPi;
 
     // -- 2D constraints (applied by RigidBodyComponent) -----------------------
     // These are passed as linearFactor / angularFactor to the physics backend.

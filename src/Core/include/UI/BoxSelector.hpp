@@ -2,6 +2,7 @@
 #define BOX_SELECTOR_HPP
 
 #include <imgui.h>
+#include <glm/glm.hpp>
 #include <algorithm>
 #include <functional>
 
@@ -85,12 +86,12 @@ namespace ettycc
 
         ImVec2 GetMin() const
         {
-            return { std::min(start.x, end.x), std::min(start.y, end.y) };
+            return { glm::min(start.x, end.x), glm::min(start.y, end.y) };
         }
 
         ImVec2 GetMax() const
         {
-            return { std::max(start.x, end.x), std::max(start.y, end.y) };
+            return { glm::max(start.x, end.x), glm::max(start.y, end.y) };
         }
 
         bool HitTest(ImVec2 screenPoint) const

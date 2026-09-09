@@ -1,11 +1,13 @@
 #include <UI/SpriteEditor.hpp>
+#include <UI/CanvasUtils.hpp>
 #include <UI/Widgets/PathFieldWidget.hpp>
 #include <Engine.hpp>
-#include <Scene/Assets/ResourceCache.hpp>
+#include <Scene/Assets/AssetRegistry.hpp>
 #include <Dependencies/Globals.hpp>
 #include <Dependency.hpp>
 #include <imgui_internal.h>
 #include <nlohmann/json.hpp>
+#include <glm/glm.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -14,39 +16,31 @@
 
 namespace ettycc
 {
-    // -- Coordinate conversions -----------------------------------------------
+    // -- Coordinate conversions (delegated to ettycc::canvas) ------------------
 
     ImVec2 SpriteEditor::WorldToCanvas(glm::vec2 world, ImVec2 cp, ImVec2 cs) const
     {
-        float cx = cp.x + cs.x * 0.5f + (world.x + canvasOffset_.x) * canvasZoom_;
-        float cy = cp.y + cs.y * 0.5f - (world.y + canvasOffset_.y) * canvasZoom_;
-        return { cx, cy };
+        return canvas::WorldToCanvas(world, cp, cs, canvasOffset_, canvasZoom_);
     }
 
     glm::vec2 SpriteEditor::CanvasToWorld(ImVec2 screen, ImVec2 cp, ImVec2 cs) const
     {
-        float x = (screen.x - cp.x - cs.x * 0.5f) / canvasZoom_ - canvasOffset_.x;
-        float y = -(screen.y - cp.y - cs.y * 0.5f) / canvasZoom_ - canvasOffset_.y;
-        return { x, y };
+        return canvas::CanvasToWorld(screen, cp, cs, canvasOffset_, canvasZoom_);
     }
 
     ImVec2 SpriteEditor::UVToCanvas(glm::vec2 uv, ImVec2 cp, ImVec2 cs) const
     {
-        float cx = cp.x + 20.f + uv.x * uvCanvasZoom_;
-        float cy = cp.y + cs.y - 20.f - uv.y * uvCanvasZoom_;
-        return { cx, cy };
+        return canvas::UVToCanvas(uv, cp, cs, uvCanvasZoom_);
     }
 
     glm::vec2 SpriteEditor::CanvasToUV(ImVec2 screen, ImVec2 cp, ImVec2 cs) const
     {
-        float u = (screen.x - cp.x - 20.f) / uvCanvasZoom_;
-        float v = -(screen.y - cp.y - cs.y + 20.f) / uvCanvasZoom_;
-        return { u, v };
+        return canvas::CanvasToUV(screen, cp, cs, uvCanvasZoom_);
     }
 
     float SpriteEditor::SnapValue(float val, float grid) const
     {
-        return std::round(val / grid) * grid;
+        return canvas::SnapValue(val, grid);
     }
 
     void SpriteEditor::MarkCustom()
@@ -115,12 +109,12 @@ namespace ettycc
     {
         float dx = b.x - a.x, dy = b.y - a.y;
         float lenSq = dx * dx + dy * dy;
-        if (lenSq < 0.001f) return std::sqrt((p.x - a.x) * (p.x - a.x) + (p.y - a.y) * (p.y - a.y));
+        if (lenSq < 0.001f) return glm::sqrt((p.x - a.x) * (p.x - a.x) + (p.y - a.y) * (p.y - a.y));
         float t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
         t = glm::clamp(t, 0.f, 1.f);
         float projX = a.x + t * dx, projY = a.y + t * dy;
         float ex = p.x - projX, ey = p.y - projY;
-        return std::sqrt(ex * ex + ey * ey);
+        return glm::sqrt(ex * ex + ey * ey);
     }
 
     float SpriteEditor::PointToEdgeDistWorld(glm::vec2 p, glm::vec2 a, glm::vec2 b, float& outT) const
@@ -934,36 +928,26 @@ namespace ettycc
         if (!previewTexturePath_.empty() && previewTextureHandle_ == 0)
         {
             auto globals = GetDependency(Globals);
-            auto cache = GetDependency(ResourceCache);
-            if (globals && cache)
+            auto registry = GetDependency(AssetRegistry);
+            if (globals && registry)
             {
-                std::string absPath = previewTexturePath_;
+                std::string relPath = previewTexturePath_;
 
                 // Check if it's a .material file -- resolve texture from it
-                auto ext = std::filesystem::path(absPath).extension().string();
+                auto ext = std::filesystem::path(relPath).extension().string();
                 if (ext == ".material")
                 {
-                    std::string absMatPath = globals->GetWorkingFolder() + absPath;
-                    std::ifstream ifs(absMatPath);
-                    if (ifs.is_open())
-                    {
-                        try {
-                            nlohmann::json j;
-                            ifs >> j;
-                            absPath = j.value("texture", "");
-                        } catch (...) {}
-                    }
+                    auto matHandle = registry->GetMaterial(relPath);
+                    auto* mat = registry->Materials().Get(matHandle);
+                    if (mat && !mat->texturePath.empty())
+                        relPath = mat->texturePath;
                 }
 
-                // Resolve relative path
-                if (!absPath.empty() && absPath[0] != '/' && absPath[0] != '\\' &&
-                    absPath.find(':') == std::string::npos)
+                if (!relPath.empty())
                 {
-                    absPath = globals->GetWorkingFolder() + absPath;
+                    auto texHandle = registry->GetTexture(relPath);
+                    previewTextureHandle_ = registry->GetGLTextureHandle(texHandle);
                 }
-
-                if (!absPath.empty())
-                    previewTextureHandle_ = cache->GetTexture(absPath);
             }
         }
 
@@ -1386,13 +1370,13 @@ namespace ettycc
                 ImVec2 origin = WorldToCanvas({ 0.f, 0.f }, canvasPos, canvasSize);
                 ImU32 gridCol = IM_COL32(50, 50, 50, 255);
 
-                float startX = std::fmod(origin.x - canvasPos.x, pixelStep);
+                float startX = glm::mod(origin.x - canvasPos.x, pixelStep);
                 if (startX < 0) startX += pixelStep;
                 for (float x = startX; x < canvasSize.x; x += pixelStep)
                     dl->AddLine(ImVec2(canvasPos.x + x, canvasPos.y),
                                 ImVec2(canvasPos.x + x, canvasPos.y + canvasSize.y), gridCol);
 
-                float startY = std::fmod(origin.y - canvasPos.y, pixelStep);
+                float startY = glm::mod(origin.y - canvasPos.y, pixelStep);
                 if (startY < 0) startY += pixelStep;
                 for (float y = startY; y < canvasSize.y; y += pixelStep)
                     dl->AddLine(ImVec2(canvasPos.x, canvasPos.y + y),
@@ -1476,8 +1460,8 @@ namespace ettycc
         // -- Draw box selection rectangle ---------------------------------
         if (boxSelecting_)
         {
-            ImVec2 bMin = { std::min(boxStart_.x, boxEnd_.x), std::min(boxStart_.y, boxEnd_.y) };
-            ImVec2 bMax = { std::max(boxStart_.x, boxEnd_.x), std::max(boxStart_.y, boxEnd_.y) };
+            ImVec2 bMin = { glm::min(boxStart_.x, boxEnd_.x), glm::min(boxStart_.y, boxEnd_.y) };
+            ImVec2 bMax = { glm::max(boxStart_.x, boxEnd_.x), glm::max(boxStart_.y, boxEnd_.y) };
             ImU32 fillCol = boxDeselectMode_ ? IM_COL32(255, 100, 100, 40)  : IM_COL32(100, 150, 255, 40);
             ImU32 lineCol = boxDeselectMode_ ? IM_COL32(255, 100, 100, 200) : IM_COL32(100, 150, 255, 200);
             dl->AddRectFilled(bMin, bMax, fillCol);
@@ -1537,7 +1521,7 @@ namespace ettycc
             {
                 ImVec2 sp = WorldToCanvas(shape_.vertices[i].position, canvasPos, canvasSize);
                 float dx = mp.x - sp.x, dy = mp.y - sp.y;
-                float dist = std::sqrt(dx * dx + dy * dy);
+                float dist = glm::sqrt(dx * dx + dy * dy);
                 if (dist < closestDist) { closestDist = dist; hoveredVert_ = i; }
             }
 
@@ -1637,8 +1621,8 @@ namespace ettycc
                 boxDeselectMode_ = !boxDeselectMode_;
 
             // Update selection: all verts inside the box
-            ImVec2 bMin = { std::min(boxStart_.x, boxEnd_.x), std::min(boxStart_.y, boxEnd_.y) };
-            ImVec2 bMax = { std::max(boxStart_.x, boxEnd_.x), std::max(boxStart_.y, boxEnd_.y) };
+            ImVec2 bMin = { glm::min(boxStart_.x, boxEnd_.x), glm::min(boxStart_.y, boxEnd_.y) };
+            ImVec2 bMax = { glm::max(boxStart_.x, boxEnd_.x), glm::max(boxStart_.y, boxEnd_.y) };
 
             bool shift = ImGui::GetIO().KeyShift;
             if (!shift && !boxDeselectMode_) selectedVerts_.clear();
@@ -2162,7 +2146,7 @@ namespace ettycc
             {
                 ImVec2 sp = UVToCanvas(shape_.vertices[i].uv, canvasPos, canvasSize);
                 float dx = mp.x - sp.x, dy = mp.y - sp.y;
-                float dist = std::sqrt(dx * dx + dy * dy);
+                float dist = glm::sqrt(dx * dx + dy * dy);
                 if (dist < closestDist) { closestDist = dist; closest = i; }
             }
             if (closest >= 0)

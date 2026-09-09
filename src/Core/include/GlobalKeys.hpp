@@ -23,7 +23,6 @@ namespace ettycc::gk
     {
         inline constexpr const char* APP     = "app";
         inline constexpr const char* PATHS   = "paths";
-        inline constexpr const char* SPRITES = "sprites";
         inline constexpr const char* SHADERS = "shaders";
         inline constexpr const char* STATE   = "state";
         inline constexpr const char* ENGINE  = "engine";  // runtime engine paths
@@ -45,11 +44,9 @@ namespace ettycc::gk
         inline constexpr const char* PATH_TEMPLATES  = "templates";
         inline constexpr const char* PATH_MATERIALS  = "materials";
 
-        // sprites
-        inline constexpr const char* SPRITE_NOT_FOUND = "not-found";
-
         // state
-        inline constexpr const char* STATE_LAST_SCENE = "last_scene";
+        inline constexpr const char* STATE_LAST_SCENE     = "last_scene";
+        inline constexpr const char* STATE_PHYSICS_BACKEND = "physics_backend";
 
         // engine  (populated at runtime by Engine::ConfigResource)
         inline constexpr const char* ENGINE_EXE_DIR     = "exe_dir";      // directory containing the editor executable

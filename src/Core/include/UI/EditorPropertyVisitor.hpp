@@ -99,13 +99,23 @@ namespace ettycc
             }
             else if constexpr (std::is_same_v<T, glm::vec3>)
             {
-                anyChanged |= ImGui::DragFloat3(wid, &value.x, 0.01f);
-                TrackDrag();
+                if (flags & PROP_COLOR)
+                    anyChanged |= ImGui::ColorEdit3(wid, &value.x);
+                else
+                {
+                    anyChanged |= ImGui::DragFloat3(wid, &value.x, 0.01f);
+                    TrackDrag();
+                }
             }
             else if constexpr (std::is_same_v<T, glm::vec4>)
             {
-                anyChanged |= ImGui::DragFloat4(wid, &value.x, 0.01f);
-                TrackDrag();
+                if (flags & PROP_COLOR)
+                    anyChanged |= ImGui::ColorEdit4(wid, &value.x);
+                else
+                {
+                    anyChanged |= ImGui::DragFloat4(wid, &value.x, 0.01f);
+                    TrackDrag();
+                }
             }
             else if constexpr (std::is_same_v<T, std::string>)
             {

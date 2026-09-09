@@ -3,16 +3,17 @@
 #include <Physics/Box2D/Box2DPhysicsWorld.hpp>
 #include <Dependency.hpp>
 #include <Benchmark/Benchmark.hpp>
-#include <Scene/Assets/ResourceCache.hpp>
+#include <Scene/Assets/AssetRegistry.hpp>
 #include <future>
 #include <chrono>
+#include <Math/Constants.hpp>
 #include <cmath>
+#include <algorithm>
 #include <set>
 
 #include <Scene/Components/RenderableNode.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
-#include <Scene/Components/GravityAttractorComponent.hpp>
 #include <Scene/Components/CameraControllerComponent.hpp>
 #include <Input/Controls/EditorCamera.hpp>
 #include <Networking/NetworkComponent.hpp>
@@ -53,10 +54,9 @@ namespace ettycc {
         // OpenAL driver would abort().
         mainScene_.reset();
 
-        if (!isHeadless_)
+        if (audioInitialized_)
             audioManager_.Shutdown();
 
-        // TODO: Check if this is appropiate to handle here...
         if (globals_) {
             spdlog::warn("Engine config auto-saved");
             StoreGlobals(paths::RESOURCES_DEFAULT);
@@ -126,84 +126,98 @@ namespace ettycc {
         rootSceneNode->AddChild(node);
     }
 
-    void Engine::BoxesScene() {
-        physicsWorld_->SetGravity({0.f, -9.81f, 0.f});
+    void Engine::SoftBodyScene(const SoftBodySceneConfig& cfg) {
+        mainScene_->sceneName_ = "soft-body-scene";
+        physicsWorld_->SetGravity({0.f, cfg.gravity, 0.f});
 
-        const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+        const std::string tex = assetRegistry_->GetSpritePath("not_found_texture");
         auto root = mainScene_->root_node_;
         // -- Static boundaries ---
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -5.0f, 0.0f)); // ground
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f, 0.0f, 0.0f)); // left wall
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(9.3f, 0.0f, 0.0f)); // right wall
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -5.0f, 0.0f));
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f, 0.0f, 0.0f));
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(9.3f, 0.0f, 0.0f));
 
-        // -- Two staggered columns of dynamic rigid boxes ----------------------
-        for (int i = 0; i < 1000; ++i) {
-            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
-                             glm::vec3(-1.1f, -3.8f + i * 1.15f, 0.0f));
-            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.5f, 0.5f, 0.5f),
-                             glm::vec3(1.1f, -3.8f + i * 1.15f + 0.55f, 0.0f));
+        for (int i = 0; i < cfg.bodyCount; ++i) {
+            createSoftBody(root, tex, cfg.softBodyRadius, glm::vec3(-2.5f, i * 1.5f, 0.0f), cfg.softBodyMass);
+            createSoftBody(root, tex, cfg.softBodyRadius * 0.7f, glm::vec3(0.0f, i * 1.5f, 0.0f), cfg.softBodyMass);
         }
-
-        // -- Soft body discs dropped from above --------------------------------
-        createSoftBody(root, tex, 0.7f, glm::vec3(-2.5f, 3.5f, 0.0f), 1.0f);
-        createSoftBody(root, tex, 0.5f, glm::vec3(0.0f, 4.5f, 0.0f), 1.0f);
-        createSoftBody(root, tex, 0.9f, glm::vec3(2.5f, 3.5f, 0.0f), 1.5f);
     }
 
-    void Engine::GravityScene() {
+    // Builds the physics arena with a NetworkComponent on every dynamic body.
+    //
+    // IMPORTANT: all three components (RenderableNode, RigidBodyComponent,
+    // NetworkComponent) must be added to the SceneNode BEFORE AddChild is
+    // called.  AddChild -> AddNode fires OnStart once for every component
+    // already present on the node.  Adding a component after AddChild skips
+    // OnStart entirely, leaving syncTransform_ / rigidBody_ as nullptr and
+    // the component never registered with NetworkManager.
+    void Engine::NetworkScene(const NetworkSceneConfig& cfg)
+    {
+        mainScene_->sceneName_ = "network-scene";
+        physicsWorld_->SetGravity({0.f, cfg.gravity, 0.f});
 
-        physicsWorld_->SetGravity({0.f, 0.0f, 0.f});
-
-        const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+        const std::string tex = assetRegistry_->GetSpritePath("not_found_texture");
         auto root = mainScene_->root_node_;
 
-        // -- Gravity attractor at the origin -----------------------------------
-        constexpr float attractorStrength = 60.0f;
+        // Static boundaries -- no network sync needed
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -5.0f, 0.0f));
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f, 0.0f, 0.0f));
+        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(9.3f, 0.0f, 0.0f));
+
+        // Pre-allocate pool capacity so vector::push_back never reallocates.
+        // Reallocation would move components to new addresses, invalidating
+        // the raw pointers that NetworkManager::registry_ caches.
+        const int kNetBoxCount = cfg.boxPairs * 2;
+        const int kTotalRB = kNetBoxCount + 3; // +3 static walls
+        mainScene_->registry_.Pool<RenderableNode>().Reserve(kTotalRB);
+        mainScene_->registry_.Pool<RigidBodyComponent>().Reserve(kTotalRB);
+        mainScene_->registry_.Pool<NetworkComponent>().Reserve(kNetBoxCount);
+
+        // Build a replicated box: ALL components are added before AddChild so
+        // that OnEntityAdded sees all three components at once.
+        uint32_t netId = 1;
+        static int netBoxIdx = 0;
+        auto makeNetBox = [&](glm::vec3 halfExt, glm::vec3 pos) {
+            auto node = std::make_shared<SceneNode>("net-box-" + std::to_string(netBoxIdx++));
+
+            // Renderable is always created -- RenderSystem (which is NOT registered
+            // in headless mode) is the only thing that calls Sprite::Init() / GL code.
+            auto sprite = std::make_shared<Sprite>(tex);
+            sprite->underylingTransform.setGlobalPosition(pos);
+            sprite->underylingTransform.setGlobalScale(glm::vec3(halfExt.x, halfExt.y, 1.0f));
+            mainScene_->registry_.Add<RenderableNode>(node->GetId(), RenderableNode{sprite});
+
+            mainScene_->registry_.Add<RigidBodyComponent>(node->GetId(),
+                                                          RigidBodyComponent{1.0f, halfExt, pos});
+            mainScene_->registry_.Add<NetworkComponent>(node->GetId(),
+                                                        NetworkComponent{netId++});
+            root->AddChild(node);
+        };
+
+        for (int i = 0; i < cfg.boxPairs; ++i) {
+            makeNetBox(glm::vec3(0.5f), glm::vec3(-1.1f, -3.8f + i * 1.15f, 0.0f));
+            makeNetBox(glm::vec3(0.5f), glm::vec3(1.1f, -3.8f + i * 1.15f + 0.55f, 0.0f));
+        }
+
+        // Do NOT call mainScene_->Init() here -- AddNode already called OnStart
+        // for every component.  Calling Init() again would double-init
+        // RigidBodyComponent, leaking btRigidBody instances into the world.
+        spdlog::info("[Engine] network scene ready -- {} replicated bodies", netId - 1);
+    }
+
+    void Engine::LoadBuiltInScene(SampleScene scene)
+    {
+        ++sceneGeneration_;
+        spdlog::warn("Loading built-in scene (fallback)");
+
+        PrepareSceneSwitch();
+
+        mainScene_ = std::make_shared<Scene>("empty-scene");
+        SetupSceneSystems(*mainScene_, *this);
+
+        // Create a default game camera before the sample scene adds nodes.
+        if (!isHeadless_)
         {
-            auto attractorNode = std::make_shared<SceneNode>("gravity-attractor");
-            mainScene_->registry_.Add<GravityAttractorComponent>(
-                attractorNode->GetId(),
-                GravityAttractorComponent{glm::vec3(0.f, 0.f, 0.f), attractorStrength});
-            root->AddChild(attractorNode);
-        }
-
-        // -- Orbiting boxes ------
-        // Spawn boxes in a ring and give each a tangential velocity for a
-        // roughly circular orbit:  v = sqrt(strength / radius)
-        constexpr int boxCount = 5000;
-        constexpr float orbitRadius = 100;
-        auto rng = GetDependency(RNG);
-
-        for (int i = 0; i < boxCount; ++i) {
-            const float angle = (2.0f * 3.14159265f * i) / boxCount;
-
-            const glm::vec3 pos(rng->Float(0.0f, std::cos(angle) * orbitRadius),
-                                rng->Float(0.0f, std::sin(angle) * orbitRadius),
-                                0.0f);
-
-            createPhysicsBox(root, tex, 1.0f, glm::vec3(0.3f, 0.3f, 0.3f), pos);
-
-            // The body is now initialized (OnEntityAdded fired during AddChild).
-            // Set tangential velocity for circular orbit.
-            const float orbitalSpeed = std::sqrt(attractorStrength / orbitRadius);
-            const glm::vec3 tangent(-std::sin(angle), std::cos(angle), 0.0f);
-
-            auto *rb = mainScene_->registry_.Get<RigidBodyComponent>(
-                root->children_.back()->GetId());
-            if (rb) rb->SetLinearVelocity(tangent * orbitalSpeed);
-        }
-    }
-
-    void Engine::LoadDefaultScene() {
-        spdlog::warn("[Engine] loading built-in fallback scene...");
-
-        if (!isHeadless_)
-            renderEngine_.ClearRenderables();
-        mainScene_ = std::make_shared<Scene>("default-scene");
-        SetupSceneSystems(*mainScene_, *this);
-
-        // Every scene needs a camera -- create as a proper scene node (skip in headless).
-        if (!isHeadless_) {
             auto sz  = appInstance_->GetMainWindowSize();
             auto cam = std::make_shared<Camera>(sz.x, sz.y);
             cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
@@ -213,22 +227,33 @@ namespace ettycc {
             mainScene_->root_node_->AddChild(cameraNode);
         }
 
-        GravityScene();
+        switch (scene)
+        {
+            case SampleScene::Network:    NetworkScene();  break;
+            case SampleScene::SoftBodies: SoftBodyScene(); break;
+            default:
+                spdlog::warn("Empty scene loaded");
+                break;
+        }
 
-        if (!isEditorMode_ && !isHeadless_)
-            EnsureGameCamera();
+        FinalizeSceneLoad();
+
+        if (isEditorMode_)
+            InitEditorCamera();
     }
 
-    void Engine::CreateEmptyScene(const std::string& name) {
-        spdlog::info("[Engine] Creating empty scene '{}'...", name);
+    void Engine::LoadBuiltInScene(const BuiltInSceneConfig& cfg)
+    {
+        ++sceneGeneration_;
+        spdlog::warn("Loading built-in scene (configured)");
 
-        if (!isHeadless_)
-            renderEngine_.ClearRenderables();
-        mainScene_ = std::make_shared<Scene>(name);
+        PrepareSceneSwitch();
+
+        mainScene_ = std::make_shared<Scene>("empty-scene");
         SetupSceneSystems(*mainScene_, *this);
 
-        if (!isHeadless_) {
-            // Every scene needs a camera -- create one as a proper scene node.
+        if (!isHeadless_)
+        {
             auto sz  = appInstance_->GetMainWindowSize();
             auto cam = std::make_shared<Camera>(sz.x, sz.y);
             cam->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
@@ -237,37 +262,44 @@ namespace ettycc {
             mainScene_->registry_.Add<RenderableNode>(cameraNode->GetId(), RenderableNode{cam});
             mainScene_->root_node_->AddChild(cameraNode);
         }
+
+        switch (cfg.scene)
+        {
+            case SampleScene::Network:    NetworkScene(cfg.network);      break;
+            case SampleScene::SoftBodies: SoftBodyScene(cfg.softBodies);  break;
+            default:
+                spdlog::warn("Empty scene loaded");
+                break;
+        }
+
+        FinalizeSceneLoad();
+
+        if (isEditorMode_)
+            InitEditorCamera();
     }
 
     void Engine::InitEditorCamera() {
-        editorCamera_ = std::make_shared<Camera>(1200, 800);
+        auto sz = appInstance_->GetMainWindowSize();
+        editorCamera_ = std::make_shared<Camera>(sz.x, sz.y);
         editorCamera_->frustumCullingEnabled_ = false; // editor shows everything by default
         editorCamera_->AttachEditorControl(&inputSystem_);
         editorCamera_->underylingTransform.setGlobalPosition({0.0f, 0.0f, -1.0f});
         editorCamera_->Init(GetDependency(Engine));
         renderEngine_.SetViewPortFrameBuffer(editorCamera_->offScreenFrameBuffer);
-        // Camera must be first so it populates ctx matrices + frustum before sprites draw.
-        renderEngine_.EnsureFirst(editorCamera_);
-
-        // Disable any scene cameras so they don't overwrite the editor camera's
-        // projection/view in the main render pass.  Scene cameras stay in the
-        // hierarchy for serialization and game-view preview (RenderToTarget sets
-        // its own matrices and skips cameras anyway).
-        for (const auto& r : renderEngine_.GetRenderables()) {
-            auto cam = std::dynamic_pointer_cast<Camera>(r);
-            if (cam && cam != editorCamera_)
-                cam->enabled = false;
-        }
 
         editorGrid_ = std::make_shared<Grid>();
         editorGrid_->Init(GetDependency(Engine));
-        renderEngine_.EnsureFirst(editorGrid_);
 
-        spdlog::info("Editor camera initialized [1200x800]");
+        // Editor camera + grid live outside the renderables list so they
+        // never interfere with scene/game cameras.
+        renderEngine_.SetEditorOverlay(editorCamera_, editorGrid_);
+
+        spdlog::info("Editor camera initialized [{}x{}]", sz.x, sz.y);
     }
 
     void Engine::EnsureGameCamera() {
-        // Find the first Camera already in the render list (added by a scene node).
+        // camera if none exists. Ensures the camera is first in the render list.
+        // Called automatically after every scene load in standalone mode.
         std::shared_ptr<Camera> cam;
         for (const auto &r: renderEngine_.GetRenderables()) {
             if (auto c = std::dynamic_pointer_cast<Camera>(r)) {
@@ -341,16 +373,12 @@ namespace ettycc {
         auto lastLoadedScene = globals_->Get(gk::prefix::STATE, gk::key::STATE_LAST_SCENE);
         spdlog::warn("Loading last scene: {}", lastLoadedScene);
 
-        LoadScene(lastLoadedScene);
-
-        // TODO: MOVE THIS CODE BELOW BECAUSE IS GENERIC ENGINE INITIALIZATION
-        if (!isHeadless_) {
-            auto mainWindowSize = appInstance_->GetMainWindowSize();
-            renderEngine_.SetScreenSize(mainWindowSize.x, mainWindowSize.y);
-        }
+        LoadScene(lastLoadedScene, false);
     }
 
     void Engine::LoadScene(const std::string &sceneName, const bool defaultPath) {
+        ++sceneGeneration_;
+
         auto path = sceneName;
 
         if (defaultPath) {
@@ -358,45 +386,36 @@ namespace ettycc {
         }
 
         std::ifstream ifs(path);
-        bool loadedFromFile = false;
 
-        if (!ifs.is_open()) {
+        if (!ifs.is_open())
+        {
             spdlog::error("Can't open file scene [{}]", path);
-            LoadDefaultScene();
-        } else {
-            if (!isHeadless_)
-                renderEngine_.ClearRenderables();
-
-            cereal::JSONInputArchive archive2(ifs);
-            try {
-                {
-                    mainScene_ = std::make_shared<Scene>("");
-                    archive2(*mainScene_);
-
-                    PreloadSceneAssets();
-
-                    SetupSceneSystems(*mainScene_, *this);
-                    loadedFromFile = true;
-                    spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
-                }
-            } catch (const std::exception &e) {
-                spdlog::error("Can't deserialize scene reason: [{}]", e.what());
-                LoadDefaultScene();
-            }
+            // LoadBuiltInScene handles its own Prepare/Finalize -- just delegate.
+            LoadBuiltInScene();
+            return;
         }
 
-        if (mainScene_) {
-            if (loadedFromFile) {
-                // Store the actual file path so LoadLastScene can reopen it on next boot.
-                globals_->Set(gk::prefix::STATE, gk::key::STATE_LAST_SCENE, path);
-            }
-            spdlog::info("Active scene [{}]", mainScene_->sceneName_);
-        } else {
-            spdlog::error("Errors occurred when processing scene...");
+        PrepareSceneSwitch();
+
+        cereal::JSONInputArchive archive2(ifs);
+        try {
+            mainScene_ = std::make_shared<Scene>("");
+            archive2(*mainScene_);
+
+            PreloadSceneAssets();
+
+            SetupSceneSystems(*mainScene_, *this);
+
+            globals_->Set(gk::prefix::STATE, gk::key::STATE_LAST_SCENE, path);
+            spdlog::info("Scene loaded successfully [{}]", mainScene_->sceneName_);
+        } catch (const std::exception &e) {
+            spdlog::error("Can't deserialize scene reason: [{}]", e.what());
+            // LoadBuiltInScene handles its own Prepare/Finalize -- just delegate.
+            LoadBuiltInScene();
+            return;
         }
 
-        if (!isEditorMode_ && !isHeadless_)
-            EnsureGameCamera();
+        FinalizeSceneLoad();
     }
 
     void Engine::StoreScene(const std::string &sceneName, const bool defaultPath) const {
@@ -489,10 +508,12 @@ namespace ettycc {
         // (fixes corrupt/BOM files automatically).
         StoreGlobals(paths::RESOURCES_DEFAULT);
 
+        // Load render layer config
+        renderLayerConfig_.Load(globals_->GetWorkingFolder() + "config/render_layers.json");
+
         // Register runtime engine paths so any system can read them via Globals.
         globals_->Set(gk::prefix::ENGINE, gk::key::ENGINE_WORKING_DIR,
                       globals_->GetWorkingFolder());
-        //TODO: REFACTOR
 #ifdef _WIN32
         char exeBuf[512] = {};
         if (GetModuleFileNameA(nullptr, exeBuf, sizeof(exeBuf))) {
@@ -519,8 +540,9 @@ namespace ettycc {
     // reads the raw data on a background thread, then uploads GL objects on the
     // main thread.  Call after scene deserialization but BEFORE SetupSceneSystems
     // so that Renderable::Init() finds everything already cached.
-    void Engine::PreloadSceneAssets() {
-        if (!mainScene_ || !resourceCache_ || isHeadless_)
+    void Engine::PreloadSceneAssets()
+    {
+        if (!mainScene_ || !assetRegistry_)
             return;
 
         const std::string workDir = globals_->GetWorkingFolder();
@@ -537,10 +559,6 @@ namespace ettycc {
                     texPaths.insert(workDir + rel);
             }
         }
-        for (ecs::Entity e: mainScene_->registry_.Pool<SoftBodyComponent>().Entities()) {
-            // SoftBody texture paths are serialized but not exposed via getter yet,
-            // so those will just be loaded on-demand via the cache (still only once).
-        }
 
         // -- Collect shader names ---------------------------------------------
         std::vector<std::string> shaderNames = {"sprite", "sprite_instanced", "softbody", "grid"};
@@ -550,67 +568,89 @@ namespace ettycc {
 
         // -- Fire async preloads
         std::vector<std::string> texVec(texPaths.begin(), texPaths.end());
-        auto imageFuture = ResourceCache::PreloadImagesAsync(texVec);
-        auto shaderFuture = ResourceCache::PreloadShadersAsync(shadersPath, shaderNames);
+        auto imageFuture = AssetRegistry::PreloadImagesAsync(texVec);
+        auto shaderFuture = AssetRegistry::PreloadShadersAsync(shadersPath, shaderNames);
 
         // -- Upload shaders (GL calls -- main thread) --------------------------
         auto shaderSources = shaderFuture.get();
-        resourceCache_->UploadShaders(shaderSources);
+        assetRegistry_->UploadShaders(shaderSources);
 
         // -- Upload textures (GL calls -- main thread) -------------------------
         auto images = imageFuture.get();
         for (auto &img: images) {
             if (img.pixels)
-                resourceCache_->UploadTexture(img);
+            {
+                // Derive relative path from absolute
+                std::string relPath = img.path;
+                if (relPath.find(workDir) == 0)
+                    relPath = relPath.substr(workDir.size());
+                for (char& c : relPath) if (c == '\\') c = '/';
+                assetRegistry_->UploadTexture(img, relPath);
+            }
         }
 
         spdlog::info("[Engine] Asset preload complete -- {} shaders, {} textures cached",
-                     resourceCache_->GetCachedShaderCount(),
-                     resourceCache_->GetCachedTextureCount());
+                     assetRegistry_->GetShaderCount(),
+                     assetRegistry_->GetTextureCount());
     }
 
-    void Engine::Init() {
-        Benchmark bench;
-        bench.Begin();
+    void Engine::InitAssetRegistry()
+    {
+        assetRegistry_ = std::make_shared<AssetRegistry>();
 
-        ConfigResource();
-        bench.Mark("config_resources");
+        const std::string workDir     = globals_->GetWorkingFolder();
+        const std::string shadersPath = workDir + globals_->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
+        const std::string imagesRel   = globals_->Get(gk::prefix::PATHS, gk::key::PATH_IMAGES);
+        const std::string matsRel     = globals_->Get(gk::prefix::PATHS, gk::key::PATH_MATERIALS);
 
-        resourceCache_ = std::make_shared<ResourceCache>();
-        if (!isHeadless_) {
-            const std::string shadersPath = globals_->GetWorkingFolder()
-                                            + globals_->Get(gk::prefix::PATHS, gk::key::PATH_SHADERS);
-            resourceCache_->Init(shadersPath);
-        }
-        RegisterDependency(ResourceCache, resourceCache_);
-        bench.Mark("resource_cache_init");
+        assetRegistry_->Init(workDir, shadersPath);
+        assetRegistry_->ScanAndLoad(imagesRel, matsRel);  // metadata only -- no GL calls
 
-        // Register physics implementations and create the default one
+        RegisterDependency(AssetRegistry, assetRegistry_);
+    }
+
+    void Engine::InitPhysics()
+    {
         physicsRegistry_.Register("Bullet", []() {
             return std::make_unique<physics::BulletPhysicsWorld>();
         });
         physicsRegistry_.Register("Box2D", []() {
             return std::make_unique<physics::Box2DPhysicsWorld>();
         });
-        physicsWorld_ = physicsRegistry_.Create("Bullet");
+
+        std::string backend = globals_->Get(gk::prefix::STATE, gk::key::STATE_PHYSICS_BACKEND);
+        if (backend.empty() || !physicsRegistry_.Has(backend))
+            backend = "Box2D";
+        physicsWorld_ = physicsRegistry_.Create(backend);
         physicsWorld_->Init();
-        bench.Mark("physics_init");
+        spdlog::info("[Engine] Physics backend: {}", backend);
+    }
 
-        if (!isHeadless_) {
-            audioManager_.Init();
-            bench.Mark("audio_init");
+    void Engine::InitPresentation()
+    {
+        // GPU: upload all scanned textures to the GPU
+        assetRegistry_->UploadAllTextures();
 
-            if (isEditorMode_)
-                audioManager_.PlayStartupChime();
-        } else {
-            bench.Mark("audio_init (skipped -- headless)");
-        }
+        // GPU: precompile essential shaders (so built-in scenes don't rely on lazy compilation)
+        for (const auto& name : {"sprite", "sprite_instanced", "softbody", "grid"})
+            assetRegistry_->GetShader(name);
 
-        // Headless (dedicated server) skips scene loading -- the server's
-        // main.cpp controls scene + network init explicitly after Init().
-        if (isHeadless_) {
-            bench.Mark("scene_load (skipped -- headless)");
-        } else if (!isEditorMode_ && !gameModules_.empty()) {
+        // Audio
+        audioManager_.Init();
+        audioInitialized_ = true;
+
+        if (isEditorMode_)
+            audioManager_.PlayStartupChime();
+
+        // Screen size
+        auto sz = appInstance_->GetMainWindowSize();
+        renderEngine_.SetScreenSize(sz.x, sz.y);
+    }
+
+    void Engine::InitScene()
+    {
+        if (!isEditorMode_ && !gameModules_.empty())
+        {
             for (const auto &module: gameModules_) {
                 if (!module) {
                     spdlog::error("Null game module in registration list, skipping");
@@ -619,21 +659,72 @@ namespace ettycc {
                 module->OnStart(this);
                 spdlog::info("Game module initialized [{}]", module->name_);
             }
-            bench.Mark("game_modules_init");
-        } else {
+        }
+        else
+        {
             if (!isEditorMode_ && gameModules_.empty())
                 spdlog::warn("[Engine] No game modules registered -- loading last scene");
 
             LoadLastScene();
+        }
+    }
+
+    void Engine::PrepareSceneSwitch()
+    {
+        // Drain all in-flight async work that references the current scene
+        // or the physics world before we destroy anything.
+        DrainPhysicsFuture();
+
+        // Clear network component registry so inbound transforms (from the
+        // network worker thread) don't dereference dead component pointers
+        // while the old scene is being torn down.
+        networkManager_.ClearComponentRegistry();
+
+        if (isHeadless_) return;
+        renderEngine_.ClearRenderables();
+    }
+
+    void Engine::FinalizeSceneLoad()
+    {
+        if (isHeadless_) return;
+
+        if (!isEditorMode_)
+            EnsureGameCamera();
+    }
+
+    void Engine::Init()
+    {
+        Benchmark bench;
+        bench.Begin();
+
+        // -- Phase 1: Configuration & core systems (always) --------------------
+        ConfigResource();
+        bench.Mark("config_resources");
+
+        InitAssetRegistry();
+        bench.Mark("asset_registry_init");
+
+        InitPhysics();
+        bench.Mark("physics_init");
+
+        // -- Phase 2: Presentation -- GPU upload + audio (skip for headless) ----
+        if (!isHeadless_)
+        {
+            InitPresentation();
+            bench.Mark("presentation_init");
+        }
+
+        // -- Phase 3: Scene loading (headless defers to server main.cpp) -------
+        if (!isHeadless_)
+        {
+            InitScene();
             bench.Mark("scene_load");
         }
 
         if (mainScene_)
             spdlog::info("[Engine] Active scene [{}]", mainScene_->sceneName_);
-        else if (!isHeadless_)
-            spdlog::error("[Engine] No scene available after Init");
 
-        // -- Auto-load DLL modules from the modules/ directory -------------
+        // -- Phase 4: Modules & network ----------------------------------------
         {
             const std::string modulesDir = globals_->GetWorkingFolder() + "modules/";
             int loaded = moduleLoader_.LoadModulesFromDirectory(modulesDir, this);
@@ -646,16 +737,14 @@ namespace ettycc {
         const std::string benchPath = globals_->GetWorkingFolder() + "config/startup_benchmark.csv";
         bench.WriteToFile(benchPath);
 
-        // Network worker -- start automatically for standalone (non-editor) mode.
-        // In editor mode the worker is deferred until BeginPlay() so the network
-        // stays silent while the editor is in Stopped state.
-        // Headless mode starts the worker inside InitNetwork().
-        if (!isHeadless_ && !isEditorMode_) {
+        // Network worker: standalone mode auto-starts; editor defers to BeginPlay;
+        // headless defers to InitNetwork().
+        if (!isHeadless_ && !isEditorMode_)
             StartNetworkWorker();
-        }
     }
 
-    void Engine::Update() {
+    void Engine::Update()
+    {
         using Clock = std::chrono::high_resolution_clock;
         using Ms = std::chrono::duration<float, std::milli>;
 
@@ -717,14 +806,12 @@ namespace ettycc {
         threadDebugInfo_.updatePhaseMs = Ms(Clock::now() - frameStart).count();
     }
 
-    void Engine::PrepareFrame() {
+    void Engine::PrepareFrame()
+    {
     }
 
-    void Engine::PresentFrame() {
-        // Headless (dedicated server) -- no rendering or audio presentation.
-        if (isHeadless_)
-            return;
-
+    void Engine::PresentFrame()
+    {
         using Clock = std::chrono::high_resolution_clock;
         using Ms = std::chrono::duration<float, std::milli>;
 
@@ -740,12 +827,15 @@ namespace ettycc {
             auto t = Clock::now();
             audioManager_.Update();
             scene->Process(dt, ProcessingChannel::AUDIO);
+
             // safe: this is a member write; join in get() provides happens-before
             threadDebugInfo_.audio.durationMs = Ms(Clock::now() - t).count();
         });
 
         auto t2 = Clock::now();
+
         scene->Process(dt, ProcessingChannel::RENDERING);
+
         renderEngine_.Pass(dt);
         threadDebugInfo_.rendering.durationMs = Ms(Clock::now() - t2).count();
         threadDebugInfo_.rendering.async = false;
@@ -762,16 +852,13 @@ namespace ettycc {
         // camera controller, etc.) can read the same input snapshot.
     }
 
-    PlayerInput *Engine::GetInputSystem() {
+    PlayerInput *Engine::GetInputSystem()
+    {
         return &inputSystem_;
     }
 
-    // void Engine::ProcessInput(PlayerInputType type, uint64_t *data) // UNSAFE!!!! FIX THIS TRASH
-    // {
-    //     inputSystem_.ProcessInput(type, data);
-    // }
-
-    void Engine::StartNetworkWorker() {
+    void Engine::StartNetworkWorker()
+    {
         auto* existing = threadRegistry_.GetWorker("network");
         if (existing && existing->GetState() == WorkerThread::State::Running)
             return; // already running
@@ -785,7 +872,8 @@ namespace ettycc {
         spdlog::info("[Engine] Network worker started");
     }
 
-    void Engine::StopNetworkWorker() {
+    void Engine::StopNetworkWorker()
+    {
         auto* w = threadRegistry_.GetWorker("network");
         if (w && w->GetState() == WorkerThread::State::Running)
         {
@@ -794,7 +882,8 @@ namespace ettycc {
         }
     }
 
-    void Engine::InitNetwork(bool isHost, uint16_t port, const std::string &serverAddress) {
+    void Engine::InitNetwork(bool isHost, uint16_t port, const std::string &serverAddress)
+    {
         if (isHost)
             networkManager_.InitHost(port);
         else
@@ -808,10 +897,20 @@ namespace ettycc {
 
     // -- Editor playback lifecycle --------------------------------------------
 
-    void Engine::BeginPlay() {
+    void Engine::BeginPlay()
+    {
+        // -- Editor playback lifecycle ----------------------------------------
+        // Called by the editor to cleanly start/stop the simulation loop.
+        // Handles module restart, network worker, and simulation pause state.
+
         if (isPlaying_) return;
         isPlaying_ = true;
         spdlog::info("[Engine] BeginPlay");
+
+        // Re-init bodies that were released by EndPlay.
+        if (mainScene_)
+            mainScene_->Init(*this);
+
         simulationPaused_ = false;
 
         // Restart DLL modules so they register systems / components fresh.
@@ -821,7 +920,8 @@ namespace ettycc {
         StartNetworkWorker();
     }
 
-    void Engine::EndPlay() {
+    void Engine::EndPlay()
+    {
         if (!isPlaying_) return;
         isPlaying_ = false;
         spdlog::info("[Engine] EndPlay");
@@ -831,15 +931,21 @@ namespace ettycc {
         DrainPhysicsFuture();
 
         // Release all physics bodies so they don't reference the world during teardown.
+        // Soft bodies first -- their clusters hold contacts to rigid bodies.
         if (mainScene_)
         {
+            auto& sbPool = mainScene_->registry_.Pool<SoftBodyComponent>();
+            for (size_t i = 0; i < sbPool.Size(); ++i)
+            {
+                auto renderable = sbPool.Components()[i].GetRenderable();
+                if (renderable)
+                    renderEngine_.RemoveRenderable(renderable);
+                sbPool.Components()[i].ReleaseBody();
+            }
+
             auto& rbPool = mainScene_->registry_.Pool<RigidBodyComponent>();
             for (size_t i = 0; i < rbPool.Size(); ++i)
                 rbPool.Components()[i].ReleaseBody();
-
-            auto& sbPool = mainScene_->registry_.Pool<SoftBodyComponent>();
-            for (size_t i = 0; i < sbPool.Size(); ++i)
-                sbPool.Components()[i].ReleaseBody();
         }
 
         // Tear down DLL module instances (systems, components they added).
@@ -851,7 +957,8 @@ namespace ettycc {
         networkManager_.Shutdown();
     }
 
-    void Engine::RestartDllModules() {
+    void Engine::RestartDllModules()
+    {
         for (auto* mod : moduleLoader_.GetModules())
             mod->OnDestroy();
 
@@ -863,73 +970,5 @@ namespace ettycc {
             mod->OnStart(this);
 
         spdlog::info("[Engine] Restarted {} DLL module(s)", moduleLoader_.GetModules().size());
-    }
-
-    // Builds the physics arena with a NetworkComponent on every dynamic body.
-    //
-    // IMPORTANT: all three components (RenderableNode, RigidBodyComponent,
-    // NetworkComponent) must be added to the SceneNode BEFORE AddChild is
-    // called.  AddChild -> AddNode fires OnStart once for every component
-    // already present on the node.  Adding a component after AddChild skips
-    // OnStart entirely, leaving syncTransform_ / rigidBody_ as nullptr and
-    // the component never registered with NetworkManager.
-    void Engine::LoadNetworkScene() {
-
-        spdlog::info("[Engine] building network physics scene...");
-
-        if (!isHeadless_)
-            renderEngine_.ClearRenderables();
-        mainScene_ = std::make_shared<Scene>("network-scene");
-        SetupSceneSystems(*mainScene_, *this);
-        physicsWorld_->SetGravity({0.f, -9.81f, 0.f});
-
-        const std::string tex = globals_->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
-        auto root = mainScene_->root_node_;
-
-        // Static boundaries -- no network sync needed
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(9.0f, 0.3f, 0.5f), glm::vec3(0.0f, -5.0f, 0.0f));
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(-9.3f, 0.0f, 0.0f));
-        createPhysicsBox(root, tex, 0.0f, glm::vec3(0.3f, 5.5f, 0.5f), glm::vec3(9.3f, 0.0f, 0.0f));
-
-        // Pre-allocate pool capacity so vector::push_back never reallocates.
-        // Reallocation would move components to new addresses, invalidating
-        // the raw pointers that NetworkManager::registry_ caches.
-        constexpr int kNetBoxCount = 10; // 5 iterations x 2 boxes
-        constexpr int kTotalRB = kNetBoxCount + 3; // +3 static walls
-        mainScene_->registry_.Pool<RenderableNode>().Reserve(kTotalRB);
-        mainScene_->registry_.Pool<RigidBodyComponent>().Reserve(kTotalRB);
-        mainScene_->registry_.Pool<NetworkComponent>().Reserve(kNetBoxCount);
-
-        // Build a replicated box: ALL components are added before AddChild so
-        // that OnEntityAdded sees all three components at once.
-        uint32_t netId = 1;
-        static int netBoxIdx = 0;
-        auto makeNetBox = [&](glm::vec3 halfExt, glm::vec3 pos) {
-            auto node = std::make_shared<SceneNode>("net-box-" + std::to_string(netBoxIdx++));
-
-            // Headless server: skip renderables -- no GPU, no sprites.
-            if (!isHeadless_) {
-                auto sprite = std::make_shared<Sprite>(tex);
-                sprite->underylingTransform.setGlobalPosition(pos);
-                sprite->underylingTransform.setGlobalScale(glm::vec3(halfExt.x, halfExt.y, 1.0f));
-                mainScene_->registry_.Add<RenderableNode>(node->GetId(), RenderableNode{sprite});
-            }
-
-            mainScene_->registry_.Add<RigidBodyComponent>(node->GetId(),
-                                                          RigidBodyComponent{1.0f, halfExt, pos});
-            mainScene_->registry_.Add<NetworkComponent>(node->GetId(),
-                                                        NetworkComponent{netId++});
-            root->AddChild(node);
-        };
-
-        for (int i = 0; i < 5; ++i) {
-            makeNetBox(glm::vec3(0.5f), glm::vec3(-1.1f, -3.8f + i * 1.15f, 0.0f));
-            makeNetBox(glm::vec3(0.5f), glm::vec3(1.1f, -3.8f + i * 1.15f + 0.55f, 0.0f));
-        }
-
-        // Do NOT call mainScene_->Init() here -- AddNode already called OnStart
-        // for every component.  Calling Init() again would double-init
-        // RigidBodyComponent, leaking btRigidBody instances into the world.
-        spdlog::info("[Engine] network scene ready -- {} replicated bodies", netId - 1);
     }
 } // namespace ettycc

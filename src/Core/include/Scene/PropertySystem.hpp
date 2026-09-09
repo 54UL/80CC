@@ -60,6 +60,7 @@ namespace ettycc
         PROP_READ_ONLY = 1 << 0,  // visible in editor but widget is disabled
         PROP_HIDDEN    = 1 << 1,  // kept in serialization, hidden in editor
         PROP_NO_SERIAL = 1 << 2,  // shown in editor but excluded from save/load
+        PROP_COLOR     = 1 << 3,  // render as color picker (vec3/vec4 only)
     };
 
     // -- CerealVisitor ---------------------------------------------------------
@@ -95,6 +96,7 @@ namespace ettycc
 #  define PROP_RO(field, label)        v.Property(label, field, ettycc::PROP_READ_ONLY)
 #  define PROP_NS(field, label)        v.Property(label, field, ettycc::PROP_NO_SERIAL)
 #  define PROP_F(field, label, flags)  v.Property(label, field, flags)
+#  define PROP_COLOR(field, label)     v.Property(label, field, ettycc::PROP_COLOR)
 // Visual separator inside an Inspect() body -- shows a labelled divider in the editor.
 // Expands to nothing in game builds and in cereal visitors.
 #  define PROP_SECTION(label)          v.Section(label)
@@ -103,6 +105,7 @@ namespace ettycc
 #  define PROP_RO(field, label)
 #  define PROP_NS(field, label)
 #  define PROP_F(field, label, flags)
+#  define PROP_COLOR(field, label)
 #  define PROP_SECTION(label)
 #endif
 

@@ -94,8 +94,8 @@ namespace ettycc
             set(gk::prefix::PATHS,   gk::key::PATH_TEMPLATES, "templates/");
             set(gk::prefix::PATHS,   gk::key::PATH_MATERIALS, "materials/");
             set(gk::prefix::PATHS,   gk::key::PATH_SHADERS,   "shaders/");
-            set(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND, "images/not_found_texture.png");
-            set(gk::prefix::STATE,   gk::key::STATE_LAST_SCENE, "");
+            set(gk::prefix::STATE,   gk::key::STATE_LAST_SCENE,     "");
+            set(gk::prefix::STATE,   gk::key::STATE_PHYSICS_BACKEND, "Box2D");
         }
 
         template <class Archive>

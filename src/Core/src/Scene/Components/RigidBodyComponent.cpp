@@ -1,5 +1,6 @@
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Physics/IPhysicsWorld.hpp>
+#include <Physics/PhysicsDefs.hpp>
 #include <Physics/PhysicsConstants.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 #include <spdlog/spdlog.h>
@@ -13,9 +14,28 @@ namespace ettycc
 
     RigidBodyComponent::~RigidBodyComponent() = default;
 
+    static physics::RigidBodyDef BuildRigidBodyDef(float mass, const glm::vec3& position,
+                                                    const glm::vec3& halfExtents,
+                                                    const std::vector<glm::vec2>* polyVerts)
+    {
+        physics::RigidBodyDef def;
+        def.mass          = mass;
+        def.position      = position;
+        def.linearFactor  = {physics::kLinearFactorX, physics::kLinearFactorY, physics::kLinearFactorZ};
+        def.angularFactor = {physics::kAngularFactorX, physics::kAngularFactorY, physics::kAngularFactorZ};
+
+        if (polyVerts && polyVerts->size() >= 3)
+            def.shape = physics::ShapeDef::ConvexPoly(*polyVerts, {halfExtents.x, halfExtents.y});
+        else
+            def.shape = physics::ShapeDef::Circle((halfExtents.x + halfExtents.y) * 0.5f);
+
+        return def;
+    }
+
     void RigidBodyComponent::InitBody(physics::IPhysicsWorld& world,
                                       Transform& syncTransform,
-                                      const Transform* seedTransform)
+                                      const Transform* seedTransform,
+                                      const std::vector<glm::vec2>* polyVerts)
     {
         if (seedTransform)
             syncTransform = *seedTransform;
@@ -25,19 +45,14 @@ namespace ettycc
         const glm::vec3 spawnPos = syncTransform_->getGlobalPosition();
         const glm::vec3 h        = syncTransform_->getGlobalScale();
 
-        halfExtents_ = h;   // keep gizmo in sync with actual physics shape
+        halfExtents_ = h;
 
-        physics::RigidBodyDef def;
-        def.mass          = mass_;
-        def.shape         = physics::ShapeDef::Box(h);
-        def.position      = spawnPos;
-        def.linearFactor  = {physics::kLinearFactorX, physics::kLinearFactorY, physics::kLinearFactorZ};
-        def.angularFactor = {physics::kAngularFactorX, physics::kAngularFactorY, physics::kAngularFactorZ};
-
+        const auto def = BuildRigidBodyDef(mass_, spawnPos, h, polyVerts);
         body_ = world.CreateRigidBody(def);
 
-        spdlog::info("[RigidBodyComponent] body created -- mass={:.1f}  pos=({:.2f},{:.2f},{:.2f})",
-                     mass_, spawnPos.x, spawnPos.y, spawnPos.z);
+        spdlog::info("[RigidBodyComponent] body created -- mass={:.1f}  shape={}  pos=({:.2f},{:.2f},{:.2f})",
+                     mass_, (polyVerts && polyVerts->size() >= 3) ? "polygon" : "circle",
+                     spawnPos.x, spawnPos.y, spawnPos.z);
     }
 
     void RigidBodyComponent::SyncToTransform(Transform& t) const
@@ -78,26 +93,20 @@ namespace ettycc
 
     void RigidBodyComponent::Reinitialize(physics::IPhysicsWorld& world,
                                           float newMass,
-                                          const glm::vec3& newHalfExtents)
+                                          const glm::vec3& newHalfExtents,
+                                          const std::vector<glm::vec2>* polyVerts)
     {
         if (!body_) return;
 
         const glm::vec3 pos = GetPosition();
         const glm::vec3 vel = GetLinearVelocity();
 
-        // Destroy old body
         body_.reset();
 
         mass_        = newMass;
         halfExtents_ = newHalfExtents;
 
-        physics::RigidBodyDef def;
-        def.mass          = newMass;
-        def.shape         = physics::ShapeDef::Box(newHalfExtents);
-        def.position      = pos;
-        def.linearFactor  = {physics::kLinearFactorX, physics::kLinearFactorY, physics::kLinearFactorZ};
-        def.angularFactor = {physics::kAngularFactorX, physics::kAngularFactorY, physics::kAngularFactorZ};
-
+        const auto def = BuildRigidBodyDef(newMass, pos, newHalfExtents, polyVerts);
         body_ = world.CreateRigidBody(def);
 
         if (body_)
@@ -114,9 +123,12 @@ namespace ettycc
     {
         if (!body_) return;
         isManipulated_ = true;
-        body_->SetKinematic(true);
-        body_->SetLinearVelocity({0.f, 0.f, 0.f});
-        body_->SetAngularVelocity({0.f, 0.f, 0.f});
+        if (IsDynamic())
+        {
+            body_->SetKinematic(true);
+            body_->SetLinearVelocity({0.f, 0.f, 0.f});
+            body_->SetAngularVelocity({0.f, 0.f, 0.f});
+        }
     }
 
     void RigidBodyComponent::EndManipulation()
@@ -125,10 +137,13 @@ namespace ettycc
 
         SyncFromRenderable();
 
-        body_->SetKinematic(false);
-        body_->SetLinearVelocity({0.f, 0.f, 0.f});
-        body_->SetAngularVelocity({0.f, 0.f, 0.f});
-        body_->Activate();
+        if (IsDynamic())
+        {
+            body_->SetKinematic(false);
+            body_->SetLinearVelocity({0.f, 0.f, 0.f});
+            body_->SetAngularVelocity({0.f, 0.f, 0.f});
+            body_->Activate();
+        }
 
         isManipulated_ = false;
     }

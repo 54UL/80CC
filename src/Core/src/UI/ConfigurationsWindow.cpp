@@ -7,6 +7,7 @@
 #include <GlobalKeys.hpp>
 #include <Paths.hpp>
 #include <Engine.hpp>
+#include <Graphics/Rendering/RenderLayerConfig.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <spdlog/spdlog.h>
@@ -23,6 +24,11 @@ namespace ettycc
         : defaultConfigPath_(paths::BUILD_CONFIG_FILE)
     {
         LoadConfig(defaultConfigPath_);
+    }
+
+    ConfigurationsWindow::~ConfigurationsWindow()
+    {
+        SaveConfig(defaultConfigPath_);
     }
 
     // -------------------------------------------------------------------------
@@ -347,6 +353,16 @@ namespace ettycc
 
             if (engine->mainScene_)
             {
+                // Soft bodies first -- their clusters hold contacts to rigid bodies.
+                auto& sbPool = engine->mainScene_->registry_.Pool<SoftBodyComponent>();
+                for (size_t i = 0; i < sbPool.Size(); ++i)
+                {
+                    auto renderable = sbPool.Components()[i].GetRenderable();
+                    if (renderable)
+                        engine->renderEngine_.RemoveRenderable(renderable);
+                    sbPool.Components()[i].ReleaseBody();
+                }
+
                 auto& rbPool = engine->mainScene_->registry_.Pool<RigidBodyComponent>();
                 for (size_t i = 0; i < rbPool.Size(); ++i)
                 {
@@ -355,10 +371,6 @@ namespace ettycc
                         snapshots.push_back({ rbPool.Entities()[i], rb.GetLinearVelocity() });
                     rb.ReleaseBody();
                 }
-
-                auto& sbPool = engine->mainScene_->registry_.Pool<SoftBodyComponent>();
-                for (size_t i = 0; i < sbPool.Size(); ++i)
-                    sbPool.Components()[i].ReleaseBody();
             }
 
             // 3. Now safe to destroy the old world and create the new one
@@ -385,6 +397,11 @@ namespace ettycc
                             rb->SetLinearVelocity(snap.linearVel);
                     }
                 }
+
+                // Persist selection so it survives restart
+                auto globals = GetDependency(Globals);
+                if (globals)
+                    globals->Set(gk::prefix::STATE, gk::key::STATE_PHYSICS_BACKEND, chosen);
 
                 spdlog::info("[ConfigurationsWindow] physics switched to: {}", chosen);
             }
@@ -432,6 +449,11 @@ namespace ettycc
             const bool physicsSel = (selectedCategory_ == Category::Physics);
             if (ImGui::Selectable("Physics", physicsSel))
                 selectedCategory_ = Category::Physics;
+
+            const bool renderingSel = (selectedCategory_ == Category::Rendering);
+            if (ImGui::Selectable("Rendering", renderingSel))
+                selectedCategory_ = Category::Rendering;
+
         }
         ImGui::EndChild();
 
@@ -442,14 +464,131 @@ namespace ettycc
         {
             switch (selectedCategory_)
             {
-                case Category::Build:   DrawBuildSettings(); break;
-                case Category::Globals: DrawGlobals();       break;
-                case Category::Physics: DrawPhysics();       break;
+                case Category::Build:     DrawBuildSettings(); break;
+                case Category::Globals:   DrawGlobals();       break;
+                case Category::Physics:   DrawPhysics();       break;
+                case Category::Rendering: DrawRendering();     break;
             }
         }
         ImGui::EndChild();
 
         ImGui::End();
     }
+
+    // -------------------------------------------------------------------------
+    // DrawRendering -- Render layer management
+    // -------------------------------------------------------------------------
+    void ConfigurationsWindow::DrawRendering()
+    {
+        auto& config = GetDependency(Engine)->renderLayerConfig_;
+
+        ImGui::SeparatorText("Render Layers");
+        ImGui::TextDisabled("Layers define rendering groups. Objects on a layer are "
+                            "only drawn by cameras whose culling mask includes that layer.");
+
+        ImGui::Spacing();
+
+        // -- Layer list --------------------------------------------------------
+        const int count = config.GetActiveCount();
+        for (int i = 0; i < count; ++i)
+        {
+            ImGui::PushID(i);
+
+            // Layer index badge
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%2d", i);
+            ImGui::SameLine();
+
+            // Editable name (layer 0 "Default" is read-only)
+            char nameBuf[64] = {};
+            strncpy(nameBuf, config.GetName(i).c_str(), sizeof(nameBuf) - 1);
+
+            if (i == 0)
+            {
+                ImGui::BeginDisabled();
+                ImGui::SetNextItemWidth(200.f);
+                ImGui::InputText("##name", nameBuf, sizeof(nameBuf), ImGuiInputTextFlags_ReadOnly);
+                ImGui::EndDisabled();
+            }
+            else
+            {
+                ImGui::SetNextItemWidth(200.f);
+                if (ImGui::InputText("##name", nameBuf, sizeof(nameBuf)))
+                    config.SetName(i, nameBuf);
+            }
+
+            // Move up/down buttons
+            ImGui::SameLine();
+            if (i > 1)
+            {
+                if (ImGui::SmallButton("Up"))
+                    config.SwapLayers(i, i - 1);
+            }
+            else
+                ImGui::Dummy(ImVec2(24, 0));
+
+            ImGui::SameLine();
+            if (i > 0 && i < count - 1)
+            {
+                if (ImGui::SmallButton("Down"))
+                    config.SwapLayers(i, i + 1);
+            }
+            else if (i > 0)
+                ImGui::Dummy(ImVec2(36, 0));
+
+            // Remove button (not for layer 0)
+            if (i > 0)
+            {
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.3f, 0.3f, 1.f));
+                if (ImGui::SmallButton("X"))
+                    config.RemoveLayer(i);
+                ImGui::PopStyleColor();
+            }
+
+            ImGui::PopID();
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // -- Add new layer -----------------------------------------------------
+        ImGui::SetNextItemWidth(200.f);
+        bool enterPressed = ImGui::InputText("##new_layer", newLayerName_, sizeof(newLayerName_),
+                                              ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::SameLine();
+        if ((ImGui::Button("Add Layer") || enterPressed) && newLayerName_[0] != '\0')
+        {
+            int idx = config.AddLayer(newLayerName_);
+            if (idx >= 0)
+                spdlog::info("[Rendering] Added layer '{}' at index {}", newLayerName_, idx);
+            else
+                spdlog::warn("[Rendering] Max layers reached ({})", RenderLayerConfig::kMaxLayers);
+            newLayerName_[0] = '\0';
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // -- Save / Load buttons -----------------------------------------------
+        auto globals = GetDependency(Globals);
+        const std::string layerPath = globals->GetWorkingFolder() + "config/render_layers.json";
+
+        if (ImGui::Button("Save Layers"))
+        {
+            config.Save(layerPath);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reload Layers"))
+        {
+            config.Load(layerPath);
+        }
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("Layers are saved to: %s", layerPath.c_str());
+    }
+
 
 } // namespace ettycc

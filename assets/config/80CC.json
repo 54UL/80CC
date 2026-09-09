@@ -48,17 +48,6 @@
                 }
             },
             {
-                "key": "sprites",
-                "value": {
-                    "resources": [
-                        {
-                            "key": "not-found",
-                            "value": "images/not_found_texture.png"
-                        }
-                    ]
-                }
-            },
-            {
                 "key": "state",
                 "value": {
                     "resources": [

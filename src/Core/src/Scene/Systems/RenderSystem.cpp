@@ -17,18 +17,11 @@ namespace ettycc
             InitRenderable(scene, engine, entity);
     }
 
-    void RenderSystem::OnUpdate(Scene& scene, float /*dt*/)
+    void RenderSystem::OnUpdate(Scene& /*scene*/, float /*dt*/)
     {
-        auto& pool     = scene.registry_.Pool<RenderableNode>();
-        auto& comps    = pool.Components();
-        auto& entities = pool.Entities();
-        for (size_t i = 0; i < comps.size(); ++i)
-        {
-            auto& rn = comps[i];
-            if (!rn.IsInitialized()) continue;
-            auto* node = scene.GetNode(entities[i]);
-            if (node) rn.SyncTransform(node->transform_);
-        }
+        // Transform binding happens once in InitRenderable -- no per-frame
+        // copy needed.  The renderable's transform() points directly at the
+        // SceneNode's transform.
     }
 
     void RenderSystem::InitRenderable(Scene& scene, Engine& engine, ecs::Entity e)
@@ -39,9 +32,13 @@ namespace ettycc
 
         rn->InitRenderable(engine);
 
-        // Seed the node transform from the renderable's stored transform.
+        // Seed the node transform from the renderable's stored transform,
+        // then bind the renderable to the node transform (single source of truth).
         if (rn->renderable_)
+        {
             node->transform_ = rn->renderable_->underylingTransform;
+            rn->SyncTransform(node->transform_);
+        }
     }
 
 } // namespace ettycc

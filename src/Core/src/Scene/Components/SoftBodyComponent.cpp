@@ -4,17 +4,13 @@
 #include <Engine.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 
+#include <Math/Constants.hpp>
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
 
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include <vector>
 #include <string>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace ettycc
 {
@@ -41,12 +37,12 @@ namespace ettycc
             float t = float(r + 1) / float(rings);
             for (int s = 0; s < sectors; ++s)
             {
-                float angle = float(s) * 2.f * float(M_PI) / float(sectors);
-                geo.positions.push_back(std::cos(angle) * t * radius);
-                geo.positions.push_back(std::sin(angle) * t * radius);
+                float angle = float(s) * math::kTwoPi / float(sectors);
+                geo.positions.push_back(glm::cos(angle) * t * radius);
+                geo.positions.push_back(glm::sin(angle) * t * radius);
                 geo.positions.push_back(0.f);
-                geo.uvs.push_back(0.5f + std::cos(angle) * t * 0.5f);
-                geo.uvs.push_back(0.5f + std::sin(angle) * t * 0.5f);
+                geo.uvs.push_back(0.5f + glm::cos(angle) * t * 0.5f);
+                geo.uvs.push_back(0.5f + glm::sin(angle) * t * 0.5f);
             }
         }
 
@@ -81,6 +77,18 @@ namespace ettycc
 
     SoftBodyComponent::~SoftBodyComponent() = default;
 
+    void SoftBodyComponent::ReleaseBody()
+    {
+        // Null out the dangling raw pointer in the renderable before destroying the body.
+        if (renderable_)
+        {
+            auto* sbr = dynamic_cast<SoftBodyRenderable*>(renderable_.get());
+            if (sbr) sbr->ClearBody();
+        }
+        body_.reset();
+        renderable_.reset();
+    }
+
     // -- System-facing: initialize soft body -----------------------------------
     void SoftBodyComponent::InitBody(physics::IPhysicsWorld& world, Engine& engine)
     {
@@ -108,6 +116,10 @@ namespace ettycc
 
         spdlog::info("[SoftBodyComponent] created -- radius={:.2f} mass={:.2f} verts={} tris={}",
                      radius_, mass_, numVerts, numTriangles);
+
+        // Remove stale renderable from a previous init cycle before creating a new one
+        if (renderable_)
+            engine.renderEngine_.RemoveRenderable(renderable_);
 
         renderable_ = std::make_shared<SoftBodyRenderable>(
             texturePath_, body_.get(), geo.uvs, geo.indices);
@@ -141,6 +153,15 @@ namespace ettycc
 
         t.setGlobalPosition(centroid);
         lastTrackedCentroid_ = centroid;
+
+        // Sync vertex data to the renderable's back buffer (lock-free double-buffer).
+        // This happens on the main thread after physics step is complete,
+        // so the render thread never touches the physics body directly.
+        if (renderable_)
+        {
+            auto* sbr = dynamic_cast<SoftBodyRenderable*>(renderable_.get());
+            if (sbr) sbr->SyncFromPhysics();
+        }
     }
 
     // -- Centroid query --------------------------------------------------------

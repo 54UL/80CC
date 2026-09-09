@@ -1,0 +1,82 @@
+#version 450 core
+
+// Compute shader: transforms sprite vertices from local space to world space.
+// Replaces CPU Phase 3 of SpriteBatch::RenderProceduralMegaDraw().
+//
+// Each invocation processes one output vertex:
+//   1. Look up which sprite this vertex belongs to (vertToSprite map)
+//   2. Read source vertex (local pos + UV) from the source buffer
+//   3. Read per-sprite transform + material from the sprite info buffer
+//   4. Write transformed PackedVert (14 floats) to the output buffer
+
+layout(local_size_x = 256) in;
+
+// Per-sprite data: transform (9 floats) + material (7 floats) + offsets
+struct SpriteInfo {
+    float m00, m10, m30;   // transform col 0
+    float m01, m11, m31;   // transform col 1
+    float m02, m12, m32;   // transform col 2 (depth)
+    float br, bg, bb;      // base color
+    float er, eg, eb, ew;  // edge color + width
+    uint  dstVertOffset;   // offset into output vertex buffer
+    uint  dstIdxOffset;    // offset into output index buffer
+    uint  numVerts;
+    uint  numIndices;
+};
+
+// Source vertex: local-space position + UV (4 floats)
+struct SrcVert {
+    float px, py;  // local position
+    float u, v;    // UV
+};
+
+// Output vertex: 14 floats matching the PackedVert layout
+struct DstVert {
+    float wx, wy, wz;       // world pos
+    float u, v;              // UV
+    float lx, ly;            // local pos
+    float br, bg, bb;        // base color
+    float er, eg, eb, ew;    // edge color + width
+};
+
+layout(std430, binding = 0) readonly buffer SpriteInfoBuf  { SpriteInfo sprites[]; };
+layout(std430, binding = 1) readonly buffer SrcVertBuf     { SrcVert   srcVerts[]; };
+layout(std430, binding = 2) writeonly buffer DstVertBuf    { DstVert   dstVerts[]; };
+layout(std430, binding = 3) readonly buffer VertToSprite   { uint      vertToSprite[]; };
+
+uniform uint uTotalVerts;
+
+void main()
+{
+    uint vid = gl_GlobalInvocationID.x;
+    if (vid >= uTotalVerts) return;
+
+    uint si = vertToSprite[vid];
+    SpriteInfo info = sprites[si];
+
+    // Source vertex index = global vid - this sprite's destination offset
+    uint localVid = vid - info.dstVertOffset;
+    uint srcIdx = info.dstVertOffset + localVid; // src verts packed same order as dst
+    SrcVert sv = srcVerts[srcIdx];
+
+    float px = sv.px;
+    float py = sv.py;
+
+    DstVert dv;
+    dv.wx = info.m00 * px + info.m10 * py + info.m30;
+    dv.wy = info.m01 * px + info.m11 * py + info.m31;
+    dv.wz = info.m02 * px + info.m12 * py + info.m32;
+    dv.u  = sv.u;
+    dv.v  = sv.v;
+    dv.lx = px;
+    dv.ly = py;
+    dv.br = info.br;
+    dv.bg = info.bg;
+    dv.bb = info.bb;
+    dv.er = info.er;
+    dv.eg = info.eg;
+    dv.eb = info.eb;
+    dv.ew = info.ew;
+
+    dstVerts[vid] = dv;
+}

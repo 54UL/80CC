@@ -52,14 +52,14 @@ namespace ettycc::physics
 
     void BulletRigidBody::SetLinearVelocity(const glm::vec3& v)
     {
-        if (!body_) return;
+        if (!body_ || body_->isStaticOrKinematicObject()) return;
         body_->activate(true);
         body_->setLinearVelocity(btVector3(v.x, v.y, v.z));
     }
 
     void BulletRigidBody::ApplyCentralForce(const glm::vec3& f)
     {
-        if (!body_) return;
+        if (!body_ || body_->isStaticOrKinematicObject()) return;
         body_->activate(true);
         body_->applyCentralForce(btVector3(f.x, f.y, f.z));
     }
@@ -76,7 +76,8 @@ namespace ettycc::physics
 
     void BulletRigidBody::Activate()
     {
-        if (body_) body_->activate(true);
+        if (body_ && !body_->isStaticOrKinematicObject())
+            body_->activate(true);
     }
 
     void BulletRigidBody::SetKinematic(bool kinematic)
@@ -86,15 +87,26 @@ namespace ettycc::physics
         if (kinematic)
         {
             flags |= btCollisionObject::CF_KINEMATIC_OBJECT;
+            flags &= ~btCollisionObject::CF_STATIC_OBJECT;
             body_->setCollisionFlags(flags);
             body_->setActivationState(DISABLE_DEACTIVATION);
         }
         else
         {
             flags &= ~btCollisionObject::CF_KINEMATIC_OBJECT;
-            body_->setCollisionFlags(flags);
-            body_->setActivationState(ACTIVE_TAG);
-            body_->activate(true);
+            // Restore static flag for zero-mass bodies
+            if (body_->getInvMass() == btScalar(0))
+            {
+                flags |= btCollisionObject::CF_STATIC_OBJECT;
+                body_->setCollisionFlags(flags);
+                body_->setActivationState(ISLAND_SLEEPING);
+            }
+            else
+            {
+                body_->setCollisionFlags(flags);
+                body_->setActivationState(ACTIVE_TAG);
+                body_->activate(true);
+            }
         }
     }
 
@@ -116,7 +128,7 @@ namespace ettycc::physics
 
     void BulletRigidBody::SetAngularVelocity(const glm::vec3& v)
     {
-        if (!body_) return;
+        if (!body_ || body_->isStaticOrKinematicObject()) return;
         body_->setAngularVelocity(btVector3(v.x, v.y, v.z));
     }
 

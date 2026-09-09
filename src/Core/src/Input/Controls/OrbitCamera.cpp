@@ -36,7 +36,7 @@ namespace ettycc{
         cameraPos = newPos;
 
         // Update view matrix
-        camera_->underylingTransform.setMatrix(glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
+        camera_->transform().setMatrix(glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
 
         mouseDelta = lastAxisPosition - inputSystem_->GetLeftAxis();
     }

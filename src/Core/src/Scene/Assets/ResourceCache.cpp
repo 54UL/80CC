@@ -3,32 +3,11 @@
 #include <stb_image.h>
 #include <fstream>
 #include <sstream>
+#include <set>
 
 namespace ettycc
 {
-    // -- PreloadedImage -------------------------------------------------------
-    PreloadedImage::~PreloadedImage()
-    {
-        if (pixels) stbi_image_free(pixels);
-    }
-
-    PreloadedImage::PreloadedImage(PreloadedImage&& o) noexcept
-        : path(std::move(o.path)), pixels(o.pixels)
-        , width(o.width), height(o.height), channels(o.channels)
-    {
-        o.pixels = nullptr;
-    }
-
-    PreloadedImage& PreloadedImage::operator=(PreloadedImage&& o) noexcept
-    {
-        if (this != &o) {
-            if (pixels) stbi_image_free(pixels);
-            path = std::move(o.path); pixels = o.pixels;
-            width = o.width; height = o.height; channels = o.channels;
-            o.pixels = nullptr;
-        }
-        return *this;
-    }
+    // PreloadedImage special members are defined in AssetRegistry.cpp
 
     // -- Init -----------------------------------------------------------------
     void ResourceCache::Init(const std::string& shadersPath)
@@ -84,7 +63,18 @@ namespace ettycc
             return 0;
         }
 
-        GLuint handle = CreateGLTexture(pixels, w, h, ch);
+        // Find meta by matching relative path suffix
+        ImageMeta meta;
+        for (auto& [rel, m] : imageMetas_)
+        {
+            if (absolutePath.size() >= rel.size() &&
+                absolutePath.compare(absolutePath.size() - rel.size(), rel.size(), rel) == 0)
+            {
+                meta = m; break;
+            }
+        }
+
+        GLuint handle = CreateGLTexture(pixels, w, h, ch, meta);
         stbi_image_free(pixels);
 
         textures_[absolutePath] = CachedTexture{handle, w, h, ch};
@@ -106,7 +96,18 @@ namespace ettycc
             return 0;
         }
 
-        GLuint handle = CreateGLTexture(img.pixels, img.width, img.height, img.channels);
+        // Find meta by matching relative path suffix
+        ImageMeta meta;
+        for (auto& [rel, m] : imageMetas_)
+        {
+            if (img.path.size() >= rel.size() &&
+                img.path.compare(img.path.size() - rel.size(), rel.size(), rel) == 0)
+            {
+                meta = m; break;
+            }
+        }
+
+        GLuint handle = CreateGLTexture(img.pixels, img.width, img.height, img.channels, meta);
         textures_[img.path] = CachedTexture{handle, img.width, img.height, img.channels};
 
         // Free CPU-side pixels now that they're on the GPU
@@ -202,24 +203,194 @@ namespace ettycc
         return buf.str();
     }
 
-    GLuint ResourceCache::CreateGLTexture(unsigned char* pixels, int w, int h, int channels)
+    GLuint ResourceCache::CreateGLTexture(unsigned char* pixels, int w, int h, int channels,
+                                           const ImageMeta& meta)
     {
         GLuint handle = 0;
         glGenTextures(1, &handle);
         glBindTexture(GL_TEXTURE_2D, handle);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // Wrap mode
+        GLenum wrap = GL_REPEAT;
+        switch (meta.wrapMode)
+        {
+            case TextureWrapMode::Clamp:        wrap = GL_CLAMP_TO_EDGE;     break;
+            case TextureWrapMode::MirrorRepeat:  wrap = GL_MIRRORED_REPEAT;  break;
+            default:                             wrap = GL_REPEAT;           break;
+        }
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
+
+        // Filter mode
+        switch (meta.filterMode)
+        {
+            case TextureFilterMode::Point:
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                break;
+            case TextureFilterMode::Bilinear:
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                break;
+            case TextureFilterMode::Trilinear:
+            default:
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                break;
+        }
 
         GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
         glTexImage2D(GL_TEXTURE_2D, 0, static_cast<GLint>(format),
                      w, h, 0, format, GL_UNSIGNED_BYTE, pixels);
-        glGenerateMipmap(GL_TEXTURE_2D);
+
+        if (meta.generateMipmaps)
+            glGenerateMipmap(GL_TEXTURE_2D);
 
         glBindTexture(GL_TEXTURE_2D, 0);
         return handle;
+    }
+
+    // -- ScanImages: index images + load/create .meta files --------------------
+    void ResourceCache::ScanImages(const std::string& workingFolder, const std::string& imagesRelPath)
+    {
+        imageIndex_.clear();
+        imageMetas_.clear();
+        const std::string absDir = workingFolder + imagesRelPath;
+
+        // Collect all .meta files so we can detect orphans
+        std::set<std::string> validMetaPaths;
+
+        std::error_code ec;
+        for (auto& entry : std::filesystem::recursive_directory_iterator(absDir, ec))
+        {
+            if (!entry.is_regular_file()) continue;
+
+            auto ext = entry.path().extension().string();
+            // Skip .meta files themselves
+            if (ext == ".meta") continue;
+            // Only index image files
+            if (ext != ".png" && ext != ".jpg" && ext != ".jpeg" &&
+                ext != ".bmp" && ext != ".tga" && ext != ".gif")
+                continue;
+
+            std::string stem = entry.path().stem().string();
+            std::string relPath = std::filesystem::relative(entry.path(), workingFolder, ec).string();
+            for (char& c : relPath) if (c == '\\') c = '/';
+
+            if (imageIndex_.count(stem))
+            {
+                spdlog::warn("[ResourceCache] Duplicate image name '{}': '{}' shadows '{}'",
+                             stem, relPath, imageIndex_[stem]);
+            }
+            imageIndex_[stem] = relPath;
+
+            // Load or create .meta
+            std::string metaPath = entry.path().string() + ".meta";
+            validMetaPaths.insert(metaPath);
+
+            ImageMeta meta;
+            if (!ImageMeta::Load(metaPath, meta))
+            {
+                // Read image dimensions for the default meta
+                int w = 0, h = 0, ch = 0;
+                stbi_info(entry.path().string().c_str(), &w, &h, &ch);
+                meta.sourceWidth  = w;
+                meta.sourceHeight = h;
+                meta.Save(metaPath);
+                spdlog::info("[ResourceCache] Created meta for '{}'", relPath);
+            }
+            else
+            {
+                // Update source dimensions in case they changed
+                int w = 0, h = 0, ch = 0;
+                stbi_info(entry.path().string().c_str(), &w, &h, &ch);
+                if (meta.sourceWidth != w || meta.sourceHeight != h)
+                {
+                    meta.sourceWidth  = w;
+                    meta.sourceHeight = h;
+                    meta.Save(metaPath);
+                }
+            }
+
+            imageMetas_[relPath] = meta;
+        }
+
+        // Clean up orphaned .meta files (source image deleted)
+        for (auto& entry : std::filesystem::recursive_directory_iterator(absDir, ec))
+        {
+            if (!entry.is_regular_file()) continue;
+            if (entry.path().extension().string() != ".meta") continue;
+            if (validMetaPaths.find(entry.path().string()) == validMetaPaths.end())
+            {
+                spdlog::info("[ResourceCache] Removing orphaned meta: {}", entry.path().string());
+                std::filesystem::remove(entry.path(), ec);
+            }
+        }
+
+        spdlog::info("[ResourceCache] Indexed {} images with meta from {}", imageIndex_.size(), absDir);
+    }
+
+    void ResourceCache::SaveImageMeta(const std::string& workingFolder, const std::string& relativePath)
+    {
+        auto it = imageMetas_.find(relativePath);
+        if (it == imageMetas_.end()) return;
+
+        std::string absPath = workingFolder + relativePath + ".meta";
+        // Normalize path separators
+        for (char& c : absPath) if (c == '/') c = std::filesystem::path::preferred_separator;
+        it->second.Save(absPath);
+    }
+
+    void ResourceCache::ReapplyTextureParams(const std::string& absolutePath)
+    {
+        auto texIt = textures_.find(absolutePath);
+        if (texIt == textures_.end()) return;
+
+        // Find meta by trying to match relative path
+        const ImageMeta* meta = nullptr;
+        for (auto& [rel, m] : imageMetas_)
+        {
+            if (absolutePath.find(rel) != std::string::npos ||
+                absolutePath.find(std::filesystem::path(rel).filename().string()) != std::string::npos)
+            {
+                meta = &m;
+                break;
+            }
+        }
+        if (!meta) return;
+
+        glBindTexture(GL_TEXTURE_2D, texIt->second.handle);
+
+        // Wrap
+        GLenum wrap = GL_REPEAT;
+        switch (meta->wrapMode)
+        {
+            case TextureWrapMode::Clamp:        wrap = GL_CLAMP_TO_EDGE;     break;
+            case TextureWrapMode::MirrorRepeat:  wrap = GL_MIRRORED_REPEAT;  break;
+            default: break;
+        }
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
+
+        // Filter
+        switch (meta->filterMode)
+        {
+            case TextureFilterMode::Point:
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                break;
+            case TextureFilterMode::Bilinear:
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                break;
+            case TextureFilterMode::Trilinear:
+            default:
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                break;
+        }
+
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
 } // namespace ettycc

@@ -47,6 +47,12 @@ set(80CC_CORE_HEADERS
     include/Scene/Assets/AssetBuilder.hpp
     include/Scene/Assets/MaterialDef.hpp
     include/Scene/Assets/ResourceCache.hpp
+    include/Scene/Assets/AssetHandle.hpp
+    include/Scene/Assets/AssetPool.hpp
+    include/Scene/Assets/AssetRegistry.hpp
+    include/Scene/Assets/TextureAsset.hpp
+    include/Scene/Assets/ShaderAsset.hpp
+    include/Scene/Assets/MaterialAsset.hpp
     include/Graphics/Rendering.hpp
     include/Graphics/Rendering/RenderingContext.hpp
     include/Graphics/Rendering/Renderable.hpp
@@ -112,6 +118,7 @@ set(80CC_CORE_SOURCES
     src/Scene/Assets/AssetLoader.cpp
     src/Scene/Assets/AssetBuilder.cpp
     src/Scene/Assets/ResourceCache.cpp
+    src/Scene/Assets/AssetRegistry.cpp
     src/Scene/Components/RenderableNode.cpp
     src/Scene/Components/RigidBodyComponent.cpp
     src/Scene/Components/SoftBodyComponent.cpp
@@ -137,6 +144,7 @@ set(80CC_CORE_SOURCES
     src/Graphics/Rendering/PickerBuffer.cpp
     src/Graphics/Rendering/Entities/Camera.cpp
     src/Graphics/Rendering/Entities/Sprite.cpp
+    src/Graphics/Rendering/Entities/SpriteShape.cpp
     src/Graphics/Rendering/Entities/Grid.cpp
     src/Graphics/Rendering/SpriteBatch.cpp
     src/Graphics/Shading/Shader.cpp
@@ -149,6 +157,7 @@ set(80CC_CORE_SOURCES
     src/UI/ConfigurationsWindow.cpp
     src/UI/ComponentRegistry.cpp
     src/UI/DevEditor.cpp
+    src/UI/EditorContextMenu.cpp
     src/UI/PolygonEditor.cpp
     src/UI/BuildPanel.cpp
     src/UI/Widgets/PathFieldWidget.cpp
@@ -156,6 +165,8 @@ set(80CC_CORE_SOURCES
     src/Game/ModuleLoader.cpp
     src/Networking/NetworkManager.cpp
     src/Networking/NetworkComponent.cpp
+    # IMGUI COLOR TEXT EDIT
+    external/ImGuiColorTextEdit/TextEditor.cpp
     # IMGUI LIBRARY SOURCES
     external/imgui/imgui.cpp
     external/imgui/imgui_demo.cpp
@@ -202,7 +213,10 @@ target_compile_definitions(80CC_CORE
     PUBLIC
         $<$<PLATFORM_ID:Windows>:NOMINMAX>
         $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>
-        ETTYCC_HAS_BOX2D)
+        ETTYCC_HAS_BOX2D
+        GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+        GLM_FORCE_SIMD_AVX2
+        GLM_FORCE_INLINE)
 
 # TARGET INCLUDES
 target_include_directories(80CC_CORE
@@ -212,6 +226,7 @@ target_include_directories(80CC_CORE
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
            ${CMAKE_CURRENT_SOURCE_DIR}/external/portable-file-dialogs
+           ${CMAKE_CURRENT_SOURCE_DIR}/external/ImGuiColorTextEdit
     PUBLIC ${Stb_INCLUDE_DIR}
     PUBLIC ${GLM_INCLUDE_DIRS})
 

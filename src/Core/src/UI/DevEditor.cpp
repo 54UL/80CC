@@ -1,6 +1,10 @@
 #include <UI/DevEditor.hpp>
+#include <glm/glm.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
+#include <UI/EditorContextMenu.hpp>
+#include <UI/AssetDescriptor.hpp>
 #include <imgui_internal.h>
+#include <Scene/Components/RenderableNode.hpp>
 #include <Scene/Components/RigidBodyComponent.hpp>
 #include <Scene/Components/SoftBodyComponent.hpp>
 #include <Scene/Components/AudioSourceComponent.hpp>
@@ -13,18 +17,22 @@
 #include <Dependencies/Globals.hpp>
 #include <GlobalKeys.hpp>
 #include <Input/Controls/EditorCamera.hpp>
+#include <Scene/Systems/PhysicsSystem.hpp>
 #include <Graphics/Rendering/Frustum.hpp>
 #include <unordered_map>
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <cmath>
+#include <fstream>
+#include <sstream>
 #include <portable-file-dialogs.h>
+#include <TextEditor.h>
 
-/* MURO DE LA FUNA (TODOS)
- * - fix that stupid shit that makes the headers from windows affect std headers, this comes from the portable file dialogs (isolate headers???)
- * - refactor when this file is above 4444 lines (just because i said so)
- */
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 namespace ettycc
 {
@@ -61,76 +69,29 @@ namespace ettycc
     DevEditor::~DevEditor() = default;
 
     // -------------------------------------------------------------------------
-    // ASSET BROWSER HELPERS
+    // ASSET BROWSER HELPERS (delegate to AssetDescriptorRegistry)
     // -------------------------------------------------------------------------
 
-    DevEditor::AssetType DevEditor::GetAssetType(const std::filesystem::path& p) const
+    // Helper: get descriptor or a static fallback for unknown types
+    static const AssetDescriptor& GetDescOrFallback(const AssetDescriptorRegistry& reg, AssetType t)
     {
-        std::string ext = p.extension().string();
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-        if (ext == ".json") {
-            std::string ps = p.string();
-            if (ps.find("templates") != std::string::npos) return AssetType::Template;
-            if (ps.find("scenes")    != std::string::npos) return AssetType::Scene;
-            return AssetType::Config;
-        }
-        if (ext == ".cpp" || ext == ".hpp" || ext == ".h" || ext == ".cc")
-            return AssetType::Code;
-        if (ext == ".glsl" || ext == ".vert" || ext == ".frag")
-            return AssetType::Shader;
-        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
-            return AssetType::Image;
-        if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac")
-            return AssetType::Audio;
-        if (ext == ".material")
-            return AssetType::Material;
-        return AssetType::Unknown;
+        static const AssetDescriptor kUnknown; // all defaults: "???", "Unknown", gray
+        const auto* d = reg.Find(t);
+        return d ? *d : kUnknown;
     }
 
-    ImVec4 DevEditor::GetAssetColor(AssetType t) const
+    std::string DevEditor::ComputeRelativePath(const std::string& absolutePath) const
     {
-        switch (t) {
-            case AssetType::Template: return {0.27f, 0.51f, 0.71f, 1.f}; // steel blue
-            case AssetType::Scene:    return {0.24f, 0.70f, 0.44f, 1.f}; // sea green
-            case AssetType::Config:   return {0.63f, 0.63f, 0.63f, 1.f}; // gray
-            case AssetType::Code:     return {0.90f, 0.55f, 0.10f, 1.f}; // orange
-            case AssetType::Shader:   return {0.58f, 0.44f, 0.86f, 1.f}; // purple
-            case AssetType::Image:    return {0.13f, 0.70f, 0.67f, 1.f}; // teal
-            case AssetType::Audio:    return {0.90f, 0.40f, 0.80f, 1.f}; // magenta
-            case AssetType::Material: return {0.85f, 0.65f, 0.13f, 1.f}; // gold
-            default:                  return {0.35f, 0.35f, 0.35f, 1.f};
-        }
-    }
-
-    const char* DevEditor::GetAssetLabel(AssetType t) const
-    {
-        switch (t) {
-            case AssetType::Template: return "TPL";
-            case AssetType::Scene:    return "SCN";
-            case AssetType::Config:   return "CFG";
-            case AssetType::Code:     return "C++";
-            case AssetType::Shader:   return "SHD";
-            case AssetType::Image:    return "IMG";
-            case AssetType::Audio:    return "SFX";
-            case AssetType::Material: return "MAT";
-            default:                  return "???";
-        }
-    }
-
-    const char* DevEditor::GetAssetTypeName(AssetType t) const
-    {
-        switch (t) {
-            case AssetType::Template: return "Prefab Template";
-            case AssetType::Scene:    return "Scene";
-            case AssetType::Config:   return "Config";
-            case AssetType::Code:     return "Source Code";
-            case AssetType::Shader:   return "Shader";
-            case AssetType::Image:    return "Image";
-            case AssetType::Audio:    return "Audio Clip";
-            case AssetType::Material: return "Material";
-            default:                  return "Unknown";
-        }
+        auto globals = GetDependency(Globals);
+        if (!globals) return absolutePath;
+        const std::string& workDir = globals->GetWorkingFolder();
+        std::string normWork = workDir;
+        std::string normPath = absolutePath;
+        for (char& c : normWork) if (c == '\\') c = '/';
+        for (char& c : normPath) if (c == '\\') c = '/';
+        if (normPath.rfind(normWork, 0) == 0)
+            return normPath.substr(normWork.size());
+        return normPath;
     }
 
     void DevEditor::ScanAssets()
@@ -146,10 +107,12 @@ namespace ettycc
         try {
             for (const auto& e : std::filesystem::recursive_directory_iterator(root)) {
                 if (!e.is_regular_file()) continue;
+                // Skip .meta sidecar files
+                if (e.path().extension() == ".meta") continue;
                 AssetEntry ae;
                 ae.path = e.path().string();
                 ae.name = e.path().filename().string();
-                ae.type = GetAssetType(e.path());
+                ae.type = engineInstance_->assetDescriptors_.Classify(e.path());
                 assetEntries_.push_back(ae);
             }
         } catch (const std::exception& ex) {
@@ -219,9 +182,10 @@ namespace ettycc
 
             ImGui::PushID(visibleIdx++);
 
-            ImVec4 col   = GetAssetColor(entry.type);
+            const auto& desc = GetDescOrFallback(engineInstance_->assetDescriptors_, entry.type);
+            ImVec4 col   = desc.color;
             ImU32  col32 = ImGui::ColorConvertFloat4ToU32(col);
-            const char* lbl = GetAssetLabel(entry.type);
+            const char* lbl = desc.label;
 
             ImVec2 iconPos = ImGui::GetCursorScreenPos();
             ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -245,7 +209,7 @@ namespace ettycc
                             ImVec2(iconPos.x + iconSize, iconPos.y + iconSize),
                             IM_COL32(255, 255, 255, 190), 6.f, 0, 2.f);
 
-            // LEFT-CLICK
+            // LEFT-CLICK -> select asset for inspector
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
                 selectedAsset_.path     = entry.path;
@@ -258,38 +222,61 @@ namespace ettycc
                 selectedNodes_.clear();
             }
 
-            // Drag source
+            // DOUBLE-CLICK -> open with default system application
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+#ifdef _WIN32
+                std::string winPath = entry.path;
+                std::replace(winPath.begin(), winPath.end(), '/', '\\');
+                ShellExecuteA(NULL, "open", winPath.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#endif
+            }
+
+            // RIGHT-CLICK -> context menu
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+            {
+                selectedAsset_.path   = entry.path;
+                selectedAsset_.name   = entry.name;
+                selectedAsset_.type   = entry.type;
+                selectedAsset_.active = true;
+                try { selectedAsset_.fileSize = std::filesystem::file_size(entry.path); }
+                catch (...) { selectedAsset_.fileSize = 0; }
+                ImGui::OpenPopup("##asset_ctx");
+            }
+
+            if (ImGui::BeginPopup("##asset_ctx"))
+            {
+                auto state = BuildContextMenuState(ContextMenuSource::Assets,
+                    selectedNodes_.empty() ? nullptr : selectedNodes_.back(), false);
+                EditorContextMenu::Draw(state);
+                ImGui::EndPopup();
+            }
+
+            // Drag source (generic + type-specific payload via descriptor)
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
             {
-                // General asset payload
                 ImGui::SetDragDropPayload("ASSET_ENTRY",
                                           entry.path.c_str(),
                                           entry.path.size() + 1);
 
-                // Also emit a typed payload for materials so drop targets can be specific
-                if (entry.type == AssetType::Material)
+                // Emit extra typed payload if the descriptor defines one
+                if (!desc.extraPayloadType.empty() && desc.buildExtraPayloadFn)
                 {
-                    // Convert absolute path to relative (materials/xxx.material)
-                    auto globals = GetDependency(Globals);
-                    std::string relPath = entry.path;
-                    if (globals)
-                    {
-                        const auto& wf = globals->GetWorkingFolder();
-                        if (relPath.find(wf) == 0)
-                            relPath = relPath.substr(wf.size());
-                    }
-                    ImGui::SetDragDropPayload("MATERIAL_ASSET",
-                                              relPath.c_str(),
-                                              relPath.size() + 1);
+                    AssetContext ctx;
+                    ctx.engine       = engineInstance_.get();
+                    ctx.absolutePath = entry.path;
+                    ctx.relativePath = ComputeRelativePath(entry.path);
+                    std::string payload = desc.buildExtraPayloadFn(ctx);
+                    ImGui::SetDragDropPayload(desc.extraPayloadType.c_str(),
+                                              payload.c_str(),
+                                              payload.size() + 1);
                 }
 
                 ImGui::TextColored(col, "%s", lbl);
                 ImGui::SameLine();
                 ImGui::Text("%s", entry.name.c_str());
-                if (entry.type == AssetType::Template)
-                    ImGui::TextDisabled("Drop onto viewport to spawn");
-                if (entry.type == AssetType::Material)
-                    ImGui::TextDisabled("Drop onto sprite to assign");
+                if (desc.dragTooltip)
+                    ImGui::TextDisabled("%s", desc.dragTooltip);
                 ImGui::EndDragDropSource();
             }
 
@@ -347,10 +334,108 @@ namespace ettycc
             ImGui::DockBuilderDockWindow("Assets",         bottomRight);
             ImGui::DockBuilderDockWindow("Debug",          bottomRight);
             ImGui::DockBuilderDockWindow("Inspector",      right);
-            ImGui::DockBuilderDockWindow("Build",          right);
+            // ImGui::DockBuilderDockWindow("Build",          right);
 
             ImGui::DockBuilderFinish(dsId);
         }
+    }
+
+    void DevEditor::ShowBuiltInScenes()
+    {
+        if (ImGui::MenuItem("Empty Scene"))
+            engineInstance_->LoadBuiltInScene(SampleScene::Default);
+
+        if (ImGui::MenuItem("Soft Bodies..."))
+        {
+            builtInConfig_ = {};
+            builtInConfig_.scene = SampleScene::SoftBodies;
+            builtInPopupOpen_ = true;
+        }
+        if (ImGui::MenuItem("Networked Multiplayer..."))
+        {
+            builtInConfig_ = {};
+            builtInConfig_.scene = SampleScene::Network;
+            builtInPopupOpen_ = true;
+        }
+
+        // Module-registered menu items
+        auto& moduleItems = engineInstance_->editorExtensions_.MenuItems();
+        if (!moduleItems.empty())
+        {
+            ImGui::Separator();
+            for (auto& item : moduleItems)
+                item.callback(*engineInstance_);
+        }
+
+        ImGui::EndMenu();
+    }
+
+    void DevEditor::ShowBuiltInScenePopup()
+    {
+        if (builtInPopupOpen_)
+        {
+            ImGui::OpenPopup("##BuiltInSceneCfg");
+            builtInPopupOpen_ = false;
+        }
+
+        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_Appearing);
+
+        if (!ImGui::BeginPopupModal("##BuiltInSceneCfg", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+            return;
+
+        const char* title = "Scene Configuration";
+        switch (builtInConfig_.scene)
+        {
+            case SampleScene::SoftBodies: title = "Soft Bodies";           break;
+            case SampleScene::Network:    title = "Networked Multiplayer"; break;
+            default: break;
+        }
+        ImGui::TextUnformatted(title);
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        switch (builtInConfig_.scene)
+        {
+        case SampleScene::SoftBodies:
+        {
+            auto& c = builtInConfig_.softBodies;
+            ImGui::DragInt("Body Count",         &c.bodyCount, 1, 1, 100);
+            ImGui::DragFloat("Gravity",          &c.gravity, 0.1f, -100.0f, 0.0f);
+            ImGui::DragFloat("Soft Body Radius", &c.softBodyRadius, 0.01f, 0.1f, 5.0f);
+            ImGui::DragFloat("Soft Body Mass",   &c.softBodyMass, 0.1f, 0.1f, 100.0f);
+            break;
+        }
+        case SampleScene::Network:
+        {
+            auto& c = builtInConfig_.network;
+            ImGui::DragInt("Box Pairs",          &c.boxPairs, 1, 1, 50);
+            ImGui::DragFloat("Gravity",          &c.gravity, 0.1f, -100.0f, 0.0f);
+            break;
+        }
+        default:
+            break;
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+
+        if (ImGui::Button("Create", ImVec2(buttonWidth, 0)))
+        {
+            engineInstance_->LoadBuiltInScene(builtInConfig_);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
 
     void DevEditor::ShowMenuBar()
@@ -390,6 +475,9 @@ namespace ettycc
                     configurationsWindow_.Open();
                 if (ImGui::MenuItem("Polygon Editor", NULL))
                     polygonEditor_.isOpen = true;
+                if (ImGui::BeginMenu("Built-in scenes"))
+                    ShowBuiltInScenes();
+
                 ImGui::EndMenu();
             }
 
@@ -405,6 +493,12 @@ namespace ettycc
                     ImGui::MenuItem("Game view", NULL);
                     ImGui::EndMenu();
                 }
+
+                if (ImGui::MenuItem("Appearance"))
+                {
+                    showStyleEditor_ = true;
+                }
+
                 ImGui::EndMenu();
             }
 
@@ -569,31 +663,58 @@ namespace ettycc
         ImGui::SameLine();
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
         ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.92f, 0.016f, 1.f));
-        ImGui::Checkbox("Colliders", &showColliderDebug_);
-        ImGui::PopStyleColor();
-        ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.f, 0.9f, 0.9f, 1.f));
-        ImGui::Checkbox("Gravity", &showGravityDebug_);
-        ImGui::PopStyleColor();
-        ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.31f, 0.9f, 0.31f, 1.f));
-        ImGui::Checkbox("Audio", &showAudioDebug_);
-        ImGui::PopStyleColor();
-        ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.60f, 0.85f, 1.f));
-        ImGui::Checkbox("Grid", &gameViewShowGrid_);
-        ImGui::PopStyleColor();
-        ImGui::SameLine();
+        // -- Gizmo multi-select combo ----------------------------------------
         {
-            // Toggle: preview the scene camera's frustum culling in the editor view
-            static bool showSceneFrustum = false;
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.45f, 0.45f, 1.f));
-            ImGui::Checkbox("Frustum Cull", &showSceneFrustum);
-            ImGui::PopStyleColor();
+            // Build preview string from active toggles
+            struct GizmoEntry {
+                const char* label;
+                bool*       flag;
+                ImVec4      color;
+            };
+            GizmoEntry gizmos[] = {
+                { "Colliders",    &showColliderDebug_,   { 1.00f, 0.92f, 0.02f, 1.f } },
+                { "Gravity",      &showGravityDebug_,    { 0.00f, 0.90f, 0.90f, 1.f } },
+                { "Audio",        &showAudioDebug_,      { 0.31f, 0.90f, 0.31f, 1.f } },
+                { "Trails",       &showTrajectoryDebug_, { 1.00f, 0.50f, 0.20f, 1.f } },
+                { "Grid",         &showGridDebug_,       { 0.55f, 0.60f, 0.85f, 1.f } },
+                { "Frustum Cull", &showFrustumDebug_,    { 0.85f, 0.45f, 0.45f, 1.f } },
+            };
+            constexpr int gizmoCount = 6;
 
+            // Count active for preview
+            int activeCount = 0;
+            std::string preview;
+            for (int i = 0; i < gizmoCount; ++i)
+            {
+                if (*gizmos[i].flag)
+                {
+                    if (!preview.empty()) preview += ", ";
+                    preview += gizmos[i].label;
+                    ++activeCount;
+                }
+            }
+            if (activeCount == 0)        preview = "None";
+            else if (activeCount == gizmoCount) preview = "All";
+
+            ImGui::SetNextItemWidth(180.f);
+            if (ImGui::BeginCombo("##GizmoToggles", preview.c_str()))
+            {
+                for (int i = 0; i < gizmoCount; ++i)
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, gizmos[i].color);
+                    ImGui::Selectable(gizmos[i].label, gizmos[i].flag,
+                                      ImGuiSelectableFlags_DontClosePopups);
+                    ImGui::PopStyleColor();
+                }
+                ImGui::EndCombo();
+            }
+
+            // Sync grid visibility
+            gameViewShowGrid_ = showGridDebug_;
+
+            // Frustum cull logic
             auto& edCam = engineInstance_->editorCamera_;
-            if (showSceneFrustum)
+            if (showFrustumDebug_)
             {
                 auto sceneCam = FindSceneCamera();
                 if (sceneCam && sceneCam->editorCameraControl_)
@@ -605,7 +726,6 @@ namespace ettycc
                 }
                 else
                 {
-                    // No scene camera with a controller -- fall back to own frustum
                     edCam->useFrustumOverride_ = false;
                     edCam->frustumCullingEnabled_ = true;
                 }
@@ -640,80 +760,8 @@ namespace ettycc
             const ImVec2 imgMax = { imgMin.x + avail.x, imgMin.y + avail.y };
             const ImVec2 mp     = ImGui::GetMousePos();
 
-            // --- Prefab drag-drop --------------------------------------------
-            if (ImGui::BeginDragDropTarget())
-            {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_ENTRY"))
-                {
-                    std::string path(static_cast<const char*>(payload->Data), payload->DataSize - 1);
-                    AssetType dropType = GetAssetType(std::filesystem::path(path));
-                    if (dropType == AssetType::Template)
-                    {
-                        for (auto& node : assetBuilder_->BuildFromTemplate(path))
-                        {
-                            engineInstance_->mainScene_->root_node_->AddChild(node);
-                            spdlog::info("[DevEditor] Spawned '{}' from prefab '{}'",
-                                         node->GetName(), path);
-                        }
-                    }
-                    else
-                        spdlog::warn("[DevEditor] Drop type '{}' not handled yet",
-                                     GetAssetTypeName(dropType));
-                }
-                // --- Sprite shape drag-drop from Sprite Editor -----------
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SPRITE_SHAPE"))
-                {
-                    const SpriteShape* shape = *static_cast<const SpriteShape* const*>(payload->Data);
-                    auto sprite = std::make_shared<Sprite>("images/not_found_texture.png");
-                    sprite->SetShape(*shape);
-
-                    auto node = std::make_shared<SceneNode>("Sprite_" + shape->name);
-                    node->AddComponent(RenderableNode(sprite));
-
-                    engineInstance_->mainScene_->root_node_->AddChild(node);
-                    engineInstance_->renderEngine_.AddRenderable(sprite);
-                    spdlog::info("[DevEditor] Spawned sprite with shape '{}'", shape->name);
-                }
-                // --- Material drag-drop onto viewport --------------------
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MATERIAL_ASSET"))
-                {
-                    std::string matPath(static_cast<const char*>(payload->Data), payload->DataSize - 1);
-
-                    // If a sprite is selected, assign the material to it
-                    bool assigned = false;
-                    if (!selectedNodes_.empty())
-                    {
-                        auto selNode = selectedNodes_.back();
-                        if (auto* rn = selNode->GetComponent<RenderableNode>())
-                        {
-                            if (auto* spr = dynamic_cast<Sprite*>(rn->renderable_.get()))
-                            {
-                                spr->SetMaterialPath(matPath);
-                                assigned = true;
-                                spdlog::info("[DevEditor] Assigned material '{}' to '{}'",
-                                             matPath, selNode->GetName());
-                            }
-                        }
-                    }
-
-                    // If no sprite selected, spawn a new sprite with the material
-                    if (!assigned)
-                    {
-                        auto sprite = std::make_shared<Sprite>();
-                        sprite->SetMaterialPath(matPath);
-
-                        std::string name = "Sprite_" +
-                            std::filesystem::path(matPath).stem().string();
-                        auto node = std::make_shared<SceneNode>(name);
-                        node->AddComponent(RenderableNode(sprite));
-
-                        engineInstance_->mainScene_->root_node_->AddChild(node);
-                        engineInstance_->renderEngine_.AddRenderable(sprite);
-                        spdlog::info("[DevEditor] Spawned sprite with material '{}'", matPath);
-                    }
-                }
-                ImGui::EndDragDropTarget();
-            }
+            // --- Drag-drop onto viewport (uses descriptor registry) --------
+            HandleViewportDragDrop();
 
             // --- Gizmo persistent state ---------------------------------------
             static int gizmoMode = 0; // 0=Translate  1=Rotate  2=Scale
@@ -901,6 +949,34 @@ namespace ettycc
                     if (btnHov)
                         toolbarConsumedClick = true;
                 }
+
+                // Slice tool button
+                {
+                    float sliceX = lgX + btnSz + gap * 3;
+                    const char* sliceLabel = "/";
+                    ImVec2 bMin = { sliceX, row2Y };
+                    ImVec2 bMax = { bMin.x + btnSz, bMin.y + btnSz };
+                    bool btnHov = ImGui::IsMouseHoveringRect(bMin, bMax);
+                    ImU32 bgCol = sliceToolActive_ ? IM_COL32(220, 60, 60, 220) :
+                                  btnHov           ? IM_COL32( 80,  80,  80, 200) :
+                                                     IM_COL32( 40,  40,  40, 180);
+                    dl->AddRectFilled(bMin, bMax, bgCol, 3.f);
+                    dl->AddRect(bMin, bMax, IM_COL32(120, 120, 120, 180), 3.f);
+                    ImVec2 tsz = ImGui::CalcTextSize(sliceLabel);
+                    dl->AddText({ bMin.x + (btnSz - tsz.x) * 0.5f,
+                                  bMin.y + (btnSz - tsz.y) * 0.5f },
+                                sliceToolActive_ ? IM_COL32(255, 255, 255, 255)
+                                                 : IM_COL32(230, 230, 230, 255),
+                                sliceLabel);
+                    if (btnHov && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                    {
+                        sliceToolActive_     = !sliceToolActive_;
+                        sliceDragging_       = false;
+                        toolbarConsumedClick = true;
+                    }
+                    if (btnHov)
+                        toolbarConsumedClick = true;
+                }
             }
 
             // --- Gizmo keyboard shortcuts (Q=Translate, W=Rotate, E=Scale) ------
@@ -985,7 +1061,7 @@ namespace ettycc
             static ImVec2 vpClickPendingPos = {};
 
             if (!viewportBoxSelector_.active && !vpClickPending &&
-                !toolbarConsumedClick &&
+                !toolbarConsumedClick && !sliceToolActive_ &&
                 dragging == AXIS_NONE &&
                 hovered  == AXIS_NONE &&
                 mouseInVP && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
@@ -1058,13 +1134,14 @@ namespace ettycc
                 viewportBoxSelector_.Draw(dl);
             }
 
-            // --- Viewport right-click context menu ---------------------------
-            if (mouseInVP && ImGui::BeginPopupContextWindow("##viewport_ctx", ImGuiPopupFlags_MouseButtonRight))
+            // --- Viewport right-click context menu (unified) ----------------
+            if (ImGui::BeginPopupContextWindow("##viewport_ctx", ImGuiPopupFlags_MouseButtonRight))
             {
                 auto target = selNode
                     ? selNode
                     : engineInstance_->mainScene_->root_node_;
-                DrawNodeContextMenu(target, true);
+                auto state = BuildContextMenuState(ContextMenuSource::Viewport, target, true);
+                EditorContextMenu::Draw(state);
                 ImGui::EndPopup();
             }
 
@@ -1083,7 +1160,7 @@ namespace ettycc
                 dragging       = hovered;
                 dragStartMouse = mp;
                 dragStartCenter = selCenter;
-                dragStartAngle = atan2f(mp.y - gizmoOrigin.y, mp.x - gizmoOrigin.x);
+                dragStartAngle = glm::atan(mp.y - gizmoOrigin.y, mp.x - gizmoOrigin.x);
 
                 // Store initial state for every selected node
                 dragStartNodes.clear();
@@ -1150,7 +1227,7 @@ namespace ettycc
                     }
                     else if (dragging == AXIS_ROTATE)
                     {
-                        float curAngle = atan2f(mp.y - gizmoOrigin.y, mp.x - gizmoOrigin.x);
+                        float curAngle = glm::atan(mp.y - gizmoOrigin.y, mp.x - gizmoOrigin.x);
                         float deltaDeg = glm::degrees(curAngle - dragStartAngle);
 
                         // Rotate individual orientation
@@ -1298,11 +1375,155 @@ namespace ettycc
                 engineInstance_->editorCamera_->editorCameraControl_->enabled = false;
             }
 
+            // --- Slice tool interaction ----------------------------------------
+            if (sliceToolActive_ && mouseInVP)
+            {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+
+                if (!sliceDragging_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                {
+                    sliceDragging_    = true;
+                    sliceStartScreen_ = mp;
+                    sliceEndScreen_   = mp;
+                }
+
+                if (sliceDragging_)
+                {
+                    sliceEndScreen_ = mp;
+
+                    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                    {
+                        sliceDragging_ = false;
+
+                        // Convert screen coords to world coords
+                        auto& cam = engineInstance_->editorCamera_->editorCameraControl_;
+                        glm::mat4 view = cam->ComputeViewMatrix(0.f);
+                        glm::mat4 proj = cam->ComputeProjectionMatrix(0.f);
+                        glm::mat4 invVP = glm::inverse(proj * view);
+
+                        auto screenToWorld = [&](ImVec2 sp) -> glm::vec2 {
+                            float nx = (sp.x - imgMin.x) / avail.x * 2.f - 1.f;
+                            float ny = 1.f - (sp.y - imgMin.y) / avail.y * 2.f;
+                            glm::vec4 wp = invVP * glm::vec4(nx, ny, 0.f, 1.f);
+                            return { wp.x / wp.w, wp.y / wp.w };
+                        };
+
+                        glm::vec2 worldStart = screenToWorld(sliceStartScreen_);
+                        glm::vec2 worldEnd   = screenToWorld(sliceEndScreen_);
+                        glm::vec2 sliceDir   = worldEnd - worldStart;
+                        float len = glm::length(sliceDir);
+
+                        if (len > 0.01f)
+                        {
+                            sliceDir /= len;
+                            glm::vec2 midpoint = (worldStart + worldEnd) * 0.5f;
+
+                            // Find the nearest rigid body whose position is close to the slice line
+                            auto& rbPool   = engineInstance_->mainScene_->registry_.Pool<RigidBodyComponent>();
+                            auto& comps    = rbPool.Components();
+                            auto& entities = rbPool.Entities();
+
+                            ecs::Entity bestEntity = ecs::NullEntity;
+                            float bestDist = std::numeric_limits<float>::max();
+                            glm::vec2 lineNormal = { -sliceDir.y, sliceDir.x };
+
+                            for (size_t i = 0; i < comps.size(); ++i)
+                            {
+                                auto& rb = comps[i];
+                                if (!rb.IsInitialized() || !rb.IsDynamic()) continue;
+                                glm::vec3 pos3 = rb.GetPosition();
+                                glm::vec2 pos2 = { pos3.x, pos3.y };
+
+                                // Distance from body center to slice line
+                                float d = glm::abs(glm::dot(pos2 - worldStart, lineNormal));
+                                // Also check body is within the line segment extent
+                                float proj = glm::dot(pos2 - worldStart, sliceDir);
+                                float halfExt = (rb.GetHalfExtents().x + rb.GetHalfExtents().y) * 0.5f;
+                                if (proj > -halfExt && proj < len + halfExt && d < halfExt * 2.f)
+                                {
+                                    if (d < bestDist) { bestDist = d; bestEntity = entities[i]; }
+                                }
+                            }
+
+                            if (bestEntity != ecs::NullEntity)
+                            {
+                                // Find PhysicsSystem and call SliceBody
+                                for (auto& sys : engineInstance_->mainScene_->systems_)
+                                {
+                                    if (auto* ps = dynamic_cast<PhysicsSystem*>(sys.get()))
+                                    {
+                                        ps->SliceBody(*engineInstance_->mainScene_, bestEntity,
+                                                      midpoint, sliceDir, sliceBreakForce_);
+                                        // Clear selection if sliced node was selected
+                                        selectedNodes_.erase(
+                                            std::remove_if(selectedNodes_.begin(), selectedNodes_.end(),
+                                                [bestEntity](const std::shared_ptr<SceneNode>& n) {
+                                                    return n->GetId() == bestEntity;
+                                                }),
+                                            selectedNodes_.end());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                sliceDragging_ = false;
+            }
+
+            // --- Slice line gizmo (drawn while dragging) ---------------------
+            if (sliceDragging_)
+            {
+                ImDrawList* sdl = ImGui::GetWindowDrawList();
+                float time = static_cast<float>(ImGui::GetTime());
+
+                // Extend the line beyond the drag points for visual effect
+                ImVec2 dir = { sliceEndScreen_.x - sliceStartScreen_.x,
+                               sliceEndScreen_.y - sliceStartScreen_.y };
+                float dlen = glm::sqrt(dir.x * dir.x + dir.y * dir.y);
+                if (dlen > 1.f)
+                {
+                    dir.x /= dlen; dir.y /= dlen;
+                    float ext = 2000.f;
+                    ImVec2 p0 = { sliceStartScreen_.x - dir.x * ext,
+                                  sliceStartScreen_.y - dir.y * ext };
+                    ImVec2 p1 = { sliceEndScreen_.x + dir.x * ext,
+                                  sliceEndScreen_.y + dir.y * ext };
+
+                    // Animated pulsing glow
+                    float pulse = 0.5f + 0.5f * glm::sin(time * 8.f);
+                    int alpha = static_cast<int>(120 + 135 * pulse);
+
+                    // Outer glow
+                    sdl->AddLine(p0, p1, IM_COL32(255, 60, 60, alpha / 3), 6.f);
+                    // Core line
+                    sdl->AddLine(p0, p1, IM_COL32(255, 80, 60, alpha), 2.f);
+                    // Bright center
+                    sdl->AddLine(sliceStartScreen_, sliceEndScreen_,
+                                 IM_COL32(255, 200, 150, alpha), 1.5f);
+
+                    // Drag handle dots
+                    sdl->AddCircleFilled(sliceStartScreen_, 5.f,
+                                         IM_COL32(255, 100, 50, 255));
+                    sdl->AddCircleFilled(sliceEndScreen_, 5.f,
+                                         IM_COL32(255, 100, 50, 255));
+                }
+            }
+
             // --- Debug overlay gizmos -----------------------------------------
-            if (showColliderDebug_)  DrawColliderGizmos(imgMin, avail);
-            if (showGravityDebug_)   DrawGravityAttractorGizmos(imgMin, avail);
-            if (showAudioDebug_)     DrawAudioGizmos(imgMin, avail);
+            if (showColliderDebug_)    DrawColliderGizmos(imgMin, avail);
+            if (showGravityDebug_)     DrawGravityAttractorGizmos(imgMin, avail);
+            if (showAudioDebug_)       DrawAudioGizmos(imgMin, avail);
+            if (showTrajectoryDebug_)  DrawTrajectoryGizmos(imgMin, avail);
             DrawCameraFrustumGizmo(imgMin, avail);
+
+            // Module-registered gizmos
+            for (auto& gizmo : engineInstance_->editorExtensions_.Gizmos())
+                if (gizmo.enabled)
+                    gizmo.callback(*engineInstance_, imgMin, avail);
 
             // --- Selection outlines ------------------------------------------
             DrawSelectionOutlines(imgMin, avail);
@@ -1389,31 +1610,69 @@ namespace ettycc
             float rotZ      = node->transform_.getStoredRotation().z;
             glm::quat rot   = glm::angleAxis(glm::radians(rotZ), glm::vec3(0.f, 0.f, 1.f));
 
-            // Half-extents from scale; fall back to a minimum so shapeless
-            // objects (cameras, empties, etc.) still get a visible outline.
-            float hx = std::max(std::abs(scale.x) * 0.5f, MIN_HALF);
-            float hy = std::max(std::abs(scale.y) * 0.5f, MIN_HALF);
+            // Try to get actual sprite vertices for per-vertex outline
+            auto* rn = engineInstance_->mainScene_
+                ? engineInstance_->mainScene_->registry_.Get<RenderableNode>(node->GetId())
+                : nullptr;
+            auto* sprite = (rn && rn->renderable_)
+                ? dynamic_cast<Sprite*>(rn->renderable_.get())
+                : nullptr;
 
-            glm::vec3 localCorners[4] = {
-                { -hx, -hy, 0.f },
-                {  hx, -hy, 0.f },
-                {  hx,  hy, 0.f },
-                { -hx,  hy, 0.f },
-            };
-
-            ImVec2 screenPts[4];
-            for (int i = 0; i < 4; ++i)
+            if (sprite && sprite->GetShape().preset == SpriteShape::Preset::Custom
+                && sprite->GetShape().vertices.size() >= 3)
             {
-                glm::vec3 world = pos + rot * localCorners[i];
-                screenPts[i] = toScreen(world);
+                // Per-vertex outline: use actual shape boundary vertices
+                const auto& shape = sprite->GetShape();
+
+                // Collect boundary vertices (skip center vertex at index 0 for fan shapes)
+                std::vector<ImVec2> screenPoly;
+                size_t startIdx = (shape.vertices.size() > 3) ? 1 : 0;
+                screenPoly.reserve(shape.vertices.size() - startIdx);
+
+                for (size_t i = startIdx; i < shape.vertices.size(); ++i)
+                {
+                    glm::vec3 local(shape.vertices[i].position * glm::vec2(scale), 0.f);
+                    glm::vec3 world = pos + rot * local;
+                    screenPoly.push_back(toScreen(world));
+                }
+
+                // Filled tint (convex polygon)
+                if (screenPoly.size() >= 3)
+                    dl->AddConvexPolyFilled(screenPoly.data(),
+                                            static_cast<int>(screenPoly.size()), COL_FILL);
+
+                // Outline edges
+                for (size_t i = 0; i < screenPoly.size(); ++i)
+                    dl->AddLine(screenPoly[i],
+                                screenPoly[(i + 1) % screenPoly.size()], COL_OUTLINE, 2.0f);
             }
+            else
+            {
+                // Fallback: axis-aligned box from half-extents
+                float hx = glm::max(glm::abs(scale.x) * 0.5f, MIN_HALF);
+                float hy = glm::max(glm::abs(scale.y) * 0.5f, MIN_HALF);
 
-            // Filled tint
-            dl->AddQuadFilled(screenPts[0], screenPts[1], screenPts[2], screenPts[3], COL_FILL);
+                glm::vec3 localCorners[4] = {
+                    { -hx, -hy, 0.f },
+                    {  hx, -hy, 0.f },
+                    {  hx,  hy, 0.f },
+                    { -hx,  hy, 0.f },
+                };
 
-            // Outline
-            for (int i = 0; i < 4; ++i)
-                dl->AddLine(screenPts[i], screenPts[(i + 1) % 4], COL_OUTLINE, 2.0f);
+                ImVec2 screenPts[4];
+                for (int i = 0; i < 4; ++i)
+                {
+                    glm::vec3 world = pos + rot * localCorners[i];
+                    screenPts[i] = toScreen(world);
+                }
+
+                // Filled tint
+                dl->AddQuadFilled(screenPts[0], screenPts[1], screenPts[2], screenPts[3], COL_FILL);
+
+                // Outline
+                for (int i = 0; i < 4; ++i)
+                    dl->AddLine(screenPts[i], screenPts[(i + 1) % 4], COL_OUTLINE, 2.0f);
+            }
         }
     }
 
@@ -1620,6 +1879,7 @@ namespace ettycc
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
         constexpr ImU32 COL_COLLIDER = IM_COL32(255, 235, 4, 200);
+        constexpr ImU32 COL_FUSED    = IM_COL32(50, 220, 255, 220);  // cyan for fused celestial bodies
 
         auto& registry = engineInstance_->mainScene_->registry_;
 
@@ -1634,24 +1894,63 @@ namespace ettycc
             glm::quat rot = rb->GetRotation();
             glm::vec3 he  = rb->GetHalfExtents();
 
-            // Compute 4 corners in world space (2D -- Z = 0)
-            glm::vec3 localCorners[4] = {
-                { -he.x, -he.y, 0.f },
-                {  he.x, -he.y, 0.f },
-                {  he.x,  he.y, 0.f },
-                { -he.x,  he.y, 0.f },
-            };
+            const bool isFused = rb->IsDynamic() && rb->GetMass() > 1.1f;
 
-            ImVec2 screenPts[4];
-            for (int i = 0; i < 4; ++i)
+            // Try to draw actual polygon collider shape from sprite boundary
+            auto* rn = registry.Get<RenderableNode>(e);
+            Sprite* sprite = nullptr;
+            if (rn && rn->renderable_)
+                sprite = dynamic_cast<Sprite*>(rn->renderable_.get());
+
+            if (sprite && sprite->GetShape().vertices.size() >= 3)
             {
-                glm::vec3 world = pos + rot * localCorners[i];
-                screenPts[i] = toScreen(world);
-            }
+                const auto& shape = sprite->GetShape();
+                // Fan layout: vertex[0] is centroid, boundary starts at [1]
+                size_t start = (shape.vertices.size() > 3) ? 1 : 0;
+                glm::vec3 scale = sprite->transform().getGlobalScale();
+                ImU32 col = isFused ? COL_FUSED : COL_COLLIDER;
 
-            // Draw closed polyline
-            for (int i = 0; i < 4; ++i)
-                dl->AddLine(screenPts[i], screenPts[(i + 1) % 4], COL_COLLIDER, 1.5f);
+                std::vector<ImVec2> screenPoly;
+                screenPoly.reserve(shape.vertices.size() - start);
+                for (size_t i = start; i < shape.vertices.size(); ++i)
+                {
+                    glm::vec3 local = { shape.vertices[i].position.x * scale.x,
+                                        shape.vertices[i].position.y * scale.y, 0.f };
+                    glm::vec3 world = pos + rot * local;
+                    screenPoly.push_back(toScreen(world));
+                }
+
+                for (size_t i = 0; i < screenPoly.size(); ++i)
+                    dl->AddLine(screenPoly[i], screenPoly[(i + 1) % screenPoly.size()], col, 1.5f);
+
+                if (isFused)
+                {
+                    char massLabel[32];
+                    snprintf(massLabel, sizeof(massLabel), "%.0f", rb->GetMass());
+                    ImVec2 center = toScreen(pos);
+                    dl->AddText({ center.x + 4.f, center.y - 6.f }, COL_FUSED, massLabel);
+                }
+            }
+            else
+            {
+                // Fallback: box outline from half-extents
+                glm::vec3 localCorners[4] = {
+                    { -he.x, -he.y, 0.f },
+                    {  he.x, -he.y, 0.f },
+                    {  he.x,  he.y, 0.f },
+                    { -he.x,  he.y, 0.f },
+                };
+
+                ImVec2 screenPts[4];
+                for (int i = 0; i < 4; ++i)
+                {
+                    glm::vec3 world = pos + rot * localCorners[i];
+                    screenPts[i] = toScreen(world);
+                }
+
+                for (int i = 0; i < 4; ++i)
+                    dl->AddLine(screenPts[i], screenPts[(i + 1) % 4], COL_COLLIDER, 1.5f);
+            }
         }
 
         // -- Soft body outlines (trace actual mesh edges) ---------------------
@@ -1687,15 +1986,28 @@ namespace ettycc
 
     std::shared_ptr<Camera> DevEditor::FindSceneCamera() const
     {
-        // Walk scene renderables and return the first Camera that is NOT
-        // the editor camera (editor camera is managed by Engine, not the scene).
+        // Editor camera lives in the overlay, not in renderables.
+        // All cameras in renderables are scene/game cameras.
         for (const auto& r : engineInstance_->renderEngine_.GetRenderables())
         {
-            if (r == engineInstance_->editorCamera_) continue;
             if (auto cam = std::dynamic_pointer_cast<Camera>(r))
                 return cam;
         }
         return nullptr;
+    }
+
+    std::vector<std::shared_ptr<Camera>> DevEditor::FindSceneCameras() const
+    {
+        std::vector<std::shared_ptr<Camera>> cameras;
+        for (const auto& r : engineInstance_->renderEngine_.GetRenderables())
+        {
+            if (!r->enabled) continue;
+            if (auto cam = std::dynamic_pointer_cast<Camera>(r))
+                cameras.push_back(cam);
+        }
+        std::sort(cameras.begin(), cameras.end(),
+                  [](const auto& a, const auto& b) { return a->depth < b->depth; });
+        return cameras;
     }
 
     void DevEditor::ShowGameView()
@@ -1735,10 +2047,10 @@ namespace ettycc
 
         ImGui::Separator();
 
-        // --- Find scene camera and render into the game-view FBO ---------
-        auto sceneCam = FindSceneCamera();
+        // --- Collect scene cameras and render into the game-view FBO -----
+        auto sceneCameras = FindSceneCameras(); // this stupid fuck should be slow...
 
-        if (sceneCam && gameViewFBO_)
+        if (!sceneCameras.empty() && gameViewFBO_)
         {
             // Resize FBO to match selected resolution preset
             const auto& preset = kResolutionPresets[resolutionIndex_];
@@ -1746,64 +2058,59 @@ namespace ettycc
             if (gameViewFBO_->GetSize() != targetSize)
                 gameViewFBO_->SetSize(targetSize);
 
-            // --- Game view camera input ----------------------------------
-            // Lazily attach an EditorCamera control to the scene camera so
-            // the user can pan/zoom the game preview during play.
-            if (!sceneCam->editorCameraControl_)
+            // --- Lazily attach EditorCamera controls to scene cameras ----
+            bool isPlaying = playbackState_ == PlaybackState::Playing;
+            bool isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_None);
+
+            for (auto& sceneCam : sceneCameras)
             {
-                sceneCam->editorCameraControl_ =
-                    std::make_shared<EditorCamera>(
-                        &engineInstance_->inputSystem_,
-                        gameViewFBO_.get());
-
-                // Find the SceneNode that owns this camera and bind its transform + component
-                if (engineInstance_->mainScene_)
+                if (!sceneCam->editorCameraControl_)
                 {
-                    auto* rnPool = engineInstance_->mainScene_->registry_
-                        .TryGetPool<RenderableNode>();
-                    if (rnPool)
-                    {
-                        for (auto e : rnPool->Entities())
-                        {
-                            auto* rn = rnPool->Get(e);
-                            if (rn && rn->renderable_ == sceneCam)
-                            {
-                                // Bind the SceneNode's transform (single source of truth)
-                                auto* node = engineInstance_->mainScene_->GetNode(e);
-                                if (node)
-                                    sceneCam->editorCameraControl_->BindTransform(&node->transform_);
+                    sceneCam->editorCameraControl_ =
+                        std::make_shared<EditorCamera>(
+                            &engineInstance_->inputSystem_,
+                            gameViewFBO_.get());
 
-                                auto* ccPool = engineInstance_->mainScene_->registry_
-                                    .TryGetPool<CameraControllerComponent>();
-                                if (ccPool)
+                    if (engineInstance_->mainScene_)
+                    {
+                        auto* rnPool = engineInstance_->mainScene_->registry_
+                            .TryGetPool<RenderableNode>();
+                        if (rnPool)
+                        {
+                            for (auto e : rnPool->Entities())
+                            {
+                                auto* rn = rnPool->Get(e);
+                                if (rn && rn->renderable_ == sceneCam)
                                 {
-                                    auto* cc = ccPool->Get(e);
-                                    if (cc)
-                                        sceneCam->editorCameraControl_->BindComponent(cc);
+                                    auto* node = engineInstance_->mainScene_->GetNode(e);
+                                    if (node)
+                                        sceneCam->editorCameraControl_->BindTransform(&node->transform_);
+
+                                    auto* ccPool = engineInstance_->mainScene_->registry_
+                                        .TryGetPool<CameraControllerComponent>();
+                                    if (ccPool)
+                                    {
+                                        auto* cc = ccPool->Get(e);
+                                        if (cc)
+                                            sceneCam->editorCameraControl_->BindComponent(cc);
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
                     }
                 }
+
+                // Only the primary camera (lowest depth) receives input
+                bool isPrimary = (sceneCam == sceneCameras.front());
+                sceneCam->editorCameraControl_->enabled =
+                    isPlaying && isFocused && isPrimary;
+
+                sceneCam->editorCameraControl_->Update(0.f);
             }
 
-            // Only controllable during play and when the game view is focused
-            bool isPlaying = playbackState_ == PlaybackState::Playing;
-            sceneCam->editorCameraControl_->enabled =
-                isPlaying && ImGui::IsWindowFocused(ImGuiFocusedFlags_None);
-
-            // Tick the control so it processes pan/zoom input before
-            // we compute matrices for this frame's render.
-            sceneCam->editorCameraControl_->Update(0.f);
-
-            // Compute the scene camera's projection & view matrices.
-            glm::mat4 proj = sceneCam->editorCameraControl_->ComputeProjectionMatrix(0.f);
-            glm::mat4 view = sceneCam->editorCameraControl_->ComputeViewMatrix(0.f);
-
-            // Render the scene from the game camera into the game-view FBO
-            engineInstance_->renderEngine_.RenderToTarget(
-                gameViewFBO_, proj, view, 0.f);
+            // Render all scene cameras into the game-view FBO
+            engineInstance_->renderEngine_.RenderGameView(gameViewFBO_, 0.f);
 
             // --- Display the game-view FBO -------------------------------
             const float targetAspect = static_cast<float>(preset.width)
@@ -1832,9 +2139,12 @@ namespace ettycc
                 static_cast<intptr_t>(gameViewFBO_->GetTextureId())),
                 ImVec2(viewW, viewH), ImVec2(0, 1), ImVec2(1, 0));
 
-            // Resolution label overlay
+            // Resolution label overlay + camera count
             char resLabel[64];
-            snprintf(resLabel, sizeof(resLabel), "%dx%d", preset.width, preset.height);
+            snprintf(resLabel, sizeof(resLabel), "%dx%d (%d cam%s)",
+                     preset.width, preset.height,
+                     static_cast<int>(sceneCameras.size()),
+                     sceneCameras.size() > 1 ? "s" : "");
             ImVec2 imgMin = ImGui::GetItemRectMin();
             ImGui::GetWindowDrawList()->AddText(
                 ImVec2(imgMin.x + 6.f, imgMin.y + 4.f),
@@ -1842,11 +2152,11 @@ namespace ettycc
         }
         else
         {
-            // No scene camera -- show helpful message
+            // No active scene camera
             ImVec2 avail = ImGui::GetContentRegionAvail();
-            const char* msg = "No scene camera found.\n"
-                              "Add a Camera component to a scene node\n"
-                              "to see the game preview.";
+            const char* msg = "No active game camera.\n"
+                              "Enable a Camera component or add one\n"
+                              "to a scene node to see the game preview.";
             ImVec2 textSize = ImGui::CalcTextSize(msg);
             ImGui::SetCursorPos(ImVec2((avail.x - textSize.x) * 0.5f,
                                        (avail.y - textSize.y) * 0.5f));
@@ -1878,6 +2188,90 @@ namespace ettycc
         }
     }
 
+    // -------------------------------------------------------------------------
+    // ASSET INSPECTOR HELPERS
+    // -------------------------------------------------------------------------
+
+    void DevEditor::DrawAssetInspectorHeader()
+    {
+        const auto& desc = GetDescOrFallback(engineInstance_->assetDescriptors_, selectedAsset_.type);
+
+        // -- Title row with colored type badge --
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertFloat4ToU32(desc.color));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertFloat4ToU32(desc.color));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertFloat4ToU32(desc.color));
+        ImGui::SmallButton(desc.label);
+        ImGui::PopStyleColor(3);
+        ImGui::SameLine();
+        ImGui::TextUnformatted(selectedAsset_.name.c_str());
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // -- Info table --
+        const float labelW = 80.f;
+
+        ImGui::TextDisabled("Type");
+        ImGui::SameLine(labelW);
+        ImGui::TextColored(desc.color, "%s", desc.displayName);
+
+        ImGui::TextDisabled("Size");
+        ImGui::SameLine(labelW);
+        if (selectedAsset_.fileSize < 1024)
+            ImGui::Text("%llu B", static_cast<unsigned long long>(selectedAsset_.fileSize));
+        else if (selectedAsset_.fileSize < 1024 * 1024)
+            ImGui::Text("%.1f KB", static_cast<double>(selectedAsset_.fileSize) / 1024.0);
+        else
+            ImGui::Text("%.2f MB", static_cast<double>(selectedAsset_.fileSize) / (1024.0 * 1024.0));
+
+        ImGui::TextDisabled("Path");
+        ImGui::SameLine(labelW);
+        ImGui::TextWrapped("%s", ComputeRelativePath(selectedAsset_.path).c_str());
+    }
+
+    void DevEditor::DrawAssetInspectorActions()
+    {
+        ImGui::Spacing();
+        float btnW = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3.f;
+
+        if (ImGui::Button("Copy Path", ImVec2(btnW, 0)))
+            ImGui::SetClipboardText(selectedAsset_.path.c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Reveal", ImVec2(btnW, 0)))
+        {
+#ifdef _WIN32
+            std::string winPath = selectedAsset_.path;
+            std::replace(winPath.begin(), winPath.end(), '/', '\\');
+            std::string param = "/select,\"" + winPath + "\"";
+            ShellExecuteA(NULL, "open", "explorer.exe", param.c_str(), NULL, SW_SHOWNORMAL);
+#endif
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Refresh", ImVec2(btnW, 0)))
+            assetsScanned_ = false;
+    }
+
+    void DevEditor::DrawAssetInspectorPreview()
+    {
+        // Delegate to the descriptor's inspect function
+        const auto* desc = engineInstance_->assetDescriptors_.Find(selectedAsset_.type);
+        if (desc && desc->inspectFn)
+        {
+            AssetContext ctx;
+            ctx.engine       = engineInstance_.get();
+            ctx.absolutePath = selectedAsset_.path;
+            ctx.relativePath = ComputeRelativePath(selectedAsset_.path);
+            ctx.selected     = &selectedAsset_;
+            ctx.targetNode   = selectedNodes_.empty() ? nullptr : selectedNodes_.back();
+            desc->inspectFn(ctx);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // INSPECTOR
+    // -------------------------------------------------------------------------
+
     void DevEditor::ShowInspector()
     {
         ImGui::Begin("Inspector");
@@ -1885,82 +2279,19 @@ namespace ettycc
         // --- ASSET SELECTED ---
         if (inspectorSource_ == InspectorSource::Asset && selectedAsset_.active)
         {
-            ImGui::TextColored(GetAssetColor(selectedAsset_.type), "%s", GetAssetLabel(selectedAsset_.type));
-            ImGui::SameLine();
-            ImGui::Text("%s", selectedAsset_.name.c_str());
-            ImGui::Separator();
-
-            ImGui::TextDisabled("Type");
-            ImGui::SameLine(80);
-            ImGui::Text("%s", GetAssetTypeName(selectedAsset_.type));
-
-            ImGui::TextDisabled("Size");
-            ImGui::SameLine(80);
-            if (selectedAsset_.fileSize < 1024)
-                ImGui::Text("%llu B", static_cast<unsigned long long>(selectedAsset_.fileSize));
-            else
-                ImGui::Text("%.1f KB", static_cast<double>(selectedAsset_.fileSize) / 1024.0);
-
-            ImGui::TextDisabled("Path");
-            ImGui::SameLine(80);
-            ImGui::TextWrapped("%s", selectedAsset_.path.c_str());
-
-            if (selectedAsset_.type == AssetType::Template)
-            {
-                ImGui::Spacing();
-                ImGui::TextWrapped("Drag onto the viewport to spawn this prefab into the scene.");
-            }
-
-            if (selectedAsset_.type == AssetType::Audio)
-            {
-                ImGui::Spacing();
-                ImGui::TextWrapped("Audio clip -- add an Audio Source component to a scene node "
-                                   "and set 'Clip Path' to this file's path.");
-            }
-
-            if (selectedAsset_.type == AssetType::Material)
-            {
-                ImGui::Spacing();
-                ImGui::TextWrapped("Drag onto a sprite in the viewport or onto the inspector "
-                                   "to assign this material.");
-
-                // Try to show material preview (shader + texture info)
-                if (assetBuilder_)
-                {
-                    auto mat = assetBuilder_->LoadMaterial(selectedAsset_.path);
-                    if (mat.IsValid())
-                    {
-                        ImGui::Spacing();
-                        ImGui::SeparatorText("Material Properties");
-                        ImGui::TextDisabled("Shader");
-                        ImGui::SameLine(80);
-                        ImGui::Text("%s", mat.shader.c_str());
-                        ImGui::TextDisabled("Texture");
-                        ImGui::SameLine(80);
-                        ImGui::Text("%s", mat.texture.c_str());
-
-                        // Texture preview
-                        auto globals = GetDependency(Globals);
-                        auto cache = GetDependency(ResourceCache);
-                        if (globals && cache && !mat.texture.empty())
-                        {
-                            std::string absPath = globals->GetWorkingFolder() + mat.texture;
-                            GLuint texHandle = cache->GetTexture(absPath);
-                            if (texHandle != 0)
-                            {
-                                float previewSize = ImGui::GetContentRegionAvail().x;
-                                ImGui::Image(reinterpret_cast<ImTextureID>(
-                                    static_cast<intptr_t>(texHandle)),
-                                    ImVec2(previewSize, previewSize));
-                            }
-                        }
-                    }
-                }
-            }
+            DrawAssetInspectorHeader();
+            DrawAssetInspectorActions();
 
             ImGui::Spacing();
             ImGui::Separator();
-            ImGui::TextColored({1.0f, 0.6f, 0.15f, 1.0f}, "[ Source: Asset ]");
+            ImGui::Spacing();
+
+            DrawAssetInspectorPreview();
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            const auto& desc = GetDescOrFallback(engineInstance_->assetDescriptors_, selectedAsset_.type);
+            ImGui::TextColored(desc.color, "[ Source: Asset - %s ]", desc.displayName);
             ImGui::End();
             return;
         }
@@ -2084,7 +2415,10 @@ namespace ettycc
 
             if (ImGui::BeginPopup("add_component_popup"))
             {
-                DrawAddComponentMenu(selectedNode);
+                ContextMenuState acState;
+                acState.engine     = engineInstance_.get();
+                acState.targetNode = selectedNode;
+                EditorContextMenu::DrawAddComponentMenu(acState);
                 ImGui::EndPopup();
             }
 
@@ -2167,23 +2501,21 @@ namespace ettycc
             }
         }
 
-        // -- Material drag-drop target on the inspector window ----------------
-        // Dropping a material anywhere on the inspector assigns it to the first
-        // Sprite renderable on the selected node (Unity-style).
+        // -- Asset drag-drop target on the inspector (dispatched via descriptors) --
         if (ImGui::BeginDragDropTarget())
         {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MATERIAL_ASSET"))
+            for (const auto& desc : engineInstance_->assetDescriptors_.All())
             {
-                std::string matPath(static_cast<const char*>(payload->Data),
-                                    payload->DataSize - 1);
-                if (auto* rn = selectedNode->GetComponent<RenderableNode>())
+                if (desc.extraPayloadType.empty() || !desc.inspectorDropFn) continue;
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(desc.extraPayloadType.c_str()))
                 {
-                    if (auto* spr = dynamic_cast<Sprite*>(rn->renderable_.get()))
-                    {
-                        spr->SetMaterialPath(matPath);
-                        spdlog::info("[DevEditor] Material '{}' assigned to '{}' via inspector",
-                                     matPath, selectedNode->GetName());
-                    }
+                    std::string data(static_cast<const char*>(payload->Data),
+                                     payload->DataSize - 1);
+                    AssetContext ctx;
+                    ctx.engine       = engineInstance_.get();
+                    ctx.relativePath = data;
+                    ctx.targetNode   = selectedNode;
+                    desc.inspectorDropFn(ctx);
                 }
             }
             ImGui::EndDragDropTarget();
@@ -2314,77 +2646,125 @@ namespace ettycc
     // SCENE CONTEXT MENU / NODES
     // -------------------------------------------------------------------------
 
-    // -- Centralized Add-Component menu --------------------------------------
-    // Shared popup content drawn by inspector, hierarchy, and viewport.
-    void DevEditor::DrawAddComponentMenu(const std::shared_ptr<SceneNode>& node)
-    {
-        if (!node) return;
-
-        const auto& entries = engineInstance_->componentRegistry_.Entries();
-        std::string lastCategory;
-
-        for (const auto& entry : entries)
-        {
-            // Insert separator between categories
-            if (!lastCategory.empty() && entry.category != lastCategory)
-                ImGui::Separator();
-            lastCategory = entry.category;
-
-            bool has = entry.hasFn(node);
-            if (ImGui::MenuItem(entry.displayLabel.c_str(), nullptr, false, !has))
-                entry.addFn(node, *engineInstance_);
-        }
-    }
-
-    // -- Centralized node context menu ----------------------------------------
+    // -- Unified context menu builder -----------------------------------------
     static bool showPopup = false;
-    void DevEditor::DrawNodeContextMenu(const std::shared_ptr<SceneNode>& node, bool editorExtras)
+
+    ContextMenuState DevEditor::BuildContextMenuState(
+        ContextMenuSource source,
+        const std::shared_ptr<SceneNode>& node,
+        bool editorExtras)
     {
-        if (!node) return;
+        ContextMenuState state;
+        state.source       = source;
+        state.engine       = engineInstance_.get();
+        state.targetNode   = node;
+        state.isRootNode   = node && (node == engineInstance_->mainScene_->root_node_);
+        state.showEditorExtras = editorExtras;
+        state.selectedAsset = (selectedAsset_.active) ? &selectedAsset_ : nullptr;
 
-        if (ImGui::BeginMenu("Add"))
-        {
-            if (ImGui::MenuItem("Empty Node"))
-                showPopup = true;
-            ImGui::Separator();
-            DrawAddComponentMenu(node);
-            ImGui::EndMenu();
-        }
-
-        ImGui::Separator();
-
-        if (ImGui::MenuItem("Duplicate"))
-            DuplicateNode(node);
-
-        bool isRoot = (node == engineInstance_->mainScene_->root_node_);
-        if (ImGui::MenuItem("Remove", nullptr, false, !isRoot))
-        {
-            if (node->parent_)
+        state.onReloadScene = [this]() { ReloadScene(); };
+        state.onNewNode     = []() { showPopup = true; };
+        state.onDuplicate   = [this](const std::shared_ptr<SceneNode>& n) { DuplicateNode(n); };
+        state.onRemove      = [this](const std::shared_ptr<SceneNode>& n) {
+            if (n && n->parent_)
             {
-                CleanupNodeRenderables(node);
-                node->parent_->RemoveNode(node->GetId());
+                CleanupNodeRenderables(n);
+                n->parent_->RemoveNode(n->GetId());
                 selectedNodes_.clear();
                 inspectorSource_ = InspectorSource::None;
             }
-        }
-
-        ImGui::Separator();
-
-        bool alreadyFollowing = isFollowing_ && followTarget_.lock() == node;
-        if (ImGui::MenuItem("Follow", nullptr, alreadyFollowing))
-        {
+        };
+        state.onFollow = [this](const std::shared_ptr<SceneNode>& n) {
+            bool alreadyFollowing = isFollowing_ && followTarget_.lock() == n;
             if (alreadyFollowing)
                 StopFollowing();
             else
-                StartFollowing(node);
+                StartFollowing(n);
+        };
+        state.onFocus = [this](const std::shared_ptr<SceneNode>& n) {
+            FocusCameraOnNode(n);
+        };
+        state.isFollowing = [this]() {
+            return isFollowing_ && followTarget_.lock() != nullptr;
+        };
+
+        return state;
+    }
+
+    void DevEditor::DrawContextMenu(const char* popupId, ContextMenuSource source,
+                                     const std::shared_ptr<SceneNode>& node,
+                                     bool editorExtras)
+    {
+        if (ImGui::BeginPopup(popupId))
+        {
+            auto state = BuildContextMenuState(source, node, editorExtras);
+            EditorContextMenu::Draw(state);
+            ImGui::EndPopup();
+        }
+    }
+
+    // -- Viewport drag-drop handler (uses descriptor registry) ----------------
+    void DevEditor::HandleViewportDragDrop()
+    {
+        if (!ImGui::BeginDragDropTarget()) return;
+
+        // Generic ASSET_ENTRY payload -> dispatch via descriptor
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_ENTRY"))
+        {
+            std::string path(static_cast<const char*>(payload->Data), payload->DataSize - 1);
+            AssetType dropType = engineInstance_->assetDescriptors_.Classify(std::filesystem::path(path));
+            const auto* desc = engineInstance_->assetDescriptors_.Find(dropType);
+
+            if (desc && desc->viewportDropFn)
+            {
+                AssetContext ctx;
+                ctx.engine       = engineInstance_.get();
+                ctx.absolutePath = path;
+                ctx.relativePath = ComputeRelativePath(path);
+                ctx.targetNode   = selectedNodes_.empty() ? nullptr : selectedNodes_.back();
+                desc->viewportDropFn(ctx);
+            }
+            else
+            {
+                const auto& d = GetDescOrFallback(engineInstance_->assetDescriptors_, dropType);
+                spdlog::warn("[DevEditor] Drop type '{}' not handled yet", d.displayName);
+            }
         }
 
-        if (editorExtras)
+        // Typed payloads from descriptors (e.g. MATERIAL_ASSET)
+        for (const auto& desc : engineInstance_->assetDescriptors_.All())
         {
-            ImGui::Separator();
-            if (ImGui::MenuItem("Reload Scene"))
-                ReloadScene();
+            if (desc.extraPayloadType.empty()) continue;
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(desc.extraPayloadType.c_str()))
+            {
+                std::string data(static_cast<const char*>(payload->Data), payload->DataSize - 1);
+                if (desc.viewportDropFn)
+                {
+                    AssetContext ctx;
+                    ctx.engine       = engineInstance_.get();
+                    ctx.relativePath = data;
+                    ctx.targetNode   = selectedNodes_.empty() ? nullptr : selectedNodes_.back();
+                    desc.viewportDropFn(ctx);
+                }
+            }
         }
+
+        // Sprite shape drag-drop from Sprite Editor (non-asset, kept here)
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SPRITE_SHAPE"))
+        {
+            const SpriteShape* shape = *static_cast<const SpriteShape* const*>(payload->Data);
+            auto sprite = std::make_shared<Sprite>("images/not_found_texture.png");
+            sprite->SetShape(*shape);
+
+            auto node = std::make_shared<SceneNode>("Sprite_" + shape->name);
+            node->AddComponent(RenderableNode(sprite));
+
+            engineInstance_->mainScene_->root_node_->AddChild(node);
+            engineInstance_->renderEngine_.AddRenderable(sprite);
+            spdlog::info("[DevEditor] Spawned sprite with shape '{}'", shape->name);
+        }
+
+        ImGui::EndDragDropTarget();
     }
 
     // -- Remove component by type name ----------------------------------------
@@ -2460,8 +2840,9 @@ namespace ettycc
         inspectorSource_ = InspectorSource::None;
         selectedAsset_.active = false;
 
-        engineInstance_->CreateEmptyScene("untitled");
-        engineInstance_->InitEditorCamera();
+        engineInstance_->LoadBuiltInScene();
+
+        // engineInstance_->InitEditorCamera(); // TODO: engine initialization should be keept on the engine class
 
         spdlog::info("[DevEditor] New scene created");
     }
@@ -2492,7 +2873,7 @@ namespace ettycc
         if (!lastScene.empty())
             engineInstance_->LoadScene(lastScene, false);
         else
-            engineInstance_->LoadDefaultScene();
+            engineInstance_->LoadBuiltInScene();
 
         // Re-init editor camera and restore previous view
         engineInstance_->InitEditorCamera();
@@ -2541,6 +2922,10 @@ namespace ettycc
     {
         auto treeNodeName = rootNode->GetName();
         const char* nodeName = treeNodeName.empty() ? "UNNAMED" : treeNodeName.c_str();
+
+        // Use node pointer as unique ImGui ID so nodes with duplicate names
+        // get distinct popups, drag-drop targets, etc.
+        ImGui::PushID(rootNode.get());
 
         ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow
                                      | ImGuiTreeNodeFlags_OpenOnDoubleClick
@@ -2633,7 +3018,8 @@ namespace ettycc
 
         if (ImGui::BeginPopupContextItem())
         {
-            DrawNodeContextMenu(rootNode);
+            auto state = BuildContextMenuState(ContextMenuSource::Hierarchy, rootNode, false);
+            EditorContextMenu::Draw(state);
             ImGui::EndPopup();
         }
 
@@ -2645,6 +3031,8 @@ namespace ettycc
                 RenderSceneNode(child, selectedNodes, depth + 1);
             ImGui::TreePop();
         }
+
+        ImGui::PopID();
     }
 
     void DevEditor::RenderSceneTree()
@@ -2690,39 +3078,103 @@ namespace ettycc
         }
     }
 
-    static const int MAX_SAMPLES = 32;
-    static float values[MAX_SAMPLES] = {0.0f};
-    static int sampleIndex = 0;
-    static float plotStep = 0.0f;
+    // -- FPS / frame-time ring buffer (per-frame sampling) --------------------
+    static constexpr int kFpsHistorySize = 240; // ~4 seconds at 60fps
+    static float fpsHistory[kFpsHistorySize]       = {};
+    static float frameTimeHistory[kFpsHistorySize] = {};
+    static int   fpsHistoryOffset = 0;
 
     void DevEditor::ShowDebugger()
     {
         auto engineInstance = GetDependency(Engine);
         ImGui::Begin("Debug");
 
+        // Sample every frame
+        const float dt  = engineInstance->appInstance_->GetDeltaTime();
+        const float fps = (dt > 0.f) ? 1.0f / dt : 0.f;
+        fpsHistory[fpsHistoryOffset]       = fps;
+        frameTimeHistory[fpsHistoryOffset] = dt * 1000.f; // ms
+        fpsHistoryOffset = (fpsHistoryOffset + 1) % kFpsHistorySize;
+
         if (ImGui::BeginTabBar("tools", ImGuiTabBarFlags_Reorderable))
         {
             if (ImGui::BeginTabItem("Stats"))
             {
+                const float avail = ImGui::GetContentRegionAvail().x;
+
+                // -- Compute stats over history --------------------------------
+                float minFps = 1e9f, maxFps = 0.f, avgFps = 0.f;
+                float minMs  = 1e9f, maxMs  = 0.f, avgMs  = 0.f;
+                for (int i = 0; i < kFpsHistorySize; ++i)
+                {
+                    float f = fpsHistory[i], m = frameTimeHistory[i];
+                    if (f > 0.f) { minFps = glm::min(minFps, f); maxFps = glm::max(maxFps, f); avgFps += f; }
+                    if (m > 0.f) { minMs  = glm::min(minMs, m);  maxMs  = glm::max(maxMs, m);  avgMs  += m; }
+                }
+                avgFps /= kFpsHistorySize;
+                avgMs  /= kFpsHistorySize;
+
+                // -- Header stats ---------------------------------------------
+                ImGui::TextColored({0.4f, 1.f, 0.6f, 1.f}, "%.0f FPS", fps);
+                ImGui::SameLine(100);
+                ImGui::Text("%.2f ms", dt * 1000.f);
+                ImGui::SameLine(200);
+                ImGui::TextDisabled("avg %.0f  min %.0f  max %.0f", avgFps, minFps, maxFps);
+
+                // -- FPS graph (prettified: colored PlotLines + overlay) -------
+                ImGui::Spacing();
+                char fpsOverlay[48];
+                snprintf(fpsOverlay, sizeof(fpsOverlay), "%.0f fps", fps);
+
+                ImVec4 fpsColor = (fps >= 55.f)  ? ImVec4(0.3f, 1.f, 0.5f, 1.f) :
+                                  (fps >= 30.f)  ? ImVec4(1.f, 0.85f, 0.2f, 1.f) :
+                                                   ImVec4(1.f, 0.3f, 0.3f, 1.f);
+                ImGui::PushStyleColor(ImGuiCol_PlotLines, ImGui::ColorConvertFloat4ToU32(fpsColor));
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(20, 20, 30, 200));
+                ImGui::PlotLines("##fps", fpsHistory, kFpsHistorySize,
+                                 fpsHistoryOffset, fpsOverlay,
+                                 0.f, maxFps * 1.15f,
+                                 ImVec2(avail, 80.f));
+                ImGui::PopStyleColor(2);
+
+                // -- Frame time graph -----------------------------------------
+                char msOverlay[48];
+                snprintf(msOverlay, sizeof(msOverlay), "%.2f ms", dt * 1000.f);
+
+                ImVec4 msColor = (dt * 1000.f <= 18.f) ? ImVec4(0.3f, 0.8f, 1.f, 1.f) :
+                                 (dt * 1000.f <= 33.f) ? ImVec4(1.f, 0.85f, 0.2f, 1.f) :
+                                                         ImVec4(1.f, 0.3f, 0.3f, 1.f);
+                ImGui::PushStyleColor(ImGuiCol_PlotLines, ImGui::ColorConvertFloat4ToU32(msColor));
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(20, 20, 30, 200));
+                ImGui::PlotLines("##frametime", frameTimeHistory, kFpsHistorySize,
+                                 fpsHistoryOffset, msOverlay,
+                                 0.f, maxMs * 1.15f,
+                                 ImVec2(avail, 60.f));
+                ImGui::PopStyleColor(2);
+
+                ImGui::TextDisabled("Frame time:  avg %.2f ms  min %.2f ms  max %.2f ms",
+                                    avgMs, minMs, maxMs);
+
+                // -- SpriteBatch rendering stats ------------------------------
+                ImGui::SeparatorText("Rendering");
+                const auto& sbStats = engineInstance->renderEngine_.GetSpriteBatchStats();
+                ImGui::Text("Draw calls:  %d", sbStats.drawCalls);
+                ImGui::SameLine(180);
+                ImGui::Text("Sprites:  %d", sbStats.spriteCount);
+                ImGui::Text("Vertices:    %d", sbStats.vertexCount);
+                ImGui::SameLine(180);
+                ImGui::Text("Triangles: %d", sbStats.triangleCount);
+
+                ImGui::Spacing();
+                ImGui::Text("CPU build:   %.2f ms", sbStats.cpuBuildMs);
+                ImGui::SameLine(180);
+                ImGui::Text("CPU upload: %.2f ms", sbStats.cpuUploadMs);
+                ImGui::Text("GPU time:    %.2f ms", sbStats.gpuMs);
+
+                // -- Mouse position -------------------------------------------
+                ImGui::Spacing();
                 auto mousepos = engineInstance->inputSystem_.GetMousePos();
-                ImGui::Text("Delta time: %.4f",  engineInstance->appInstance_->GetDeltaTime());
-                ImGui::Text("Mouse x: [%i] y:[%i]", mousepos.x, mousepos.y);
-                ImGui::Text("FPS: %.4f", (1.0f / engineInstance->appInstance_->GetDeltaTime()));
-
-                plotStep += engineInstance->appInstance_->GetDeltaTime();
-                ImGui::PlotHistogram("##HISTOGRAM", values, IM_ARRAYSIZE(values));
-
-                if (sampleIndex < MAX_SAMPLES && plotStep >= 1)
-                {
-                    values[sampleIndex] = 1.0f / engineInstance->appInstance_->GetDeltaTime();
-                    sampleIndex++;
-                    plotStep = 0;
-                }
-                else if (sampleIndex >= MAX_SAMPLES)
-                {
-                    for (int i = 0; i < MAX_SAMPLES; i++) values[i] = 0;
-                    sampleIndex = 0;
-                }
+                ImGui::TextDisabled("Mouse: %d, %d", mousepos.x, mousepos.y);
 
                 ImGui::EndTabItem();
             }
@@ -2798,7 +3250,7 @@ namespace ettycc
                 // network scene immediately so both peers start in sync.
                 if (prevNetState != NetState::CONNECTED && state == NetState::CONNECTED)
                 {
-                    engineInstance_->LoadNetworkScene();
+                    engineInstance_->NetworkScene();
                     engineInstance_->InitEditorCamera();
                 }
                 prevNetState = state;
@@ -2921,8 +3373,8 @@ namespace ettycc
 
                     // Find max across both histories for a shared Y scale
                     float maxBw = 1.f; // never show a zero-scale graph
-                    for (float v : nm.GetSendHistory()) maxBw = std::max(maxBw, v);
-                    for (float v : nm.GetRecvHistory()) maxBw = std::max(maxBw, v);
+                    for (float v : nm.GetSendHistory()) maxBw = glm::max(maxBw, v);
+                    for (float v : nm.GetRecvHistory()) maxBw = glm::max(maxBw, v);
 
                     fmtBps(bw.sendBps, tmp, sizeof(tmp));
                     ImGui::TextColored({0.3f, 0.9f, 0.4f, 1.f}, "▲ Send  %s", tmp);
@@ -2983,34 +3435,37 @@ namespace ettycc
             {
                 auto& td  = engineInstance_->threadDebugInfo_;
                 int   off = td.historyOffset;
+                const auto& sbStats = engineInstance->renderEngine_.GetSpriteBatchStats();
 
                 const float avail = ImGui::GetContentRegionAvail().x;
 
                 // -- Per-channel stat table ------------------------------------
                 ImGui::SeparatorText("Channel Timings");
 
-                struct Row { const char* label; const ChannelSample* s; ImVec4 col; };
+                struct Row { const char* label; float ms; bool async; ImVec4 col; };
                 Row rows[] = {
-                    { "Physics",     &td.physics,    {0.55f, 0.85f, 0.40f, 1.f} },
-                    { "Network",     &td.network,    {0.40f, 0.90f, 0.80f, 1.f} },
-                    { "MAIN",        &td.main,       {0.30f, 0.65f, 1.00f, 1.f} },
-                    { "RENDERING",   &td.rendering,  {1.00f, 0.55f, 0.20f, 1.f} },
-                    { "AUDIO",       &td.audio,      {0.90f, 0.40f, 0.85f, 1.f} },
+                    { "Physics",     td.physics.durationMs,    td.physics.async,    {0.55f, 0.85f, 0.40f, 1.f} },
+                    { "Network",     td.network.durationMs,    td.network.async,    {0.40f, 0.90f, 0.80f, 1.f} },
+                    { "MAIN",        td.main.durationMs,       td.main.async,       {0.30f, 0.65f, 1.00f, 1.f} },
+                    { "RENDERING",   td.rendering.durationMs,  td.rendering.async,  {1.00f, 0.55f, 0.20f, 1.f} },
+                    { "  CPU build", sbStats.cpuBuildMs,        false,               {1.00f, 0.70f, 0.35f, 1.f} },
+                    { "  CPU upload",sbStats.cpuUploadMs,       false,               {1.00f, 0.80f, 0.50f, 1.f} },
+                    { "  GPU",       sbStats.gpuMs,             false,               {0.95f, 0.40f, 0.15f, 1.f} },
+                    { "AUDIO",       td.audio.durationMs,      td.audio.async,      {0.90f, 0.40f, 0.85f, 1.f} },
                 };
 
                 if (ImGui::BeginTable("##threadtable", 4,
                         ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                         ImGuiTableFlags_SizingFixedFit))
                 {
-                    ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthFixed, 100.f);
-                    ImGui::TableSetupColumn("ms",      ImGuiTableColumnFlags_WidthFixed,  60.f);
-                    ImGui::TableSetupColumn("Thread",  ImGuiTableColumnFlags_WidthFixed,  70.f);
+                    ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthFixed, 110.f);
+                    ImGui::TableSetupColumn("ms",      ImGuiTableColumnFlags_WidthFixed,  65.f);
+                    ImGui::TableSetupColumn("Thread",  ImGuiTableColumnFlags_WidthFixed,  55.f);
                     ImGui::TableSetupColumn("Bar",     ImGuiTableColumnFlags_WidthStretch);
                     ImGui::TableHeadersRow();
 
-                    // find max for bar scaling
                     float maxMs = 0.1f;
-                    for (auto& r : rows) maxMs = std::max(maxMs, r.s->durationMs);
+                    for (auto& r : rows) maxMs = glm::max(maxMs, r.ms);
 
                     for (auto& r : rows)
                     {
@@ -3019,61 +3474,72 @@ namespace ettycc
                         ImGui::TextColored(r.col, "%s", r.label);
 
                         ImGui::TableSetColumnIndex(1);
-                        ImGui::Text("%.2f", r.s->durationMs);
+                        ImGui::Text("%.2f", r.ms);
 
                         ImGui::TableSetColumnIndex(2);
-                        ImGui::TextDisabled(r.s->async ? "worker" : "main");
+                        if (r.label[0] == ' ')
+                            ImGui::TextDisabled("--");
+                        else
+                            ImGui::TextDisabled(r.async ? "worker" : "main");
 
                         ImGui::TableSetColumnIndex(3);
-                        float barW = (r.s->durationMs / maxMs) *
-                                     ImGui::GetContentRegionAvail().x;
+                        float barW = glm::max(1.f, (r.ms / maxMs) *
+                                     ImGui::GetContentRegionAvail().x);
                         ImVec2 p = ImGui::GetCursorScreenPos();
+                        ImU32 barCol = ImGui::ColorConvertFloat4ToU32(r.col);
                         ImGui::GetWindowDrawList()->AddRectFilled(
-                            p, { p.x + barW, p.y + 12.f },
-                            ImGui::ColorConvertFloat4ToU32(r.col));
+                            p, { p.x + barW, p.y + 12.f }, barCol, 2.f);
                         ImGui::Dummy({ ImGui::GetContentRegionAvail().x, 12.f });
                     }
                     ImGui::EndTable();
                 }
 
+                // -- Summary line ---------------------------------------------
                 ImGui::Spacing();
-                ImGui::Text("Update phase:  %.2f ms", td.updatePhaseMs);
-                ImGui::SameLine(180);
-                ImGui::Text("Present phase: %.2f ms", td.presentPhaseMs);
-                ImGui::Text("Frame total:   %.2f ms  (%.1f fps)",
-                            td.updatePhaseMs + td.presentPhaseMs,
-                            td.updatePhaseMs + td.presentPhaseMs > 0.f
-                                ? 1000.f / (td.updatePhaseMs + td.presentPhaseMs)
-                                : 0.f);
-
-                // -- Timeline (two horizontal rows: main / worker) -------------
-                ImGui::SeparatorText("Frame Timeline  (this frame)");
-                ImGui::TextDisabled("Main:       [Net][  MAIN  ] ... [  RENDERING  ]");
-                ImGui::TextDisabled("Pool:                               [ PHYS ][ AUD ]");
-                ImGui::TextDisabled("Net worker: [========= polling =========]");
-                ImGui::Spacing();
-
                 float total = td.updatePhaseMs + td.presentPhaseMs;
+                ImGui::Text("Update: %.2f ms", td.updatePhaseMs);
+                ImGui::SameLine(140);
+                ImGui::Text("Present: %.2f ms", td.presentPhaseMs);
+                ImGui::SameLine(290);
+                ImVec4 totalCol = (total <= 16.7f) ? ImVec4(0.3f, 1.f, 0.5f, 1.f) :
+                                  (total <= 33.3f) ? ImVec4(1.f, 0.85f, 0.2f, 1.f) :
+                                                     ImVec4(1.f, 0.3f, 0.3f, 1.f);
+                ImGui::TextColored(totalCol, "Total: %.2f ms (%.0f fps)",
+                                   total, total > 0.f ? 1000.f / total : 0.f);
+
+                // -- Rendering stats ------------------------------------------
+                ImGui::SeparatorText("Rendering Stats");
+                ImGui::Text("Draw calls: %d", sbStats.drawCalls);
+                ImGui::SameLine(140);
+                ImGui::Text("Sprites: %d", sbStats.spriteCount);
+                ImGui::SameLine(290);
+                ImGui::Text("Tris: %d  Verts: %d", sbStats.triangleCount, sbStats.vertexCount);
+
+                // -- Timeline (three horizontal rows: main / pool / net) ------
+                ImGui::SeparatorText("Frame Timeline");
+
                 if (total > 0.f)
                 {
                     const float tlW  = avail - 8.f;
-                    const float rowH = 18.f;
-                    const float gap  = 4.f;
+                    const float rowH = 20.f;
+                    const float gap  = 3.f;
+                    const float lblW = 55.f;
 
                     ImDrawList* dl   = ImGui::GetWindowDrawList();
                     ImVec2 origin    = ImGui::GetCursorScreenPos();
+                    origin.x += lblW;
+                    float barArea = tlW - lblW;
 
                     auto drawSegment = [&](float xStart, float dur, ImVec4 col,
                                           const char* lbl, float rowY)
                     {
-                        float x0 = origin.x + (xStart / total) * tlW;
-                        float x1 = origin.x + ((xStart + dur)  / total) * tlW;
+                        float x0 = origin.x + (xStart / total) * barArea;
+                        float x1 = origin.x + ((xStart + dur)  / total) * barArea;
                         if (x1 <= x0 + 1.f) x1 = x0 + 2.f;
-                        ImU32 c = ImGui::ColorConvertFloat4ToU32(col);
+                        ImU32 c  = ImGui::ColorConvertFloat4ToU32(col);
+                        ImU32 bg = ImGui::ColorConvertFloat4ToU32({col.x*0.3f, col.y*0.3f, col.z*0.3f, 0.6f});
                         dl->AddRectFilled({x0, rowY}, {x1, rowY + rowH}, c, 3.f);
-                        dl->AddRect      ({x0, rowY}, {x1, rowY + rowH},
-                                          IM_COL32(0,0,0,120), 3.f);
-                        // label if wide enough
+                        dl->AddRect      ({x0, rowY}, {x1, rowY + rowH}, IM_COL32(0,0,0,100), 3.f);
                         ImVec2 tsz = ImGui::CalcTextSize(lbl);
                         if (x1 - x0 > tsz.x + 4.f)
                             dl->AddText({x0 + (x1-x0-tsz.x)*0.5f,
@@ -3082,34 +3548,42 @@ namespace ettycc
                     };
 
                     float row0 = origin.y;
-                    float row1 = origin.y + rowH + gap;
-
+                    float row1 = row0 + rowH + gap;
                     float row2 = row1 + rowH + gap;
+                    float row3 = row2 + rowH + gap;
 
-                    // Main thread row: net-apply | MAIN | RENDERING
-                    float netApplyStart = 0.f;
-                    float mainStart     = netApplyStart + td.network.durationMs;
-                    float renderOff     = td.updatePhaseMs; // rendering starts in PresentFrame
-                    drawSegment(netApplyStart, td.network.durationMs,  {0.40f,0.90f,0.80f,0.9f}, "Net",     row0);
-                    drawSegment(mainStart,     td.main.durationMs,     {0.30f,0.65f,1.00f,0.9f}, "MAIN",    row0);
-                    drawSegment(renderOff,     td.rendering.durationMs,{1.00f,0.55f,0.20f,0.9f}, "REND",    row0);
+                    // Row labels
+                    dl->AddText({origin.x - lblW, row0 + 3.f}, IM_COL32(180,180,180,200), "main");
+                    dl->AddText({origin.x - lblW, row1 + 3.f}, IM_COL32(180,180,180,200), "pool");
+                    dl->AddText({origin.x - lblW, row2 + 3.f}, IM_COL32(180,180,180,200), "GPU");
+                    dl->AddText({origin.x - lblW, row3 + 3.f}, IM_COL32(180,180,180,200), "net wk");
 
-                    // Worker row 1: physics step overlaps with rendering (pipelined)
-                    drawSegment(renderOff,  td.physics.durationMs,    {0.55f,0.85f,0.40f,0.9f}, "PHYS",    row1);
-                    // Worker row 1: audio also overlaps
-                    drawSegment(renderOff + td.physics.durationMs, td.audio.durationMs, {0.90f,0.40f,0.85f,0.9f}, "AUDIO", row1);
+                    // Row backgrounds
+                    ImU32 rowBg = IM_COL32(30, 30, 40, 100);
+                    for (float ry : {row0, row1, row2, row3})
+                        dl->AddRectFilled({origin.x, ry}, {origin.x + barArea, ry + rowH}, rowBg, 3.f);
 
-                    // Worker row 2: network worker (persistent, always running)
-                    // Show it as a thin continuous bar
-                    drawSegment(0.f, total, {0.40f,0.90f,0.80f,0.4f}, "NET POLL", row2);
+                    // Main thread: Net → MAIN → RENDERING
+                    float netStart  = 0.f;
+                    float mainStart = netStart + td.network.durationMs;
+                    float renderOff = td.updatePhaseMs;
+                    drawSegment(netStart,   td.network.durationMs,   {0.40f,0.90f,0.80f,0.9f}, "Net",  row0);
+                    drawSegment(mainStart,  td.main.durationMs,      {0.30f,0.65f,1.00f,0.9f}, "MAIN", row0);
+                    drawSegment(renderOff,  td.rendering.durationMs, {1.00f,0.55f,0.20f,0.9f}, "REND", row0);
 
-                    // Labels
-                    dl->AddText({origin.x, row0 + rowH + 2.f},  IM_COL32(180,180,180,160), "main");
-                    dl->AddText({origin.x, row1 + rowH + 2.f},  IM_COL32(180,180,180,160), "pool");
-                    dl->AddText({origin.x, row2 + rowH + 2.f},  IM_COL32(180,180,180,160), "net worker");
+                    // Pool: PHYS (overlaps with rendering) + AUDIO
+                    drawSegment(renderOff, td.physics.durationMs, {0.55f,0.85f,0.40f,0.9f}, "PHYS", row1);
+                    drawSegment(renderOff + td.physics.durationMs, td.audio.durationMs,
+                                {0.90f,0.40f,0.85f,0.9f}, "AUDIO", row1);
 
-                    // Advance cursor past the three rows + labels
-                    ImGui::Dummy({tlW, rowH * 3.f + gap * 2.f + 14.f});
+                    // GPU row: SpriteBatch GPU time
+                    if (sbStats.gpuMs > 0.f)
+                        drawSegment(renderOff, sbStats.gpuMs, {0.95f,0.40f,0.15f,0.9f}, "GPU", row2);
+
+                    // Net worker: continuous polling
+                    drawSegment(0.f, total, {0.40f,0.90f,0.80f,0.35f}, "NET POLL", row3);
+
+                    ImGui::Dummy({tlW, rowH * 4.f + gap * 3.f + 4.f});
                 }
 
                 // -- Rolling sparkline histories -------------------------------
@@ -3118,24 +3592,25 @@ namespace ettycc
                 struct Plot { const char* lbl; const float* data; ImVec4 col; };
                 Plot plots[] = {
                     { "MAIN (ms)",      td.mainHistory.data(),      {0.30f, 0.65f, 1.00f, 1.f} },
-                    { "AUDIO (ms)",     td.audioHistory.data(),     {0.90f, 0.40f, 0.85f, 1.f} },
                     { "RENDERING (ms)", td.renderingHistory.data(), {1.00f, 0.55f, 0.20f, 1.f} },
+                    { "AUDIO (ms)",     td.audioHistory.data(),     {0.90f, 0.40f, 0.85f, 1.f} },
                     { "Frame (ms)",     td.frameHistory.data(),     {0.85f, 0.85f, 0.20f, 1.f} },
                 };
                 for (auto& p : plots)
                 {
                     float maxV = 0.1f;
                     for (int i = 0; i < ThreadDebugInfo::kHistorySize; ++i)
-                        maxV = std::max(maxV, p.data[i]);
+                        maxV = glm::max(maxV, p.data[i]);
                     char overlay[32];
-                    snprintf(overlay, sizeof(overlay), "%.2f ms", p.data[
-                        (off + ThreadDebugInfo::kHistorySize - 1) % ThreadDebugInfo::kHistorySize]);
+                    int lastIdx = (off + ThreadDebugInfo::kHistorySize - 1) % ThreadDebugInfo::kHistorySize;
+                    snprintf(overlay, sizeof(overlay), "%.2f ms", p.data[lastIdx]);
                     ImGui::PushStyleColor(ImGuiCol_PlotLines,
                                           ImGui::ColorConvertFloat4ToU32(p.col));
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(20, 20, 30, 200));
                     ImGui::PlotLines(p.lbl, p.data, ThreadDebugInfo::kHistorySize,
                                      off, overlay, 0.f, maxV * 1.2f,
-                                     ImVec2(avail, 45.f));
-                    ImGui::PopStyleColor();
+                                     ImVec2(avail, 40.f));
+                    ImGui::PopStyleColor(2);
                 }
 
                 ImGui::EndTabItem();
@@ -3161,17 +3636,9 @@ namespace ettycc
             pickerBuffer_->RenderPass(re.GetRenderingContext(), re.GetRenderables());
         }
 
-        // Re-add editor grid after scene load if needed, and apply visibility
+        // Apply grid visibility (grid lives in editor overlay, not renderables)
         if (engineInstance_->editorGrid_)
-        {
-            auto& renderables = engineInstance_->renderEngine_.GetRenderables();
-            bool found = std::find(renderables.begin(), renderables.end(),
-                                   engineInstance_->editorGrid_) != renderables.end();
-            if (!found)
-                engineInstance_->renderEngine_.AddRenderable(engineInstance_->editorGrid_);
-
             engineInstance_->editorGrid_->enabled = gameViewShowGrid_;
-        }
 
         // -- Playback step handling (once per frame) -------------------------
         if (stepRequested_)
@@ -3186,6 +3653,12 @@ namespace ettycc
         }
 
         ShowMenuBar();
+        ShowBuiltInScenePopup();
+
+        // Module-registered popups/windows
+        for (auto& popup : engineInstance_->editorExtensions_.Popups())
+            popup.callback(*engineInstance_);
+
         configurationsWindow_.Draw();
         ShowDockSpace();
         ShowDebugger();
@@ -3196,6 +3669,14 @@ namespace ettycc
         ShowAssetsView();
         buildPanel_.Draw();
         polygonEditor_.Draw(engineInstance_);
+
+
+        if (showStyleEditor_)
+        {
+            ImGui::Begin("Style Editor", &showStyleEditor_);
+            ImGui::ShowStyleEditor();
+            ImGui::End();
+        }
     }
 
     void DevEditor::Init()
@@ -3247,8 +3728,7 @@ namespace ettycc
                 badge::kRendering,
                 renderableHas,
                 [](const std::shared_ptr<SceneNode>& n, Engine& eng) {
-                    auto globals = GetDependency(Globals);
-                    const std::string tex = globals->Get(gk::prefix::SPRITES, gk::key::SPRITE_NOT_FOUND);
+                    const std::string tex = eng.assetRegistry_->GetSpritePath("not_found_texture");
                     auto sprite = std::make_shared<Sprite>(tex);
                     sprite->underylingTransform = n->transform_;
                     n->AddComponent<RenderableNode>(RenderableNode(sprite));
@@ -3377,12 +3857,377 @@ namespace ettycc
                 }
             });
         }
+
+        // -- Register Asset Descriptors ----------------------------------------
+        auto& ad = engineInstance_->assetDescriptors_;
+        auto abRef = assetBuilder_;  // capture shared_ptr for lambdas
+
+        // -- Source code preview helper (shared by Code & Shader & Config) ------
+        // Uses ImGuiColorTextEdit for syntax-highlighted, read-only preview.
+        auto sourcePreviewFn = [](const AssetContext& ctx) {
+            static TextEditor editor;
+            static std::string cachedPath;
+            static bool initialized = false;
+
+            if (!initialized)
+            {
+                editor.SetReadOnlyEnabled(true);
+                editor.SetShowWhitespacesEnabled(false);
+                editor.SetShowScrollbarMiniMapEnabled(false);
+                editor.SetShowMiniMapEnabled(false);
+                editor.SetLanguage(TextEditor::Language::Cpp());
+                editor.SetText("");
+                initialized = true;
+            }
+
+            if (ctx.absolutePath.empty()) return;
+
+            if (cachedPath != ctx.absolutePath)
+            {
+                cachedPath = ctx.absolutePath;
+
+                // Read via the asset system (avoids raw ifstream in UI code)
+                std::string content = AssetRegistry::ReadFile(ctx.absolutePath);
+                if (content.empty())
+                    content = "// unable to read file";
+
+                // Cap preview size to avoid heavy rendering
+                constexpr size_t kMaxBytes = 32 * 1024;
+                if (content.size() > kMaxBytes)
+                {
+                    content.resize(kMaxBytes);
+                    content += "\n\n... (truncated)\n";
+                }
+
+                // Detect language from extension
+                std::string ext = std::filesystem::path(ctx.absolutePath).extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+                const TextEditor::Language* lang = TextEditor::Language::Cpp(); // safe default
+                if (ext == ".c")
+                    lang = TextEditor::Language::C();
+                else if (ext == ".cs")
+                    lang = TextEditor::Language::Cs();
+                else if (ext == ".glsl" || ext == ".vert" || ext == ".frag" || ext == ".geom" || ext == ".comp")
+                    lang = TextEditor::Language::Glsl();
+                else if (ext == ".hlsl" || ext == ".fx")
+                    lang = TextEditor::Language::Hlsl();
+                else if (ext == ".json" || ext == ".csv")
+                    lang = TextEditor::Language::Json();
+                else if (ext == ".lua")
+                    lang = TextEditor::Language::Lua();
+                else if (ext == ".py")
+                    lang = TextEditor::Language::Python();
+                else if (ext == ".sql")
+                    lang = TextEditor::Language::Sql();
+                else if (ext == ".md" || ext == ".markdown")
+                    lang = TextEditor::Language::Markdown();
+
+                editor.SetLanguage(lang);
+                editor.SetText(content);
+            }
+
+            ImGui::Spacing();
+            ImGui::SeparatorText("Source Preview");
+
+            float availH = ImGui::GetContentRegionAvail().y - 30.f;
+            if (availH < 100.f) availH = 200.f;
+
+            // Render the editor widget, then immediately release keyboard
+            // focus so it doesn't steal input from the rest of the UI.
+            editor.Render("##src_preview", ImVec2(0, availH));
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
+            {
+                auto& io = ImGui::GetIO();
+                io.WantCaptureKeyboard = false;
+                io.WantTextInput       = false;
+            }
+        };
+
+        // Template (.json in templates/)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Template, "TPL", "Prefab Template",
+                                     {0.27f, 0.51f, 0.71f, 1.f})
+            .Classify([](const std::filesystem::path& p) {
+                std::string ext = p.extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                return ext == ".json" && p.string().find("templates") != std::string::npos;
+            })
+            .Inspect([](const AssetContext& ctx) {
+                ImGui::Spacing();
+                ImGui::TextWrapped("Drag onto the viewport to spawn this prefab into the scene.");
+            })
+            .OnViewportDrop([abRef](const AssetContext& ctx) -> bool {
+                if (!abRef || !ctx.engine) return false;
+                for (auto& node : abRef->BuildFromTemplate(ctx.absolutePath))
+                {
+                    ctx.engine->mainScene_->root_node_->AddChild(node);
+                    spdlog::info("[DevEditor] Spawned '{}' from prefab '{}'",
+                                 node->GetName(), ctx.absolutePath);
+                }
+                return true;
+            })
+            .DragTip("Drop onto viewport to spawn")
+        );
+
+        // Scene (.json in scenes/)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Scene, "SCN", "Scene",
+                                     {0.24f, 0.70f, 0.44f, 1.f})
+            .Classify([](const std::filesystem::path& p) {
+                std::string ext = p.extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                return ext == ".json" && p.string().find("scenes") != std::string::npos;
+            })
+            .Inspect([](const AssetContext& ctx) {
+                ImGui::Spacing();
+                if (ImGui::Button("Load Scene", ImVec2(-1, 0)))
+                {
+                    ctx.engine->LoadScene(ctx.absolutePath, false);
+                    spdlog::info("[DevEditor] Loaded scene '{}'", ctx.absolutePath);
+                }
+            })
+            .ContextMenu([](const AssetContext& ctx) {
+                if (ImGui::MenuItem("Load Scene"))
+                    ctx.engine->LoadScene(ctx.absolutePath, false);
+            })
+        );
+
+        // Config (.json fallback, .csv, .xml, .yaml, .toml, .ini, .txt)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Config, "CFG", "Config",
+                                     {0.63f, 0.63f, 0.63f, 1.f},
+                                     {".json", ".csv", ".xml", ".yaml", ".yml",
+                                      ".toml", ".ini", ".cfg", ".txt"})
+            .Inspect(sourcePreviewFn)
+        );
+
+        // Code (.cpp, .hpp, .h, .cc, .c, .cxx, .cs, .py, .lua)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Code, "SRC", "Source Code",
+                                     {0.90f, 0.55f, 0.10f, 1.f},
+                                     {".cpp", ".hpp", ".h", ".cc", ".c", ".cxx",
+                                      ".inl", ".cs", ".py", ".lua"})
+            .Inspect(sourcePreviewFn)
+        );
+
+        // Shader (.glsl, .vert, .frag, .hlsl, etc.)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Shader, "SHD", "Shader",
+                                     {0.58f, 0.44f, 0.86f, 1.f},
+                                     {".glsl", ".vert", ".frag", ".geom", ".comp",
+                                      ".hlsl", ".fx", ".cg"})
+            .Inspect(sourcePreviewFn)
+        );
+
+        // Image (.png, .jpg, etc.)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Image, "IMG", "Image",
+                                     {0.13f, 0.70f, 0.67f, 1.f},
+                                     {".png", ".jpg", ".jpeg", ".bmp", ".tga"})
+            .Inspect([](const AssetContext& ctx) {
+                auto* registry = ctx.engine->assetRegistry_.get();
+                if (!registry) return;
+
+                auto texHandle = registry->GetTexture(ctx.relativePath);
+                GLuint glTex   = registry->GetGLTextureHandle(texHandle);
+                if (glTex != 0)
+                {
+                    ImGui::Spacing();
+                    float previewSize = glm::min(ImGui::GetContentRegionAvail().x, 256.f);
+                    ImGui::Image(reinterpret_cast<ImTextureID>(
+                        static_cast<intptr_t>(glTex)),
+                        ImVec2(previewSize, previewSize));
+                }
+
+                TextureAsset* tex = registry->Textures().Get(texHandle);
+                if (tex)
+                {
+                    ImGui::Spacing();
+                    ImGui::SeparatorText("Image Settings");
+                    const float labelW = 100.f;
+
+                    ImGui::TextDisabled("Dimensions");
+                    ImGui::SameLine(labelW);
+                    ImGui::Text("%d x %d", tex->sourceWidth, tex->sourceHeight);
+
+                    {
+                        static const char* filterLabels[] = { "Point (Pixel Art)", "Bilinear", "Trilinear" };
+                        int idx = static_cast<int>(tex->filterMode);
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextUnformatted("Filter Mode");
+                        ImGui::SameLine(labelW);
+                        ImGui::SetNextItemWidth(-1);
+                        if (ImGui::Combo("##FilterMode", &idx, filterLabels, 3))
+                        {
+                            tex->filterMode = static_cast<TextureFilterMode>(idx);
+                            registry->SaveTextureMeta(texHandle);
+                            registry->ReapplyTextureParams(texHandle);
+                        }
+                    }
+                    {
+                        static const char* wrapLabels[] = { "Repeat", "Clamp", "Mirror Repeat" };
+                        int idx = static_cast<int>(tex->wrapMode);
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextUnformatted("Wrap Mode");
+                        ImGui::SameLine(labelW);
+                        ImGui::SetNextItemWidth(-1);
+                        if (ImGui::Combo("##WrapMode", &idx, wrapLabels, 3))
+                        {
+                            tex->wrapMode = static_cast<TextureWrapMode>(idx);
+                            registry->SaveTextureMeta(texHandle);
+                            registry->ReapplyTextureParams(texHandle);
+                        }
+                    }
+                    {
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextUnformatted("Pixels/Unit");
+                        ImGui::SameLine(labelW);
+                        ImGui::SetNextItemWidth(-1);
+                        if (ImGui::DragFloat("##PPU", &tex->pixelsPerUnit, 1.f, 1.f, 2048.f, "%.0f"))
+                            registry->SaveTextureMeta(texHandle);
+                    }
+                    {
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextUnformatted("Mipmaps");
+                        ImGui::SameLine(labelW);
+                        if (ImGui::Checkbox("##Mipmaps", &tex->generateMipmaps))
+                            registry->SaveTextureMeta(texHandle);
+                    }
+                }
+            })
+        );
+
+        // Audio (.wav, .ogg, etc.)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Audio, "SFX", "Audio Clip",
+                                     {0.90f, 0.40f, 0.80f, 1.f},
+                                     {".wav", ".ogg", ".mp3", ".flac"})
+            .Inspect([](const AssetContext& ctx) {
+                ImGui::Spacing();
+                ImGui::TextWrapped("Audio clip -- add an Audio Source component to a scene node "
+                                   "and set 'Clip Path' to this file's path.");
+                ImGui::Spacing();
+                ImGui::SeparatorText("Clip Info");
+                ImGui::TextDisabled("Clip Path");
+                ImGui::SameLine(100);
+                ImGui::TextWrapped("%s", ctx.relativePath.c_str());
+                if (ImGui::SmallButton("Copy Clip Path"))
+                    ImGui::SetClipboardText(ctx.relativePath.c_str());
+            })
+        );
+
+        // Material (.material)
+        ad.Register(
+            AssetDescriptor::Create(AssetType::Material, "MAT", "Material",
+                                     {0.85f, 0.65f, 0.13f, 1.f}, {".material"})
+            .Inspect([](const AssetContext& ctx) {
+                ImGui::Spacing();
+                ImGui::TextWrapped("Drag onto a sprite in the viewport or onto the inspector "
+                                   "to assign this material.");
+
+                auto* registry = ctx.engine->assetRegistry_.get();
+                if (!registry) return;
+
+                auto matHandle = registry->GetMaterial(ctx.relativePath);
+                auto* mat = registry->Materials().Get(matHandle);
+                if (mat && mat->IsValid())
+                {
+                    ImGui::Spacing();
+                    ImGui::SeparatorText("Material Properties");
+                    ImGui::TextDisabled("Shader");
+                    ImGui::SameLine(80);
+                    ImGui::Text("%s", mat->shaderName.c_str());
+                    ImGui::TextDisabled("Texture");
+                    ImGui::SameLine(80);
+                    ImGui::Text("%s", mat->texturePath.c_str());
+
+                    if (!mat->texturePath.empty())
+                    {
+                        auto texH   = registry->GetTexture(mat->texturePath);
+                        GLuint glTex = registry->GetGLTextureHandle(texH);
+                        if (glTex != 0)
+                        {
+                            float previewSize = ImGui::GetContentRegionAvail().x;
+                            ImGui::Image(reinterpret_cast<ImTextureID>(
+                                static_cast<intptr_t>(glTex)),
+                                ImVec2(previewSize, previewSize));
+                        }
+                    }
+                }
+            })
+            .OnViewportDrop([](const AssetContext& ctx) -> bool {
+                std::string matPath = ctx.relativePath;
+
+                if (ctx.targetNode)
+                {
+                    if (auto* rn = ctx.targetNode->GetComponent<RenderableNode>())
+                    {
+                        if (auto* spr = dynamic_cast<Sprite*>(rn->renderable_.get()))
+                        {
+                            spr->SetMaterialPath(matPath);
+                            spdlog::info("[DevEditor] Assigned material '{}' to '{}'",
+                                         matPath, ctx.targetNode->GetName());
+                            return true;
+                        }
+                    }
+                }
+
+                auto sprite = std::make_shared<Sprite>();
+                sprite->SetMaterialPath(matPath);
+
+                std::string name = "Sprite_" +
+                    std::filesystem::path(matPath).stem().string();
+                auto node = std::make_shared<SceneNode>(name);
+                node->AddComponent(RenderableNode(sprite));
+
+                ctx.engine->mainScene_->root_node_->AddChild(node);
+                ctx.engine->renderEngine_.AddRenderable(sprite);
+                spdlog::info("[DevEditor] Spawned sprite with material '{}'", matPath);
+                return true;
+            })
+            .OnInspectorDrop([](const AssetContext& ctx) -> bool {
+                if (!ctx.targetNode) return false;
+                if (auto* rn = ctx.targetNode->GetComponent<RenderableNode>())
+                {
+                    if (auto* spr = dynamic_cast<Sprite*>(rn->renderable_.get()))
+                    {
+                        spr->SetMaterialPath(ctx.relativePath);
+                        spdlog::info("[DevEditor] Material '{}' assigned via inspector", ctx.relativePath);
+                        return true;
+                    }
+                }
+                return false;
+            })
+            .ExtraPayload("MATERIAL_ASSET", [](const AssetContext& ctx) -> std::string {
+                return ctx.relativePath;
+            })
+            .DragTip("Drop onto sprite to assign")
+        );
     }
 
     void DevEditor::UpdateUI() { DrawEditor(); }
 
     void DevEditor::Update()
     {
+        // Detect scene change -- clear stale selections/follow state from previous scene
+        {
+            uint32_t gen = engineInstance_->sceneGeneration_;
+            if (gen != lastSceneGeneration_)
+            {
+                lastSceneGeneration_ = gen;
+                selectedNodes_.clear();
+                inspectorSource_ = InspectorSource::None;
+                selectedAsset_.active = false;
+                if (isFollowing_) StopFollowing();
+                trajectoryTrails_.clear();
+            }
+        }
+
+        // Trajectory sampling
+        if (showTrajectoryDebug_)
+            UpdateTrajectories(ImGui::GetIO().DeltaTime);
+
         // Follow-camera: keep editor camera centered on followed node
         if (isFollowing_)
         {
@@ -3422,6 +4267,117 @@ namespace ettycc
     {
         isFollowing_ = false;
         followTarget_.reset();
+    }
+
+    // -------------------------------------------------------------------------
+    // TRAJECTORY TRAIL GIZMO
+    // -------------------------------------------------------------------------
+
+    void DevEditor::UpdateTrajectories(float dt)
+    {
+        if (!engineInstance_->mainScene_) return;
+
+        trailSampleTimer_ += dt;
+        if (trailSampleTimer_ < trailSampleInterval_) return;
+        trailSampleTimer_ = 0.f;
+
+        auto& rbPool   = engineInstance_->mainScene_->registry_.Pool<RigidBodyComponent>();
+        auto& comps    = rbPool.Components();
+        auto& entities = rbPool.Entities();
+
+        // Prune trails for entities that no longer exist
+        for (auto it = trajectoryTrails_.begin(); it != trajectoryTrails_.end(); )
+        {
+            bool found = false;
+            for (size_t i = 0; i < entities.size(); ++i)
+            {
+                if (static_cast<uint64_t>(entities[i]) == it->first) { found = true; break; }
+            }
+            if (!found) it = trajectoryTrails_.erase(it);
+            else ++it;
+        }
+
+        for (size_t i = 0; i < comps.size(); ++i)
+        {
+            auto& rb = comps[i];
+            if (!rb.IsInitialized() || !rb.IsDynamic()) continue;
+
+            uint64_t key = static_cast<uint64_t>(entities[i]);
+
+            // Cap tracked bodies
+            if (trajectoryTrails_.find(key) == trajectoryTrails_.end()
+                && trajectoryTrails_.size() >= kTrailMaxBodies)
+                continue;
+
+            auto& trail = trajectoryTrails_[key];
+            trail.positions[trail.head] = rb.GetPosition();
+            trail.mass = rb.GetMass();
+            trail.head = (trail.head + 1) % kTrailLength;
+            if (trail.count < kTrailLength) ++trail.count;
+        }
+    }
+
+    void DevEditor::DrawTrajectoryGizmos(ImVec2 imgMin, ImVec2 imgSize)
+    {
+        if (!engineInstance_->mainScene_ || trajectoryTrails_.empty()) return;
+
+        auto& cam = engineInstance_->editorCamera_->editorCameraControl_;
+        glm::mat4 view = cam->ComputeViewMatrix(0.f);
+        glm::mat4 proj = cam->ComputeProjectionMatrix(0.f);
+
+        auto toScreen = [&](glm::vec3 wp) -> ImVec2 {
+            glm::vec4 c = proj * view * glm::vec4(wp, 1.f);
+            glm::vec3 n = glm::vec3(c) / c.w;
+            return { imgMin.x + (n.x * 0.5f + 0.5f) * imgSize.x,
+                     imgMin.y + (1.f - (n.y * 0.5f + 0.5f)) * imgSize.y };
+        };
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+
+        // HSV hue palette -- each body gets a unique hue based on entity ID
+        auto entityColor = [](uint64_t id, float alpha) -> ImU32 {
+            float hue = glm::mod(id * 0.618033988f, 1.0f); // golden ratio scatter
+            float r, g, b;
+            ImGui::ColorConvertHSVtoRGB(hue, 0.85f, 1.0f, r, g, b);
+            return IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), (int)(alpha * 255));
+        };
+
+        for (auto& [entityId, trail] : trajectoryTrails_)
+        {
+            if (trail.count < 2) continue;
+
+            // Fused bodies get thicker lines
+            const float thickness = (trail.mass > 1.1f) ? 2.5f : 1.2f;
+
+            // Draw trail segments from oldest to newest with fading alpha
+            for (int i = 0; i < trail.count - 1; ++i)
+            {
+                // Ring buffer: oldest sample is at head (wraps around)
+                int idxA = (trail.head - trail.count + i + kTrailLength) % kTrailLength;
+                int idxB = (idxA + 1) % kTrailLength;
+
+                float t = static_cast<float>(i) / static_cast<float>(trail.count - 1);
+
+                // Fade: older = transparent, newer = opaque
+                float alpha = t * t * 0.9f; // quadratic fade-in
+
+                ImU32 col = entityColor(entityId, alpha);
+                ImVec2 a = toScreen(trail.positions[idxA]);
+                ImVec2 b = toScreen(trail.positions[idxB]);
+
+                dl->AddLine(a, b, col, thickness * (0.3f + 0.7f * t));
+            }
+
+            // Draw a bright dot at the current (newest) position
+            if (trail.count > 0)
+            {
+                int newest = (trail.head - 1 + kTrailLength) % kTrailLength;
+                ImVec2 headPt = toScreen(trail.positions[newest]);
+                ImU32 headCol = entityColor(entityId, 1.0f);
+                float dotRadius = (trail.mass > 1.1f) ? 4.0f : 2.5f;
+                dl->AddCircleFilled(headPt, dotRadius, headCol);
+            }
+        }
     }
 
 } // namespace ettycc

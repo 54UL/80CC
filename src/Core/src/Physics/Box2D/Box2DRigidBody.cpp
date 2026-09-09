@@ -1,5 +1,6 @@
 #include <Physics/Box2D/Box2DRigidBody.hpp>
 #include <Physics/PhysicsConstants.hpp>
+#include <Math/Utils.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include <box2d/box2d.h>
@@ -60,7 +61,7 @@ namespace ettycc::physics
     void Box2DRigidBody::SetTransform(const glm::vec3& pos, const glm::quat& rot)
     {
         if (!body_) return;
-        float angle = 2.f * std::atan2(rot.z, rot.w);
+        float angle = math::QuatToAngle2D(rot);
         body_->SetTransform({pos.x * kBox2DScale, pos.y * kBox2DScale}, angle);
     }
 
@@ -83,7 +84,7 @@ namespace ettycc::physics
 
     void Box2DRigidBody::SetLinearFactor(const glm::vec3& f)
     {
-        // Box2D is inherently 2D — no per-axis linear constraints.
+        // Box2D is inherently 2D -- no per-axis linear constraints.
         (void)f;
     }
 

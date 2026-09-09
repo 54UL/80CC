@@ -1,8 +1,8 @@
 #include <Graphics/Rendering/Entities/SoftBodyRenderable.hpp>
 #include <UI/EditorPropertyVisitor.hpp>
 #include <Engine.hpp>
+#include <Scene/Assets/AssetRegistry.hpp>
 
-// stb_image is already implemented in Sprite.cpp -- include header only here
 #include <stb_image.h>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -20,11 +20,15 @@ namespace ettycc
     {
         numVerts_ = body_->GetNodeCount();
 
-        vertexBuffer_.resize(numVerts_ * 5, 0.0f);
-        for (int i = 0; i < numVerts_; ++i)
+        // Initialize both double-buffer slots with UVs
+        for (int buf = 0; buf < 2; ++buf)
         {
-            vertexBuffer_[i * 5 + 3] = (i * 2 + 0 < static_cast<int>(uvs.size())) ? uvs[i * 2 + 0] : 0.0f;
-            vertexBuffer_[i * 5 + 4] = (i * 2 + 1 < static_cast<int>(uvs.size())) ? uvs[i * 2 + 1] : 0.0f;
+            vertexBuffers_[buf].resize(numVerts_ * 5, 0.0f);
+            for (int i = 0; i < numVerts_; ++i)
+            {
+                vertexBuffers_[buf][i * 5 + 3] = (i * 2 + 0 < static_cast<int>(uvs.size())) ? uvs[i * 2 + 0] : 0.0f;
+                vertexBuffers_[buf][i * 5 + 4] = (i * 2 + 1 < static_cast<int>(uvs.size())) ? uvs[i * 2 + 1] : 0.0f;
+            }
         }
     }
 
@@ -40,27 +44,29 @@ namespace ettycc
         if (initialized)
             return;
 
-        auto cache = GetDependency(ResourceCache);
-        cachedShader_ = cache->GetShader(kShaderName);
+        auto registry = GetDependency(AssetRegistry);
+        shaderHandle_  = registry->GetShader(kShaderName);
+        textureHandle_ = registry->GetTexture(texturePath_);
+        TEXTURE_       = registry->GetGLTextureHandle(textureHandle_);
 
-        auto resources = GetDependency(Globals);
-        const std::string fullPath = resources->GetWorkingFolder() + texturePath_;
-        TEXTURE_ = cache->GetTexture(fullPath);
-
-        if (cachedShader_)
+        auto* shader = registry->Shaders().Get(shaderHandle_);
+        if (shader)
         {
-            cachedShader_->pipeline.Bind();
-            glUniform1i(glGetUniformLocation(cachedShader_->programId, "ourTexture"), 0);
-            cachedShader_->pipeline.Unbind();
+            shader->pipeline.Bind();
+            glUniform1i(glGetUniformLocation(shader->programId, "ourTexture"), 0);
+            shader->pipeline.Unbind();
         }
 
-        // Seed positions from the initial node positions
-        for (int i = 0; i < numVerts_; ++i)
+        // Seed positions from the initial node positions into both buffers
+        for (int buf = 0; buf < 2; ++buf)
         {
-            const glm::vec3 p = body_->GetNodePosition(i);
-            vertexBuffer_[i * 5 + 0] = p.x;
-            vertexBuffer_[i * 5 + 1] = p.y;
-            vertexBuffer_[i * 5 + 2] = p.z;
+            for (int i = 0; i < numVerts_; ++i)
+            {
+                const glm::vec3 p = body_->GetNodePosition(i);
+                vertexBuffers_[buf][i * 5 + 0] = p.x;
+                vertexBuffers_[buf][i * 5 + 1] = p.y;
+                vertexBuffers_[buf][i * 5 + 2] = p.z;
+            }
         }
 
         glGenVertexArrays(1, &VAO_);
@@ -71,8 +77,8 @@ namespace ettycc
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO_);
         glBufferData(GL_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(vertexBuffer_.size() * sizeof(float)),
-                     vertexBuffer_.data(),
+                     static_cast<GLsizeiptr>(vertexBuffers_[0].size() * sizeof(float)),
+                     vertexBuffers_[0].data(),
                      GL_DYNAMIC_DRAW);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
@@ -98,34 +104,51 @@ namespace ettycc
                      numVerts_, indices_.size());
     }
 
-    void SoftBodyRenderable::Pass(const std::shared_ptr<RenderingContext>& ctx, float /*deltaTime*/)
+    void SoftBodyRenderable::SyncFromPhysics()
     {
-        if (!initialized || !body_ || !cachedShader_)
-            return;
+        if (!body_ || !initialized) return;
 
-        // Pull updated world-space positions from physics
+        // Write to back buffer (physics thread owns this)
+        auto& back = vertexBuffers_[backBuffer_];
         for (int i = 0; i < numVerts_; ++i)
         {
             const glm::vec3 p = body_->GetNodePosition(i);
-            vertexBuffer_[i * 5 + 0] = p.x;
-            vertexBuffer_[i * 5 + 1] = p.y;
-            vertexBuffer_[i * 5 + 2] = p.z;
+            back[i * 5 + 0] = p.x;
+            back[i * 5 + 1] = p.y;
+            back[i * 5 + 2] = p.z;
         }
+
+        // Swap: publish back buffer as front (render thread picks it up)
+        frontBuffer_.store(backBuffer_, std::memory_order_release);
+        backBuffer_ = 1 - backBuffer_;
+    }
+
+    void SoftBodyRenderable::Pass(const std::shared_ptr<RenderingContext>& ctx, float /*deltaTime*/)
+    {
+        if (!initialized) return;
+
+        auto registry = GetDependency(AssetRegistry);
+        auto* shader = registry->Shaders().Get(shaderHandle_);
+        if (!shader) return;
+
+        // Read from the front buffer (no physics access -- lock-free)
+        const int front = frontBuffer_.load(std::memory_order_acquire);
+        const auto& vbuf = vertexBuffers_[front];
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO_);
         glBufferSubData(GL_ARRAY_BUFFER, 0,
-                        static_cast<GLsizeiptr>(vertexBuffer_.size() * sizeof(float)),
-                        vertexBuffer_.data());
+                        static_cast<GLsizeiptr>(vbuf.size() * sizeof(float)),
+                        vbuf.data());
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        const GLuint prog = cachedShader_->programId;
+        const GLuint prog = shader->programId;
 
         glm::mat4 PV = ctx->Projection * ctx->View;
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, TEXTURE_);
 
-        cachedShader_->pipeline.Bind();
+        shader->pipeline.Bind();
         glUniformMatrix4fv(glGetUniformLocation(prog, "PV"),
                            1, GL_FALSE, glm::value_ptr(PV));
         glUniform2f(glGetUniformLocation(prog, "tiling"),
@@ -136,7 +159,7 @@ namespace ettycc
                        static_cast<GLsizei>(indices_.size()),
                        GL_UNSIGNED_INT, 0);
 
-        cachedShader_->pipeline.Unbind();
+        shader->pipeline.Unbind();
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }

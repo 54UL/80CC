@@ -27,6 +27,27 @@ namespace ettycc
 		glm::mat4 ProjectionMatrix{};
 		std::shared_ptr<FrameBuffer> offScreenFrameBuffer;
 
+		// Multi-camera support: lower depth renders first (background).
+		// Cameras with depth >= 0 are game cameras; the editor camera uses a
+		// special negative depth so it never interferes.
+		int depth = 0;
+
+		// Normalized viewport rectangle (x, y, w, h) in [0,1].
+		// Full-screen camera = (0,0,1,1).  Smaller rects enable split-screen
+		// or picture-in-picture overlays.
+		glm::vec4 viewportRect = glm::vec4(0.f, 0.f, 1.f, 1.f);
+
+		// How the camera clears before rendering.
+		enum class ClearFlags : int { SolidColor = 0, DepthOnly = 1, Nothing = 2 };
+		ClearFlags clearFlags = ClearFlags::SolidColor;
+
+		// Background clear color (used when clearFlags == SolidColor).
+		glm::vec4 clearColor = glm::vec4(0.12f, 0.12f, 0.12f, 1.f);
+
+		// Layer culling mask -- a camera only renders objects whose layer
+		// bit is set in this mask.  Default = all layers.
+		uint32_t cullingMask = 0xFFFFFFFF;
+
 	public:
 		Camera();
 		Camera(int w, int h);
@@ -55,7 +76,12 @@ namespace ettycc
             ar(cereal::base_class<Renderable>(this),
                CEREAL_NVP(offScreenFrameBuffer),
                CEREAL_NVP(ispresp),
-               CEREAL_NVP(frustumCullingEnabled_));
+               CEREAL_NVP(frustumCullingEnabled_),
+               CEREAL_NVP(depth),
+               CEREAL_NVP(viewportRect),
+               CEREAL_NVP(clearFlags),
+               CEREAL_NVP(clearColor),
+               CEREAL_NVP(cullingMask));
         }
 	};
 } // namespace ettycc

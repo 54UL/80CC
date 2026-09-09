@@ -8,7 +8,21 @@ namespace ettycc
         : renderable_(std::move(renderable))
     {}
 
-    RenderableNode::~RenderableNode() {}
+    RenderableNode::~RenderableNode()
+    {
+        if (!renderable_) return;
+
+        // Unbind external transform so the renderable falls back to its
+        // internal transform -- prevents dangling pointer if the SceneNode
+        // (which owns the bound transform) is destroyed before the
+        // Renderable's shared_ptr ref count reaches zero.
+        renderable_->BindTransform(nullptr);
+
+        // Remove from the render engine so it won't be iterated next frame.
+        auto engine = GetDependency(Engine);
+        if (engine)
+            engine->renderEngine_.RemoveRenderable(renderable_);
+    }
 
     // -- System-facing API -----------------------------------------------------
     void RenderableNode::InitRenderable(Engine& engine)
@@ -19,10 +33,10 @@ namespace ettycc
         initialized_ = true;
     }
 
-    void RenderableNode::SyncTransform(const Transform& t)
+    void RenderableNode::SyncTransform(Transform& t)
     {
         if (renderable_)
-            renderable_->underylingTransform = t;
+            renderable_->BindTransform(&t);
     }
 
     // -- Editor inspector ------------------------------------------------------

@@ -66,7 +66,7 @@ namespace ettycc
         void InitBody(physics::IPhysicsWorld& world, Engine& engine);
         void UpdateBody(Transform& t);
         bool IsInitialized() const { return body_ != nullptr; }
-        void ReleaseBody() { body_.reset(); }
+        void ReleaseBody();  // clears body pointer in renderable first
 
         std::shared_ptr<Renderable> GetRenderable() const { return renderable_; }
 

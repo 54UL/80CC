@@ -1,6 +1,7 @@
 #include <Physics/Box2D/Box2DPhysicsWorld.hpp>
 #include <Physics/Box2D/Box2DRigidBody.hpp>
 #include <Physics/PhysicsConstants.hpp>
+#include <Math/Utils.hpp>
 #include <spdlog/spdlog.h>
 
 #include <box2d/box2d.h>
@@ -52,7 +53,7 @@ namespace ettycc::physics
         b2BodyDef bodyDef;
         bodyDef.type     = (def.mass > 0.f) ? b2_dynamicBody : b2_staticBody;
         bodyDef.position.Set(def.position.x * s, def.position.y * s);
-        bodyDef.angle    = 2.f * std::atan2(def.rotation.z, def.rotation.w);
+        bodyDef.angle    = math::QuatToAngle2D(def.rotation);
 
         b2Body* body = world_->CreateBody(&bodyDef);
 
@@ -66,8 +67,8 @@ namespace ettycc::physics
         {
         case ShapeType::Box:
         {
-            float hx = std::max(def.shape.halfExtents.x * s, kMinHalfExtent * s);
-            float hy = std::max(def.shape.halfExtents.y * s, kMinHalfExtent * s);
+            float hx = glm::max(def.shape.halfExtents.x * s, kMinHalfExtent * s);
+            float hy = glm::max(def.shape.halfExtents.y * s, kMinHalfExtent * s);
             boxShape.SetAsBox(hx, hy);
             fixtureDef.shape = &boxShape;
             float area = 4.f * hx * hy;
@@ -77,11 +78,68 @@ namespace ettycc::physics
         case ShapeType::Sphere:
         case ShapeType::Circle:
         {
-            float r = std::max(def.shape.radius * s, kMinRadius * s);
+            float r = glm::max(def.shape.radius * s, kMinRadius * s);
             circleShape.m_radius = r;
             fixtureDef.shape = &circleShape;
             float area = kPi * r * r;
             fixtureDef.density = (def.mass > 0.f && area > 0.f) ? def.mass / area : kDefaultDensity;
+            break;
+        }
+        case ShapeType::ConvexPolygon:
+        {
+            // polyVertices are already downsampled to ≤8 verts by ShapeDef::ConvexPoly.
+            // Always use a single convex fixture -- no compound collider needed.
+            const auto& polyVerts = def.shape.polyVertices;
+            if (polyVerts.size() >= 3)
+            {
+                // Compute area for density
+                float totalArea = 0.f;
+                for (size_t i = 0; i < polyVerts.size(); ++i)
+                {
+                    size_t j = (i + 1) % polyVerts.size();
+                    totalArea += polyVerts[i].x * polyVerts[j].y;
+                    totalArea -= polyVerts[j].x * polyVerts[i].y;
+                }
+                totalArea = glm::abs(totalArea) * 0.5f;
+                float density = (def.mass > 0.f && totalArea > 0.f) ? def.mass / totalArea : kDefaultDensity;
+
+                std::vector<b2Vec2> b2Verts;
+                b2Verts.reserve(polyVerts.size());
+                for (auto& v : polyVerts)
+                    b2Verts.push_back({ v.x * s, v.y * s });
+
+                // Check polygon area to avoid Box2D assertion on degenerate shapes
+                float polyArea = 0.f;
+                for (size_t vi = 0; vi < b2Verts.size(); ++vi)
+                {
+                    size_t vj = (vi + 1) % b2Verts.size();
+                    polyArea += b2Verts[vi].x * b2Verts[vj].y;
+                    polyArea -= b2Verts[vj].x * b2Verts[vi].y;
+                }
+                polyArea = glm::abs(polyArea) * 0.5f;
+
+                if (polyArea > 1e-6f && b2Verts.size() >= 3)
+                {
+                    boxShape.Set(b2Verts.data(), static_cast<int32>(b2Verts.size()));
+                    fixtureDef.shape = &boxShape;
+                    fixtureDef.density = density;
+                }
+                else
+                {
+                    // Degenerate polygon -- fallback to circle
+                    float r = glm::max((def.shape.halfExtents.x + def.shape.halfExtents.y) * 0.5f * s, kMinRadius * s);
+                    circleShape.m_radius = r;
+                    fixtureDef.shape = &circleShape;
+                    fixtureDef.density = density;
+                }
+            }
+            else
+            {
+                // Fallback: too few vertices, use a small box
+                boxShape.SetAsBox(0.5f * s, 0.5f * s);
+                fixtureDef.shape = &boxShape;
+                fixtureDef.density = kDefaultDensity;
+            }
             break;
         }
         default:

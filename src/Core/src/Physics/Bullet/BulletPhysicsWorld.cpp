@@ -95,7 +95,10 @@ namespace ettycc::physics
 
     void BulletPhysicsWorld::SetGravity(const glm::vec3& g)
     {
-        if (world_) world_->setGravity(btVector3(g.x, g.y, g.z));
+        if (!world_) return;
+        const btVector3 btg(g.x, g.y, g.z);
+        world_->setGravity(btg);
+        world_->getWorldInfo().m_gravity = btg;
     }
 
     glm::vec3 BulletPhysicsWorld::GetGravity() const
@@ -117,22 +120,32 @@ namespace ettycc::physics
         case ShapeType::Box:
         {
             const auto& h = def.shape.halfExtents;
-            const btScalar hx = btScalar(std::max(h.x * s, kMinHalfExtent));
-            const btScalar hy = btScalar(std::max(h.y * s, kMinHalfExtent));
-            const btScalar hz = btScalar(std::max(h.z * s, kMinHalfExtent));
+            const btScalar hx = btScalar(glm::max(h.x * s, kMinHalfExtent));
+            const btScalar hy = btScalar(glm::max(h.y * s, kMinHalfExtent));
+            const btScalar hz = btScalar(glm::max(h.z * s, kMinHalfExtent));
             shape = std::make_unique<btBoxShape>(btVector3(hx, hy, hz));
             break;
         }
         case ShapeType::Sphere:
         case ShapeType::Circle:
             shape = std::make_unique<btSphereShape>(
-                btScalar(std::max(def.shape.radius * s, kMinRadius)));
+                btScalar(glm::max(def.shape.radius * s, kMinRadius)));
             break;
         case ShapeType::Capsule:
             shape = std::make_unique<btCapsuleShape>(
-                btScalar(std::max(def.shape.radius * s, kMinRadius)),
-                btScalar(std::max(def.shape.height * s, kMinHeight)));
+                btScalar(glm::max(def.shape.radius * s, kMinRadius)),
+                btScalar(glm::max(def.shape.height * s, kMinHeight)));
             break;
+        case ShapeType::ConvexPolygon:
+        {
+            // Bullet convex hull from 2D polygon vertices (extruded slightly in Z)
+            auto convex = std::make_unique<btConvexHullShape>();
+            for (auto& v : def.shape.polyVertices)
+                convex->addPoint(btVector3(v.x * s, v.y * s, 0.f), false);
+            convex->recalcLocalAabb();
+            shape = std::move(convex);
+            break;
+        }
         default:
             shape = std::make_unique<btBoxShape>(btVector3(0.5f, 0.5f, 0.5f));
             break;
@@ -220,6 +233,16 @@ namespace ettycc::physics
         }
 
         raw->generateClusters(0);
+
+        // Bullet 3.25's btSequentialImpulseConstraintSolver::getOrInitSolverBody
+        // asserts isStaticOrKinematicObject() for any collision object that isn't
+        // a btRigidBody or a featherstone link.  btSoftBody is none of those, so
+        // mark it as kinematic to satisfy the solver's island processing.
+        // Actual soft body dynamics are handled separately by
+        // btSoftRigidDynamicsWorld::solveSoftBodiesConstraints.
+        raw->setCollisionFlags(raw->getCollisionFlags()
+                               | btCollisionObject::CF_KINEMATIC_OBJECT);
+
         world_->addSoftBody(raw);
 
         return std::make_unique<BulletSoftBody>(

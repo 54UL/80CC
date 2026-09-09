@@ -20,8 +20,12 @@
 #include <Audio/AudioManager.hpp>
 #include <Threading/ThreadRegistry.hpp>
 
-#include <Scene/Assets/ResourceCache.hpp>
+#include <Scene/Assets/AssetRegistry.hpp>
 #include <UI/ComponentRegistry.hpp>
+#include <UI/AssetDescriptor.hpp>
+#include <UI/EditorExtensionRegistry.hpp>
+#include <Graphics/Rendering/RenderLayerConfig.hpp>
+
 
 #include <memory>
 #include <vector>
@@ -71,18 +75,47 @@ namespace ettycc
         }
     };
 
+    enum class SampleScene { Default, SoftBodies, Network };
+
+    // -- Per-scene configurable parameters ------------------------------------
+    // Each built-in scene declares a config struct with sensible defaults.
+    // The editor shows a popup to let the user tweak these before launching.
+
+    struct SoftBodySceneConfig
+    {
+        int   bodyCount        = 10;
+        float gravity          = -18.81f;
+        float softBodyRadius   = 0.7f;
+        float softBodyMass     = 10.0f;
+    };
+
+    struct NetworkSceneConfig
+    {
+        int   boxPairs         = 5;
+        float gravity          = -9.81f;
+    };
+
+    // Union-style holder for any built-in scene config
+    struct BuiltInSceneConfig
+    {
+        SampleScene          scene = SampleScene::Default;
+        SoftBodySceneConfig  softBodies;
+        NetworkSceneConfig   network;
+    };
+
     class Engine final : public EnginePipeline
     {
     public:
-        // DEPENDENCIES (ONLY INTERNAL SYSTEMS....)
         std::shared_ptr<App>                        appInstance_;
         std::shared_ptr<Globals>                    globals_;
         std::vector<std::shared_ptr<GameModule>>    gameModules_;
         std::shared_ptr<Camera>                     editorCamera_;
         std::shared_ptr<Grid>                       editorGrid_;
 
-        std::shared_ptr<Scene> mainScene_;// THIS SHOULD BE A MULTI SCENE ARRAY...
+        std::shared_ptr<Scene> mainScene_;
+        uint32_t               sceneGeneration_ = 0; // bumped on every LoadScene; used by editor to detect stale refs
         Rendering              renderEngine_;
+        RenderLayerConfig      renderLayerConfig_;
         std::unique_ptr<physics::IPhysicsWorld> physicsWorld_;
         physics::PhysicsRegistry               physicsRegistry_;
         bool                   simulationPaused_ = false;
@@ -92,101 +125,85 @@ namespace ettycc
         ThreadDebugInfo        threadDebugInfo_;
         ThreadRegistry         threadRegistry_;
         ModuleLoader           moduleLoader_;
-        ComponentRegistry      componentRegistry_;
-        std::shared_ptr<ResourceCache> resourceCache_;
+        ComponentRegistry          componentRegistry_;
+        AssetDescriptorRegistry    assetDescriptors_;
+        EditorExtensionRegistry    editorExtensions_;
+        std::shared_ptr<AssetRegistry> assetRegistry_;
 
     private:
-        bool isEditorMode_ = false;
-        bool isHeadless_   = false;
-        bool isPlaying_    = false;
+        bool isEditorMode_      = false;
+        bool isHeadless_        = false;
+        bool isPlaying_         = false;
+        bool audioInitialized_  = false;
 
-        // -- Async physics pipelining -----------------------------------------
-        // Physics Step runs on a pool thread.  We kick it at the end of Update()
-        // and wait for it at the START of the next frame's Update().
-        // This overlaps Bullet simulation with rendering.
-        std::future<float> physicsFuture_;
+        std::future<float> physicsFuture_;   // This overlaps Bullet simulation with rendering.
+
+        // -- Init sub-phases (called by Init) --
+        void InitAssetRegistry();
+        void InitPhysics();
+        void InitPresentation();   // GPU upload + audio -- only when !headless
+        void InitScene();          // scene load + modules -- only when !headless
+
+        // -- Scene switch helpers --
+        void PrepareSceneSwitch();   // clears renderables before loading a new scene
+        void FinalizeSceneLoad();    // camera setup + preload after scene is ready
 
     public:
-        // Waits for any in-flight async physics step to finish.
-        void DrainPhysicsFuture() { if (physicsFuture_.valid()) physicsFuture_.get(); }
-
-        // Drains the physics future, then releases every rigid/soft body in the
-        // scene so the world can be safely destroyed or swapped.
-        void ReleaseAllPhysicsBodies();
-
         explicit Engine(std::shared_ptr<App> appInstance);
         ~Engine() override;
 
-        // Call before Init(). True = running inside DevEditor, False = standalone game executable.
-        // This is the single source of truth for editor/game mode at runtime.
+        void Init() override;
+        void Update() override;
+        void PrepareFrame() override;
+        void PresentFrame() override;
+        PlayerInput * GetInputSystem() override;
+
+        // Engine config
+        void LoadGlobals(const std::string &fileName);
+        void StoreGlobals(const std::string &fileName) const;
+        void ConfigResource();
+
+        void BeginPlay();
+        void EndPlay();
+
+        void DrainPhysicsFuture() { if (physicsFuture_.valid()) physicsFuture_.get(); }
+        void ReleaseAllPhysicsBodies();
+
         void SetEditorMode(bool isEditor) { isEditorMode_ = isEditor; if (isEditor) simulationPaused_ = true; }
         bool IsEditorMode()         const { return isEditorMode_; }
 
-        // Call before Init(). True = headless dedicated server (no rendering, no audio, no input).
         void SetHeadlessMode(bool headless) { isHeadless_ = headless; }
         bool IsHeadless()           const { return isHeadless_; }
 
-        // TODO: Implement some pattern to create this from other place
-        // ALL THIS STUFF BELOW IS ONLY FOR TESTING...
+        // Scene operations (assets, scene handling and basic initialization)
+        void PreloadSceneAssets();
+        void LoadBuiltInScene(SampleScene scene = SampleScene::Default);
+        void LoadBuiltInScene(const BuiltInSceneConfig& cfg);
+        void LoadLastScene();
+        void LoadScene(const std::string& sceneName, const bool defaultPath = true);
+        void StoreScene(const std::string& sceneName, const bool defaultPath = true) const;
+        void InitEditorCamera();
+        void EnsureGameCamera();
+
+        void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
+        bool LoadDynamicModule(const std::string& dllPath);
+        void RestartDllModules();
+
+        // Network stuff
+        void InitNetwork(bool isHost, uint16_t port = 7777,
+                         const std::string& serverAddress = "127.0.0.1");
+        void StartNetworkWorker();
+        void StopNetworkWorker();
+
+        // Sample built-in scenes
+        void SoftBodyScene(const SoftBodySceneConfig& cfg = {});
+        void NetworkScene(const NetworkSceneConfig& cfg = {});
+
         void createSprite(const std::shared_ptr<SceneNode>& rootSceneNode, std::string spriteTexturePath, const glm::vec3& pos);
         void createPhysicsBox(std::shared_ptr<SceneNode> rootSceneNode, const std::string& texPath,
                               float mass, glm::vec3 halfExtents, glm::vec3 pos) const;
         void createSoftBody(std::shared_ptr<SceneNode> rootSceneNode, std::string texPath,
                             float radius, glm::vec3 pos, float mass = 1.0f) const;
-
-        void BoxesScene();
-
-
-        // Engine front-end API
-        void InitEditorCamera();
-        // Scans scene renderables for the first Camera; creates a default free-fly
-        // camera if none exists. Ensures the camera is first in the render list.
-        // Called automatically after every scene load in standalone mode.
-        void EnsureGameCamera();
-
-        void GravityScene();
-
-        void LoadDefaultScene();
-        void CreateEmptyScene(const std::string& name = "untitled");
-        // Engine front-end API
-        void LoadLastScene();
-        void LoadScene(const std::string& sceneName, const bool defaultPath = true);
-        void StoreScene(const std::string& sceneName, const bool defaultPath = true) const;
-
-
-        void RegisterModules(const std::vector<std::shared_ptr<GameModule>>& modules);
-        bool LoadDynamicModule(const std::string& dllPath);
-        void LoadGlobals(const std::string &fileName);
-        void StoreGlobals(const std::string &fileName) const;
-        void ConfigResource();
-
-        // Networking helpers
-        void InitNetwork(bool isHost, uint16_t port = 7777,
-                         const std::string& serverAddress = "127.0.0.1");
-        void StartNetworkWorker();
-        void StopNetworkWorker();
-        void LoadNetworkScene();
-
-        // -- Editor playback lifecycle ----------------------------------------
-        // Called by the editor to cleanly start/stop the simulation loop.
-        // Handles module restart, network worker, and simulation pause state.
-        void BeginPlay();   // unpause + restart modules + start network
-        void EndPlay();     // pause + destroy modules + stop network
-
-        // Restart all DLL modules: OnDestroy -> OnStart cycle.
-        void RestartDllModules();
-
-        // Async asset preloading -- reads images/shaders on a worker thread,
-        // then uploads GL objects on the main thread.  Call after scene
-        // deserialization but before SetupSceneSystems().
-        void PreloadSceneAssets();
-
-        // Engine pipeline API (backend)
-        void Init() override;
-        void Update() override;
-        void PrepareFrame() override;
-        void PresentFrame() override;
-        virtual PlayerInput * GetInputSystem() override;
     };
 } // namespace ettycc
 

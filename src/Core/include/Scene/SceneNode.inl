@@ -1,5 +1,5 @@
 // Avoid this shit below(.inl)...
-// SceneNode.inl — template implementations that need Scene fully defined.
+// SceneNode.inl -- template implementations that need Scene fully defined.
 // Included at the bottom of Scene.hpp, never included directly.
 #pragma once
 
@@ -14,7 +14,7 @@ void SceneNode::AddComponent(T comp)
     }
     else
     {
-        // Queue for later — flushed into the registry inside SceneNode::AddNode().
+        // Queue for later -- flushed into the registry inside SceneNode::AddNode().
         // Wrap in shared_ptr so the lambda is copy-constructible (required by std::function)
         // even when T is move-only.
         auto shared = std::make_shared<T>(std::move(comp));

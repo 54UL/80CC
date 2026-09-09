@@ -19,6 +19,8 @@ namespace ettycc
         GravityAttractorComponent() = default;
         GravityAttractorComponent(glm::vec3 position, float strength)
             : position_(position), strength_(strength) {}
+        GravityAttractorComponent(glm::vec3 position, float strength, float innerR, float outerR)
+            : position_(position), strength_(strength), innerRadius_(innerR), outerRadius_(outerR) {}
 
         glm::vec3 GetPosition()    const { return position_; }
         float     GetStrength()    const { return strength_; }

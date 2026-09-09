@@ -46,7 +46,7 @@ namespace ettycc
         ecs::Registry                           registry_;
         std::vector<std::unique_ptr<ISystem>>   systems_;
 
-        // Runtime O(1) node lookup — also holds shared ownership so nodes
+        // Runtime O(1) node lookup -- also holds shared ownership so nodes
         // stay alive even after removal from the tree hierarchy.
         // Built by walking root_node_'s tree in RebuildIndex().
         std::unordered_map<ecs::Entity, std::shared_ptr<SceneNode>> nodeIndex_;

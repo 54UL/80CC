@@ -115,7 +115,7 @@ namespace ettycc
         maxEntityId_ = Utils::EntityCounter() - 1;
 
         // The full tree is stored via root_node_ (children_ are recursive).
-        // No need for nodes_flat_ — the tree IS the data.
+        // No need for nodes_flat_ -- the tree IS the data.
         ar(CEREAL_NVP(sceneName_), CEREAL_NVP(maxEntityId_),
            CEREAL_NVP(root_node_));
         SerializeComponents(ar);

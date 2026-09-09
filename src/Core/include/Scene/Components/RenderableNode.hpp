@@ -41,6 +41,11 @@ namespace ettycc
         RenderableNode& operator=(RenderableNode&& o) noexcept
         {
             if (this == &o) return *this;
+            // Unbind the old renderable's transform before replacing it.
+            // This prevents a dangling transformSource_ if the old renderable
+            // is still referenced elsewhere (e.g. render engine list).
+            if (renderable_)
+                renderable_->BindTransform(nullptr);
             renderable_  = std::move(o.renderable_);
             initialized_ = o.initialized_;
             o.initialized_ = false;
@@ -49,7 +54,7 @@ namespace ettycc
 
         // -- System-facing API (called by RenderSystem) ------------------------
         void InitRenderable(Engine& engine);
-        void SyncTransform(const Transform& t);
+        void SyncTransform(Transform& t);
         bool IsInitialized() const { return initialized_; }
 
         // -- Editor inspector --------------------------------------------------

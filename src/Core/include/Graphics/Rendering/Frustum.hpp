@@ -54,9 +54,9 @@ namespace ettycc
             {
                 const glm::vec3 n(plane);
                 // Effective radius: project half-extents onto the plane normal
-                float r = halfExtents.x * std::abs(n.x)
-                        + halfExtents.y * std::abs(n.y)
-                        + halfExtents.z * std::abs(n.z);
+                float r = halfExtents.x * glm::abs(n.x)
+                        + halfExtents.y * glm::abs(n.y)
+                        + halfExtents.z * glm::abs(n.z);
 
                 // Signed distance from center to plane
                 float d = glm::dot(n, center) + plane.w;
@@ -71,7 +71,7 @@ namespace ettycc
         // Convenience: test a 2D sprite with position and scale (z half-extent = small).
         bool IsVisible(const glm::vec3& position, float scaleX, float scaleY) const
         {
-            return IsVisible(position, glm::vec3(std::abs(scaleX), std::abs(scaleY), 0.5f));
+            return IsVisible(position, glm::vec3(glm::abs(scaleX), glm::abs(scaleY), 0.5f));
         }
     };
 

@@ -6,6 +6,7 @@
 #include <Scene/Api.hpp>
 #include <Physics/IPhysicsBody.hpp>
 #include <glm/glm.hpp>
+#include <vector>
 
 namespace ettycc { namespace physics { class IPhysicsWorld; } }
 #include <cereal/archives/json.hpp>
@@ -34,7 +35,6 @@ namespace ettycc
             , syncTransform_(o.syncTransform_)
             , body_(std::move(o.body_))
             , isManipulated_(o.isManipulated_)
-            , fusionCooldown_(o.fusionCooldown_)
         {
             o.syncTransform_ = nullptr;
         }
@@ -50,7 +50,6 @@ namespace ettycc
             syncTransform_   = o.syncTransform_;
             body_            = std::move(o.body_);
             isManipulated_   = o.isManipulated_;
-            fusionCooldown_  = o.fusionCooldown_;
 
             o.syncTransform_ = nullptr;
             return *this;
@@ -59,7 +58,8 @@ namespace ettycc
         // -- System-facing API (called by PhysicsSystem) -----------------------
         void InitBody(physics::IPhysicsWorld& world,
                       Transform& syncTransform,
-                      const Transform* seedTransform = nullptr);
+                      const Transform* seedTransform = nullptr,
+                      const std::vector<glm::vec2>* polyVerts = nullptr);
 
         void SyncToTransform(Transform& t) const;
 
@@ -68,10 +68,6 @@ namespace ettycc
         bool IsDynamic()     const { return mass_ > 0.f; }
         float GetMass()      const { return mass_; }
 
-        bool  CanFuse()  const { return fusionCooldown_ <= 0.f; }
-        void  SetFusionCooldown(float seconds) { fusionCooldown_ = seconds; }
-        void  TickCooldown(float dt) { if (fusionCooldown_ > 0.f) fusionCooldown_ -= dt; }
-
         void ApplyCentralForce(const glm::vec3& f);
         void SetLinearVelocity(const glm::vec3& v);
         glm::vec3 GetPosition() const;
@@ -79,7 +75,8 @@ namespace ettycc
         glm::vec3 GetHalfExtents() const { return halfExtents_; }
         glm::quat GetRotation() const;
 
-        void Reinitialize(physics::IPhysicsWorld& world, float newMass, const glm::vec3& newHalfExtents);
+        void Reinitialize(physics::IPhysicsWorld& world, float newMass, const glm::vec3& newHalfExtents,
+                          const std::vector<glm::vec2>* polyVerts = nullptr);
 
         // -- Editor gizmo API --------------------------------------------------
         void BeginManipulation();
@@ -113,7 +110,6 @@ namespace ettycc
         Transform*                               syncTransform_  = nullptr;
         std::unique_ptr<physics::IPhysicsBody>   body_;
         bool                                     isManipulated_  = false;
-        float                                    fusionCooldown_ = 0.f;
     };
 }
 

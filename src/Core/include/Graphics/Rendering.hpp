@@ -22,6 +22,11 @@ namespace ettycc
         SpriteBatch spriteBatch_;
         bool spriteBatchReady_ = false;
 
+        // Editor-only overlay: camera + grid live outside the renderables list
+        // so they never interfere with game cameras in the scene.
+        std::shared_ptr<Renderable> editorCamera_;
+        std::shared_ptr<Renderable> editorGrid_;
+
     public:
         Rendering();
         ~Rendering();
@@ -46,6 +51,13 @@ namespace ettycc
                             const glm::mat4& view,
                             float deltaTime);
 
+        // Multi-camera game-view render.  Collects all enabled scene cameras
+        // from renderables, sorts by depth, and renders each one into the
+        // target FBO at its viewportRect.  Cameras whose viewportRect is
+        // smaller than (0,0,1,1) produce split-screen / overlay effects.
+        void RenderGameView(const std::shared_ptr<FrameBuffer>& fbo,
+                            float deltaTime);
+
         auto AddRenderable(std::shared_ptr<Renderable> renderable) -> void;
 
         void AddRenderables(const std::vector<std::shared_ptr<Renderable>>& renderables);
@@ -54,6 +66,18 @@ namespace ettycc
         // Move renderable to position 0 so it runs before all others (e.g. camera).
         // If not already in the list it is inserted at the front.
         void EnsureFirst(const std::shared_ptr<Renderable>& renderable);
+
+        // Set editor-only overlays (camera + grid).  These live outside the
+        // renderables list so game cameras are never mixed with editor state.
+        void SetEditorOverlay(std::shared_ptr<Renderable> camera,
+                              std::shared_ptr<Renderable> grid);
+        void ClearEditorOverlay();
+
+        // SpriteBatch stats for debug UI
+        const SpriteBatch::Stats& GetSpriteBatchStats() const { return spriteBatch_.GetStats(); }
+
+    private:
+        void SubmitRenderables(float deltaTime, uint32_t layerMask = 0xFFFFFFFF);
     };
 }
 

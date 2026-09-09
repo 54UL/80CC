@@ -1,16 +1,14 @@
 #include <Audio/AudioManager.hpp>
 #include <spdlog/spdlog.h>
 
+#include <Math/Constants.hpp>
+#include <glm/glm.hpp>
 #include <fstream>
 #include <cstring>
 #include <vector>
 #include <cmath>
 #include <algorithm>
 #include <cstdint>
-
-#ifndef M_PI
-#  define M_PI 3.14159265358979323846
-#endif
 
 namespace ettycc
 {
@@ -405,7 +403,7 @@ namespace ettycc
                 env = static_cast<float>(N - i) / static_cast<float>(relSamples);
 
             float t     = static_cast<float>(i) / static_cast<float>(SR);
-            float sample = env * std::sin(2.f * static_cast<float>(M_PI) * frequencyHz * t);
+            float sample = env * glm::sin(math::kTwoPi * frequencyHz * t);
 
             // Scale to int16 range with a little headroom
             pcm[i] = static_cast<int16_t>(sample * 28000.f);

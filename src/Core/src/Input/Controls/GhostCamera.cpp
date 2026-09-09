@@ -27,8 +27,8 @@ namespace ettycc
         //     // lookAxis += glm::vec3(-mouseDelta.y, mouseDelta.x, 0) * lookSensitivity * deltaTime;
         // }
 
-        camera_->underylingTransform.setGlobalPosition(positionAxis);
-        // camera_->underylingTransform.setGlobalRotation(lookAxis);
+        camera_->transform().setGlobalPosition(positionAxis);
+        // camera_->transform().setGlobalRotation(lookAxis);
     }
 
     void GhostCamera::LateUpdate(float deltaTime)

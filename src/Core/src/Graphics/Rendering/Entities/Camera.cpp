@@ -11,17 +11,20 @@ namespace ettycc
 {
     Camera::Camera()
     {
+        renderableType = Type::Camera;
     }
 
-    Camera::Camera(int h, int w)
+    Camera::Camera(int w, int h)
     {
-        this->SetOrtho(h, w);
+        renderableType = Type::Camera;
+        this->SetOrtho(w, h);
         Init(w, h);
     }
 
     Camera::Camera(int w, int h, float fov, float znear)
     {
-        this->SetPerspective(h, w, fov, znear);
+        renderableType = Type::Camera;
+        this->SetPerspective(w, h, fov, znear);
         Init(w, h);
     }
 
@@ -59,7 +62,7 @@ namespace ettycc
     {
         editorCameraControl_ = std::make_shared<EditorCamera>(inputSystem, this->offScreenFrameBuffer.get());
         // Bind the renderable's own transform so the control operates on it
-        editorCameraControl_->BindTransform(&underylingTransform);
+        editorCameraControl_->BindTransform(&transform());
     }
 
     // Renderable
@@ -87,7 +90,7 @@ namespace ettycc
         else
         {
             ctx->Projection = this->ProjectionMatrix;
-            ctx->View = this->underylingTransform.GetMatrix();
+            ctx->View = this->transform().GetMatrix();
         }
 
         // Compute frustum planes from the combined PV matrix
@@ -105,5 +108,58 @@ namespace ettycc
         PROP_SECTION("Camera");
         PROP(ispresp, "Perspective");
         PROP(frustumCullingEnabled_, "Frustum Culling");
+        PROP(depth, "Depth");
+        PROP(viewportRect, "Viewport Rect");
+
+        // Clear flags combo
+        {
+            static const char* clearFlagLabels[] = { "Solid Color", "Depth Only", "Nothing" };
+            int idx = static_cast<int>(clearFlags);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Clear Flags");
+            ImGui::SameLine(ImMax(80.f, ImGui::GetContentRegionAvail().x * 0.38f));
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::Combo("##ClearFlags", &idx, clearFlagLabels, 3))
+                clearFlags = static_cast<ClearFlags>(idx);
+        }
+
+        PROP_COLOR(clearColor, "Clear Color");
+
+        // Culling mask -- checkboxes for each active layer
+        {
+            auto& layerConfig = GetDependency(Engine)->renderLayerConfig_;
+            int layerCount = layerConfig.GetActiveCount();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Culling Mask");
+            ImGui::SameLine(ImMax(80.f, ImGui::GetContentRegionAvail().x * 0.38f));
+
+            // Preview label: show names of enabled layers
+            std::string preview;
+            for (int i = 0; i < layerCount; ++i)
+            {
+                if (cullingMask & (1u << i))
+                {
+                    if (!preview.empty()) preview += ", ";
+                    preview += layerConfig.GetName(i);
+                }
+            }
+            if (preview.empty()) preview = "(none)";
+
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::BeginCombo("##CullingMask", preview.c_str()))
+            {
+                for (int i = 0; i < layerCount; ++i)
+                {
+                    bool bit = (cullingMask & (1u << i)) != 0;
+                    if (ImGui::Checkbox(layerConfig.GetName(i).c_str(), &bit))
+                    {
+                        if (bit) cullingMask |= (1u << i);
+                        else     cullingMask &= ~(1u << i);
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
     }
 }

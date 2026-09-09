@@ -38,10 +38,11 @@ namespace ettycc
             return 1;
         }
 
-        // Set OpenGL attributes
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_EGL); //TODO: EGL??? LOL I FORGOT TO CHANGE THIS, BUT KEEPING IT UNTIL WE NEED DESKTOP GL
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        // Set OpenGL attributes -- request 4.5 core for compute shaders,
+        // persistent mapped buffers, and SSBO support.
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
 
         // Open GL initialization
         glContext_ = SDL_GL_CreateContext(window_);
@@ -71,11 +72,10 @@ namespace ettycc
             return 1;
         }
 
-        // Check if OpenGL 4.0 is supported
-        if (!GLEW_VERSION_3_3)
+        // Check minimum GL version
+        if (!GLEW_VERSION_4_5)
         {
-            // Handle lack of OpenGL 4.0 support
-            spdlog::error("OpenGL 3.3 not supported");
+            spdlog::error("OpenGL 4.5 not supported (required for compute shaders)");
             SDL_GL_DeleteContext(glContext_);
             SDL_DestroyWindow(window_);
             SDL_Quit();
@@ -112,7 +112,7 @@ namespace ettycc
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         ImGui_ImplSDL2_InitForOpenGL(window_, glContext_);
-        ImGui_ImplOpenGL3_Init("#version 330 core");
+        ImGui_ImplOpenGL3_Init("#version 450 core");
 
         SDL_GetWindowSize(window_, &mainWindowSize_.x, &mainWindowSize_.y);
     }

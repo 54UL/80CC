@@ -22,7 +22,7 @@ namespace ettycc::physics
         std::unique_ptr<IPhysicsBody>     CreateRigidBody(const RigidBodyDef& def)  override;
         void                              DestroyRigidBody(IPhysicsBody* body)      override;
 
-        // Soft bodies are not supported by Box2D — returns nullptr.
+        // Soft bodies are not supported by Box2D -- returns nullptr.
         std::unique_ptr<IPhysicsSoftBody> CreateSoftBody(const SoftBodyDef& def)    override;
         void                              DestroySoftBody(IPhysicsSoftBody* body)   override;
 

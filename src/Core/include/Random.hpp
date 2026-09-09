@@ -10,7 +10,7 @@
 namespace ettycc
 {
     // ------------------------------------------------------------------
-    // RNG  — lightweight wrapper around std::mt19937.
+    // RNG  -- lightweight wrapper around std::mt19937.
     //
     // Register a shared instance via the Dependency system so the same
     // engine is available everywhere without thread-local statics:

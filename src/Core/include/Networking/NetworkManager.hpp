@@ -137,6 +137,10 @@ namespace ettycc
         void Register  (uint32_t networkId, NetworkComponent* comp);
         void Unregister(uint32_t networkId);
 
+        // Clear all component registrations (call before scene destruction
+        // so inbound transforms don't hit dead component pointers).
+        void ClearComponentRegistry() { registry_.clear(); }
+
         // Legacy synchronous broadcast -- still available but prefer QueueBroadcast
         // for thread-safe operation.  Only call from the network thread.
         void BroadcastTransform(uint32_t networkId,

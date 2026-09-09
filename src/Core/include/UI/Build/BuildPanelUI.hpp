@@ -12,6 +12,8 @@ namespace ettycc
         explicit BuildPanelUI(build::GlobalBuildConfig& globalCfg);
         ~BuildPanelUI();
         void Draw();
+        void Open()         { open_ = true; }
+        bool IsOpen() const { return open_; }
 
     private:
         build::GlobalBuildConfig& globalCfg_;
@@ -22,6 +24,7 @@ namespace ettycc
         char sourcePath_ [512] = {};
         char outputPath_ [512] = {};
         int  configIndex_      = 0;
+        bool open_             = false;
         bool cleanBuild_       = false;
         bool keepGenerated_    = false;
 

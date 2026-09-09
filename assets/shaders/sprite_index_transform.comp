@@ -1,0 +1,37 @@
+#version 450 core
+
+// Compute shader: offsets sprite indices for the mega-draw buffer.
+// Each invocation processes one output index:
+//   output[i] = srcIndex[i] + sprite's dstVertOffset
+
+layout(local_size_x = 256) in;
+
+struct SpriteInfo {
+    float m00, m10, m30;
+    float m01, m11, m31;
+    float m02, m12, m32;
+    float br, bg, bb;
+    float er, eg, eb, ew;
+    uint  dstVertOffset;
+    uint  dstIdxOffset;
+    uint  numVerts;
+    uint  numIndices;
+};
+
+layout(std430, binding = 0) readonly buffer SpriteInfoBuf { SpriteInfo sprites[]; };
+layout(std430, binding = 1) readonly buffer SrcIdxBuf     { uint srcIndices[]; };
+layout(std430, binding = 2) writeonly buffer DstIdxBuf    { uint dstIndices[]; };
+layout(std430, binding = 3) readonly buffer IdxToSprite   { uint idxToSprite[]; };
+
+uniform uint uTotalIndices;
+
+void main()
+{
+    uint iid = gl_GlobalInvocationID.x;
+    if (iid >= uTotalIndices) return;
+
+    uint si = idxToSprite[iid];
+    uint base = sprites[si].dstVertOffset;
+
+    dstIndices[iid] = srcIndices[iid] + base;
+}
